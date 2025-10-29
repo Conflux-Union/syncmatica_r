@@ -4,7 +4,6 @@ import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.gui.button.ButtonBase;
 import fi.dy.masa.malilib.gui.button.IButtonActionListener;
 import net.minecraft.client.gui.screen.Screen;
-import org.apache.logging.log4j.LogManager;
 
 public class ButtonListenerChangeMenu implements IButtonActionListener {
 
@@ -21,7 +20,7 @@ public class ButtonListenerChangeMenu implements IButtonActionListener {
         GuiBase gui = null;
         switch (type) {
             case MATERIAL_GATHERINGS:
-                LogManager.getLogger().info("Opened Material Gatherings GUI - currently unsupported operation");
+                gui = new GuiSyncmaticaServerPlacementList();
                 break;
             case VIEW_SYNCMATICS:
                 gui = new GuiSyncmaticaServerPlacementList();

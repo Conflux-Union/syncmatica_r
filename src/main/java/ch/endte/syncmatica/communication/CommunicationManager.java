@@ -9,6 +9,9 @@ import ch.endte.syncmatica.extended_core.PlayerIdentifier;
 import ch.endte.syncmatica.extended_core.PlayerIdentifierProvider;
 import ch.endte.syncmatica.extended_core.SubRegionData;
 import ch.endte.syncmatica.extended_core.SubRegionPlacementModification;
+import ch.endte.syncmatica.material.MaterialKey;
+import ch.endte.syncmatica.material.MaterialProgressEntry;
+import ch.endte.syncmatica.material.MaterialProgressState;
 import ch.endte.syncmatica.util.SyncmaticaUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.PacketByteBuf;
@@ -90,6 +93,7 @@ public abstract class CommunicationManager {
         }
 
         putPositionData(metaData, buf, exchangeTarget);
+        putMaterialProgress(metaData, buf, exchangeTarget);
     }
 
     public void putPositionData(final ServerPlacement metaData, final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
@@ -121,6 +125,10 @@ public abstract class CommunicationManager {
         }
     }
 
+    public void putMaterialData(final ServerPlacement placement, final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
+        putMaterialProgress(placement, buf, exchangeTarget);
+    }
+
     public ServerPlacement receiveMetaData(final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
         final UUID id = buf.readUuid();
 
@@ -146,6 +154,7 @@ public abstract class CommunicationManager {
         placement.setLastModifiedBy(lastModifiedBy);
 
         receivePositionData(placement, buf, exchangeTarget);
+        receiveMaterialProgress(placement, buf, exchangeTarget);
 
         return placement;
     }
@@ -170,6 +179,84 @@ public abstract class CommunicationManager {
                 );
             }
         }
+    }
+
+    private void putMaterialProgress(final ServerPlacement placement, final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
+        if (!exchangeTarget.getFeatureSet().hasFeature(Feature.MATERIAL_PROGRESS)) {
+            return;
+        }
+        final boolean canSend = context.isServer()
+                && context.getMaterialService() != null
+                && context.getMaterialService().isEnabled();
+        final Collection<MaterialProgressEntry> entries = canSend ? placement.getMaterialProgress().getEntries() : Collections.emptyList();
+        buf.writeInt(entries.size());
+        if (!canSend) {
+            return;
+        }
+        for (final MaterialProgressEntry entry : entries) {
+            buf.writeString(entry.getKey().getItemId().toString());
+            buf.writeString(entry.getKey().getVariant());
+            buf.writeInt(entry.getRequiredAmount());
+            buf.writeInt(entry.getPlayerSupplied());
+            buf.writeInt(entry.getStockingSupplied());
+            final PlayerIdentifier claimedBy = entry.getClaimedBy();
+            if (claimedBy != null && claimedBy != PlayerIdentifier.MISSING_PLAYER) {
+                buf.writeBoolean(true);
+                buf.writeUuid(claimedBy.uuid);
+                buf.writeString(claimedBy.getName());
+            } else {
+                buf.writeBoolean(false);
+            }
+        }
+    }
+
+    private void receiveMaterialProgress(final ServerPlacement placement, final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
+        if (!exchangeTarget.getFeatureSet().hasFeature(Feature.MATERIAL_PROGRESS)) {
+            return;
+        }
+        final int total = buf.readInt();
+        if (total <= 0) {
+            if (!context.isServer()) {
+                placement.getMaterialProgress().clear();
+            }
+            return;
+        }
+        if (context.isServer() && context.getMaterialService() != null) {
+            for (int i = 0; i < total; i++) {
+                buf.readString(32767);
+                buf.readString(32767);
+                buf.readInt();
+                buf.readInt();
+                buf.readInt();
+                final boolean hasClaim = buf.readBoolean();
+                if (hasClaim) {
+                    buf.readUuid();
+                    buf.readString(32767);
+                }
+            }
+            return;
+        }
+        final MaterialProgressState snapshot = new MaterialProgressState();
+        for (int i = 0; i < total; i++) {
+            final MaterialKey key = new MaterialKey(new Identifier(buf.readString(32767)), buf.readString(32767));
+            final int required = buf.readInt();
+            final MaterialProgressEntry entry = snapshot.getOrCreate(key, required);
+            entry.setPlayerSupplied(buf.readInt());
+            entry.setStockingSupplied(buf.readInt());
+            final boolean hasClaim = buf.readBoolean();
+            if (hasClaim) {
+                final PlayerIdentifier claimed = context.getPlayerIdentifierProvider().createOrGet(
+                        buf.readUuid(),
+                        buf.readString(32767)
+                );
+                entry.setClaimedBy(claimed);
+            }
+        }
+        placement.applyMaterialProgressSnapshot(snapshot);
+    }
+
+    public void receiveMaterialData(final ServerPlacement placement, final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
+        receiveMaterialProgress(placement, buf, exchangeTarget);
     }
 
     public void download(final ServerPlacement syncmatic, final ExchangeTarget source) throws NoSuchAlgorithmException, IOException {

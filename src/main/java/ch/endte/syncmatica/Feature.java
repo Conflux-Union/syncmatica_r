@@ -8,6 +8,7 @@ public enum Feature {
     MESSAGE, // ability to send messages to display from server to client
     QUOTA,  // quota on client uploads to the server
     DEBUG,  // ability to configure debugging
+    MATERIAL_PROGRESS, // shared material requirements and aggregation
     CORE_EX; // extended basic features - such as who owns a placement and subregion sharing
 
     public static Feature fromString(final String s) {

@@ -39,7 +39,6 @@ public abstract class MixinServerPlayNetworkHandler {
         operateComms(sm -> sm.onPlayerJoin(getExchangeTarget(), player));
     }
 
-    @Inject(method = "onDisconnected", at = @At("HEAD"))
     public void onDisconnected(final Text reason, final CallbackInfo ci) {
         operateComms(sm -> sm.onPlayerLeave(getExchangeTarget()));
     }

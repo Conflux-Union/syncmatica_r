@@ -1,8 +1,10 @@
 package ch.endte.syncmatica.mixin;
 
+import ch.endte.syncmatica.Context;
 import ch.endte.syncmatica.FileStorage;
 import ch.endte.syncmatica.SyncmaticManager;
 import ch.endte.syncmatica.Syncmatica;
+import ch.endte.syncmatica.command.SyncmaticaCommand;
 import ch.endte.syncmatica.communication.ServerCommunicationManager;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.WorldSavePath;
@@ -26,11 +28,20 @@ public class MixinMinecraftServer {
                 !returnValue.isDedicated(),
                 returnValue.getSavePath(WorldSavePath.ROOT).toFile()
         ).startup();
+        SyncmaticaCommand.register(returnValue.getCommandManager().getDispatcher());
     }
 
     // at
     @Inject(method = "shutdown", at = @At("TAIL"))
     public void shutdownSyncmatica(final CallbackInfo ci) {
         Syncmatica.shutdown();
+    }
+
+    @Inject(method = "tick", at = @At("TAIL"))
+    private void tickSyncmatica(final CallbackInfo ci) {
+        final Context context = Syncmatica.getContext(Syncmatica.SERVER_CONTEXT);
+        if (context != null && context.getMaterialService() != null) {
+            context.getMaterialService().tick((MinecraftServer) (Object) this);
+        }
     }
 }

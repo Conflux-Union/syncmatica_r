@@ -6,12 +6,14 @@ import ch.endte.syncmatica.extended_core.PlayerIdentifierProvider;
 import ch.endte.syncmatica.service.DebugService;
 import ch.endte.syncmatica.service.IService;
 import ch.endte.syncmatica.service.JsonConfiguration;
+import ch.endte.syncmatica.service.MaterialService;
 import ch.endte.syncmatica.service.QuotaService;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.Arrays;
 
 public class Context {
@@ -28,6 +30,7 @@ public class Context {
     private final QuotaService quota;
     private final DebugService debugService;
     private final PlayerIdentifierProvider playerIdentifierProvider;
+    private final MaterialService materialService;
 
 
     public Context(
@@ -57,8 +60,12 @@ public class Context {
         server = isServer;
         if (isServer) {
             quota = new QuotaService();
+            quota.setContext(this);
+            materialService = new MaterialService();
+            materialService.setContext(this);
         } else {
             quota = null;
+            materialService = null;
         }
         playerIdentifierProvider = new PlayerIdentifierProvider(this);
         debugService = new DebugService();
@@ -89,6 +96,10 @@ public class Context {
         return quota;
     }
 
+    public MaterialService getMaterialService() {
+        return materialService;
+    }
+
     public DebugService getDebugService() {
         return debugService;
     }
@@ -117,7 +128,11 @@ public class Context {
     }
 
     private void generateFeatureSet() {
-        fs = new FeatureSet(Arrays.asList(Feature.values()));
+        final ArrayList<Feature> features = new ArrayList<>(Arrays.asList(Feature.values()));
+        if (isServer() && (materialService == null || !materialService.isEnabled())) {
+            features.remove(Feature.MATERIAL_PROGRESS);
+        }
+        fs = new FeatureSet(features);
     }
 
     public void startup() {
@@ -167,6 +182,9 @@ public class Context {
         boolean needsRewrite = false;
         if (isServer()) {
             needsRewrite = loadConfigurationForService(quota, configuration, attemptToLoad);
+            if (materialService != null) {
+                needsRewrite |= loadConfigurationForService(materialService, configuration, attemptToLoad);
+            }
         }
         needsRewrite |= loadConfigurationForService(debugService, configuration, attemptToLoad);
         if (needsRewrite) {
@@ -221,12 +239,18 @@ public class Context {
         if (quota != null) {
             quota.startup();
         }
+        if (materialService != null) {
+            materialService.startup();
+        }
         debugService.startup();
     }
 
     private void shutdownServices() {
         if (quota != null) {
             quota.shutdown();
+        }
+        if (materialService != null) {
+            materialService.shutdown();
         }
         debugService.shutdown();
     }

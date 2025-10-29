@@ -98,6 +98,7 @@ public class ModifyExchangeClient extends AbstractExchange {
             final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
             buf.writeUuid(placement.getId());
             getContext().getCommunicationManager().putPositionData(placement, buf, getPartner());
+            getContext().getCommunicationManager().putMaterialData(placement, buf, getPartner());
             getPartner().sendPacket(PacketType.MODIFY_FINISH.identifier, buf, getContext());
             succeed();
             getContext().getCommunicationManager().notifyClose(this);
@@ -115,6 +116,7 @@ public class ModifyExchangeClient extends AbstractExchange {
             final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
             buf.writeUuid(placement.getId());
             getContext().getCommunicationManager().putPositionData(placement, buf, getPartner());
+            getContext().getCommunicationManager().putMaterialData(placement, buf, getPartner());
             getPartner().sendPacket(PacketType.MODIFY_FINISH.identifier, buf, getContext());
         }
     }

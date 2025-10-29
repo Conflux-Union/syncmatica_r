@@ -16,6 +16,10 @@ current (As of this files last update time current) `config.json`:
 		"enabled": false,
 		"limit": 40000000
 	},
+	"materials": {
+		"enabled": false,
+		"scan_interval": 200
+	},
 	"debug": {
 		"doPackageLogging": false
 	}
@@ -52,3 +56,9 @@ The key "debug" configures the debug feature of the mod.
 * `doPackageLogging` configures whether the client/server should add a debug log for all outgoing and incoming packets.
   The type of the packet and the target of the packet gets logged for outgoing packets - for incoming only the type of
   the packet gets logged.
+#### Materials
+
+The key "materials" governs the shared material progress tracking on the server.
+
+* `enabled` toggles the material aggregation and syncing pipeline. When disabled, the server will not advertise or transmit material progress.
+* `scan_interval` defines how often (in server ticks) the stocking area is re-scanned for block counts. The minimum accepted value is 20 ticks (1 second).

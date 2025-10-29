@@ -2,6 +2,10 @@ package ch.endte.syncmatica;
 
 import ch.endte.syncmatica.extended_core.PlayerIdentifier;
 import ch.endte.syncmatica.extended_core.SubRegionData;
+import ch.endte.syncmatica.material.MaterialProgressEntry;
+import ch.endte.syncmatica.material.MaterialProgressSerializer;
+import ch.endte.syncmatica.material.MaterialProgressState;
+import ch.endte.syncmatica.material.StockingAreaDefinition;
 import ch.endte.syncmatica.material.SyncmaticaMaterialList;
 import ch.endte.syncmatica.util.SyncmaticaUtil;
 import com.google.gson.JsonObject;
@@ -31,7 +35,9 @@ public class ServerPlacement {
 
     private SubRegionData subRegionData = new SubRegionData();
 
-    private SyncmaticaMaterialList matList;
+    private final SyncmaticaMaterialList materialList = new SyncmaticaMaterialList();
+    private final MaterialProgressState materialProgress = new MaterialProgressState();
+    private StockingAreaDefinition stockingArea;
 
     public ServerPlacement(final UUID id, final String fileName, final UUID hashValue, final PlayerIdentifier owner) {
         this.id = id;
@@ -109,15 +115,37 @@ public class ServerPlacement {
         return subRegionData;
     }
 
-    public SyncmaticaMaterialList getMaterialList() {
-        return matList;
+    public MaterialProgressState getMaterialProgress() {
+        return materialProgress;
     }
 
-    public ServerPlacement setMaterialList(final SyncmaticaMaterialList matList) {
-        if (this.matList != null) {
-            this.matList = matList;
+    public SyncmaticaMaterialList getMaterialList() {
+        materialList.updateFrom(materialProgress);
+        if (origin != null) {
+            materialList.setDeliveryPoint(origin);
         }
-        return this;
+        return materialList;
+    }
+
+    public StockingAreaDefinition getStockingArea() {
+        return stockingArea;
+    }
+
+    public void setStockingArea(final StockingAreaDefinition stockingArea) {
+        this.stockingArea = stockingArea;
+    }
+
+    public void applyMaterialProgressSnapshot(final MaterialProgressState snapshot) {
+        materialProgress.clear();
+        if (snapshot == null || snapshot.isEmpty()) {
+            return;
+        }
+        snapshot.getEntries().forEach(entry -> {
+            final MaterialProgressEntry target = materialProgress.getOrCreate(entry.getKey(), entry.getRequiredAmount());
+            target.setPlayerSupplied(entry.getPlayerSupplied());
+            target.setStockingSupplied(entry.getStockingSupplied());
+            target.setClaimedBy(entry.getClaimedBy());
+        });
     }
 
     private static String removeExtension(final File file) {
@@ -155,6 +183,14 @@ public class ServerPlacement {
 
         if (subRegionData.isModified()) {
             obj.add("subregionData", subRegionData.toJson());
+        }
+
+        if (!materialProgress.isEmpty()) {
+            obj.add("materials", MaterialProgressSerializer.toJson(materialProgress));
+        }
+
+        if (stockingArea != null) {
+            obj.add("stockingArea", stockingArea.toJson());
         }
 
         return obj;
@@ -195,6 +231,14 @@ public class ServerPlacement {
 
             if (obj.has("subregionData")) {
                 newPlacement.subRegionData = SubRegionData.fromJson(obj.get("subregionData"));
+            }
+
+            if (obj.has("materials")) {
+                MaterialProgressSerializer.fromJson(obj.get("materials").getAsJsonObject(), context.getPlayerIdentifierProvider(), newPlacement.materialProgress);
+            }
+
+            if (obj.has("stockingArea")) {
+                newPlacement.stockingArea = StockingAreaDefinition.fromJson(obj.getAsJsonObject("stockingArea"));
             }
 
             return newPlacement;

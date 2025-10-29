@@ -176,6 +176,7 @@ public class ServerCommunicationManager extends CommunicationManager {
                     final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
                     buf.writeUuid(placement.getId());
                     putPositionData(placement, buf, client);
+                    putMaterialData(placement, buf, client);
                     if (client.getFeatureSet().hasFeature(Feature.CORE_EX)) {
                         buf.writeUuid(placement.getLastModifiedBy().uuid);
                         buf.writeString(placement.getLastModifiedBy().getName());
