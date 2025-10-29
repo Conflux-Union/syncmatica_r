@@ -26,6 +26,9 @@ dependencies {
     modImplementation "curse.maven:malilib-${project.litematica_minecraft_version}-303119:${project.malilib_fileid}"
 
     modImplementation "net.fabricmc.fabric-api:fabric-resource-loader-v0:${project.fabric_resource_loader_version}"
+    implementation "org.apache.logging.log4j:log4j-api:2.17.2"
+    annotationProcessor "org.apache.logging.log4j:log4j-api:2.17.2"
+    runtimeOnly "org.apache.logging.log4j:log4j-core:2.17.2"
     // PSA: Some older mods, compiled on Loom 0.2.1, might have outdated Maven POMs.
     // You may need to force-disable transitiveness on them.
 }

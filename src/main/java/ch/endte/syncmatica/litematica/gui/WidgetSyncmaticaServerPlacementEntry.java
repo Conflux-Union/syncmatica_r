@@ -1,12 +1,14 @@
 package ch.endte.syncmatica.litematica.gui;
 
 import ch.endte.syncmatica.Context;
+import ch.endte.syncmatica.Feature;
 import ch.endte.syncmatica.LocalLitematicState;
 import ch.endte.syncmatica.ServerPlacement;
 import ch.endte.syncmatica.communication.ClientCommunicationManager;
 import ch.endte.syncmatica.communication.ExchangeTarget;
 import ch.endte.syncmatica.communication.PacketType;
 import ch.endte.syncmatica.litematica.LitematicManager;
+import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.gui.button.ButtonBase;
 import fi.dy.masa.malilib.gui.button.ButtonGeneric;
 import fi.dy.masa.malilib.gui.button.IButtonActionListener;
@@ -16,7 +18,6 @@ import fi.dy.masa.malilib.util.StringUtils;
 import io.netty.buffer.Unpooled;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.network.PacketByteBuf;
-import org.apache.logging.log4j.LogManager;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
@@ -51,7 +52,10 @@ public class WidgetSyncmaticaServerPlacementEntry extends WidgetListEntryBase<Se
         posX -= (len + 2);
         listener = new ButtonListener(ButtonListener.Type.MATERIAL_GATHERING, this);
         final ButtonGeneric matGathering = new ButtonGeneric(posX, y, len, 20, text);
-        matGathering.setEnabled(false);
+        final Context context = LitematicManager.getInstance().getActiveContext();
+        final boolean materialFeature = context.getCommunicationManager() instanceof ClientCommunicationManager
+                && ((ClientCommunicationManager) context.getCommunicationManager()).getServer().getFeatureSet().hasFeature(Feature.MATERIAL_PROGRESS);
+        matGathering.setEnabled(materialFeature);
         addButton(matGathering, listener);
 
         final ArrayList<IButtonType> multi = new ArrayList<>();
@@ -156,7 +160,8 @@ public class WidgetSyncmaticaServerPlacementEntry extends WidgetListEntryBase<Se
             MATERIAL_GATHERING() {
                 @Override
                 void onAction(final WidgetSyncmaticaServerPlacementEntry placement) {
-                    LogManager.getLogger().info("Opened Material Gatherings GUI - currently unsupported operation");
+                    final GuiSyncmaticaMaterialProgress gui = new GuiSyncmaticaMaterialProgress(placement.placement);
+                    GuiBase.openGui(gui);
                 }
             };
 

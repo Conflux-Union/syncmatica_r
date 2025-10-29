@@ -27,6 +27,9 @@ public class SyncmaticManager {
 
     public void addPlacement(final ServerPlacement placement) {
         schematics.put(placement.getId(), placement);
+        if (context != null && context.getMaterialService() != null) {
+            context.getMaterialService().attachPlacement(placement);
+        }
         updateServerPlacement(placement);
     }
 
@@ -40,6 +43,9 @@ public class SyncmaticManager {
 
     public void removePlacement(final ServerPlacement placement) {
         schematics.remove(placement.getId());
+        if (context != null && context.getMaterialService() != null) {
+            context.getMaterialService().detachPlacement(placement);
+        }
         updateServerPlacement(placement);
     }
 
@@ -121,6 +127,9 @@ public class SyncmaticManager {
                 for (final JsonElement elem : arr) {
                     final ServerPlacement placement = ServerPlacement.fromJson(elem.getAsJsonObject(), context);
                     schematics.put(placement.getId(), placement); // NOSONAR
+                    if (context.getMaterialService() != null) {
+                        context.getMaterialService().attachPlacement(placement);
+                    }
                 }
 
             } catch (final IllegalStateException | NullPointerException e) {

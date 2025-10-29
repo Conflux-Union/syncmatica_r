@@ -62,6 +62,7 @@ public class ClientCommunicationManager extends CommunicationManager {
             final UUID placementId = packetBuf.readUuid();
             final ServerPlacement toModify = context.getSyncmaticManager().getPlacement(placementId);
             receivePositionData(toModify, packetBuf, source);
+            receiveMaterialData(toModify, packetBuf, source);
             if (source.getFeatureSet().hasFeature(Feature.CORE_EX)) {
                 final PlayerIdentifier lastModifiedBy = context.getPlayerIdentifierProvider().createOrGet(
                         packetBuf.readUuid(),
