@@ -1,6 +1,8 @@
 package ch.endte.syncmatica.service;
 
 import ch.endte.syncmatica.ServerPlacement;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ch.endte.syncmatica.ServerPosition;
 import ch.endte.syncmatica.communication.ServerCommunicationManager;
 import ch.endte.syncmatica.extended_core.PlayerIdentifier;
@@ -9,7 +11,12 @@ import ch.endte.syncmatica.material.MaterialProgressEntry;
 import ch.endte.syncmatica.material.MaterialProgressState;
 import ch.endte.syncmatica.material.MaterialRequirementExtractor;
 import ch.endte.syncmatica.material.StockingAreaDefinition;
-import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtList;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
@@ -25,6 +32,8 @@ import java.util.*;
  * Aggregates material requirements, manual contributions, and stocking scans per placement.
  */
 public class MaterialService extends AbstractService {
+    private static final Logger LOGGER = LogManager.getLogger(MaterialService.class);
+    
     public static final boolean ENABLED_DEFAULT = true;
     public static final int SCAN_INTERVAL_DEFAULT = 200;
 
@@ -61,6 +70,7 @@ public class MaterialService extends AbstractService {
                 return;
             }
         }
+        ensureRequirementsLoaded(placement);
         rebuildSnapshot(placement, false);
     }
 
@@ -268,9 +278,14 @@ public class MaterialService extends AbstractService {
     private Map<MaterialKey, Integer> loadRequirementsFromSchematic(final ServerPlacement placement) {
         final File file = context.getFileStorage().getLocalLitematic(placement);
         if (file == null) {
+            LOGGER.warn("Cannot load material requirements for placement '{}' (hash: {}): file not found", 
+                placement.getName(), placement.getHash());
             return Collections.emptyMap();
         }
-        return MaterialRequirementExtractor.extract(file);
+        LOGGER.debug("Loading material requirements from: {} (exists={})", file.getAbsolutePath(), file.exists());
+        final Map<MaterialKey, Integer> result = MaterialRequirementExtractor.extract(file);
+        LOGGER.debug("Extracted {} material types from placement '{}'", result.size(), placement.getName());
+        return result;
     }
 
     private void ensureRequirementsLoaded(final ServerPlacement placement) {
@@ -318,16 +333,81 @@ public class MaterialService extends AbstractService {
         final Map<MaterialKey, Integer> totals = new HashMap<>();
         final BlockPos min = area.getMin();
         final BlockPos max = area.getMax();
+        
+        // 遍历指定区域内的所有方块位置
         for (final BlockPos pos : BlockPos.iterate(min, max)) {
-            final BlockState state = world.getBlockState(pos);
-            if (state.isAir()) {
+            final BlockEntity blockEntity = world.getBlockEntity(pos);
+            
+            // 检查是否是容器（箱子、桶、潜影盒等）
+            if (blockEntity instanceof Inventory) {
+                final Inventory inventory = (Inventory) blockEntity;
+                scanInventory(inventory, totals);
+            }
+        }
+        
+        setStockingContributions(placement.getId(), totals);
+    }
+    
+    /**
+     * 扫描容器内的所有物品，包括嵌套的潜影盒
+     */
+    private void scanInventory(final Inventory inventory, final Map<MaterialKey, Integer> totals) {
+        for (int slot = 0; slot < inventory.size(); slot++) {
+            final ItemStack stack = inventory.getStack(slot);
+            if (stack == null || stack.isEmpty()) {
                 continue;
             }
-            final Identifier blockId = Registry.BLOCK.getId(state.getBlock());
-            final MaterialKey key = new MaterialKey(blockId, "");
-            totals.merge(key, 1, Integer::sum);
+            
+            // 统计当前物品
+            final Identifier itemId = Registry.ITEM.getId(stack.getItem());
+            final MaterialKey key = new MaterialKey(itemId, "");
+            totals.merge(key, stack.getCount(), Integer::sum);
+            
+            // 检查是否是潜影盒（可能包含嵌套物品）
+            if (stack.getItem() instanceof BlockItem) {
+                final NbtCompound nbt = stack.getNbt();
+                if (nbt != null && nbt.contains("BlockEntityTag")) {
+                    final NbtCompound blockEntityTag = nbt.getCompound("BlockEntityTag");
+                    if (blockEntityTag.contains("Items")) {
+                        scanShulkerBoxContents(blockEntityTag.getList("Items", 10), totals);
+                    }
+                }
+            }
         }
-        setStockingContributions(placement.getId(), totals);
+    }
+    
+    /**
+     * 扫描潜影盒NBT数据内的物品（递归处理嵌套潜影盒）
+     */
+    private void scanShulkerBoxContents(final NbtList itemsNbt, final Map<MaterialKey, Integer> totals) {
+        for (int i = 0; i < itemsNbt.size(); i++) {
+            final NbtCompound itemNbt = itemsNbt.getCompound(i);
+            if (!itemNbt.contains("id") || !itemNbt.contains("Count")) {
+                continue;
+            }
+            
+            try {
+                final Identifier itemId = new Identifier(itemNbt.getString("id"));
+                final int count = itemNbt.getByte("Count");
+                
+                // 统计潜影盒内的物品
+                final MaterialKey key = new MaterialKey(itemId, "");
+                totals.merge(key, count, Integer::sum);
+                
+                // 递归处理嵌套的潜影盒
+                if (itemNbt.contains("tag")) {
+                    final NbtCompound tag = itemNbt.getCompound("tag");
+                    if (tag.contains("BlockEntityTag")) {
+                        final NbtCompound blockEntityTag = tag.getCompound("BlockEntityTag");
+                        if (blockEntityTag.contains("Items")) {
+                            scanShulkerBoxContents(blockEntityTag.getList("Items", 10), totals);
+                        }
+                    }
+                }
+            } catch (final Exception e) {
+                // 忽略无效的物品ID
+            }
+        }
     }
 
     private ServerWorld resolveWorld(final MinecraftServer server, final String dimensionId) {

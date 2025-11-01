@@ -1,21 +1,27 @@
 package ch.endte.syncmatica.material;
 
-import fi.dy.masa.litematica.materials.MaterialListEntry;
-import fi.dy.masa.litematica.materials.MaterialListSchematic;
-import fi.dy.masa.litematica.schematic.LitematicaSchematic;
-import net.minecraft.item.ItemStack;
+import net.minecraft.block.Block;
+import net.minecraft.block.Blocks;
+import net.minecraft.item.Item;
+import net.minecraft.item.Items;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtIo;
+import net.minecraft.nbt.NbtList;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.registry.Registry;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
-/**
- * Utility to translate litematic files into Syncmatica material requirements.
- */
 public final class MaterialRequirementExtractor {
 
     private static final Logger LOGGER = LogManager.getLogger(MaterialRequirementExtractor.class);
@@ -28,28 +34,156 @@ public final class MaterialRequirementExtractor {
         if (litematicFile == null || !litematicFile.isFile()) {
             return requirements;
         }
-        try {
-            final LitematicaSchematic schematic = LitematicaSchematic.createFromFile(litematicFile, litematicFile.getName());
-            if (schematic == null) {
+        try (InputStream input = new FileInputStream(litematicFile)) {
+            final NbtCompound root = NbtIo.readCompressed(input);
+            if (root == null || !root.contains("Regions", NbtElement.COMPOUND_TYPE)) {
                 return requirements;
             }
-            final MaterialListSchematic materialList = new MaterialListSchematic(schematic, true);
-            materialList.reCreateMaterialList();
-            for (final MaterialListEntry entry : materialList.getMaterialsAll()) {
-                final ItemStack stack = entry.getStack();
-                if (stack == null || stack.isEmpty()) {
-                    continue;
-                }
-                final Identifier itemId = Registry.ITEM.getId(stack.getItem());
-                if (itemId == null) {
-                    continue;
-                }
-                final MaterialKey key = new MaterialKey(itemId, "");
-                requirements.merge(key, entry.getCountTotal(), Integer::sum);
+            final NbtCompound regions = root.getCompound("Regions");
+            for (final String regionName : regions.getKeys()) {
+                final NbtCompound region = regions.getCompound(regionName);
+                accumulateRegion(region, requirements);
             }
+        } catch (final IOException exception) {
+            LOGGER.warn("Failed to read material requirements from {}", litematicFile, exception);
         } catch (final Exception exception) {
-            LOGGER.warn("Failed to extract material requirements from {}", litematicFile, exception);
+            LOGGER.warn("Failed to parse material requirements from {}", litematicFile, exception);
         }
         return requirements;
+    }
+
+    private static void accumulateRegion(final NbtCompound region, final Map<MaterialKey, Integer> totals) {
+        if (region == null) {
+            return;
+        }
+        final int[] dimensions = resolveSize(region);
+        if (dimensions == null) {
+            return;
+        }
+        final int volume = dimensions[0] * dimensions[1] * dimensions[2];
+        if (volume <= 0) {
+            return;
+        }
+        final NbtList paletteData = region.getList("BlockStatePalette", NbtElement.COMPOUND_TYPE);
+        if (paletteData.isEmpty()) {
+            return;
+        }
+        final List<MaterialKey> palette = buildPalette(paletteData);
+        if (palette.isEmpty()) {
+            return;
+        }
+        final long[] blockStates = resolveBlockStates(region);
+        if (palette.size() == 1) {
+            final MaterialKey key = palette.get(0);
+            if (key != null) {
+                totals.merge(key, volume, Integer::sum);
+            }
+            return;
+        }
+        if (blockStates.length == 0) {
+            return;
+        }
+        final int bits = bitsForPalette(palette.size());
+        final long mask = bits >= Long.SIZE ? -1L : (1L << bits) - 1L;
+        for (int index = 0; index < volume; index++) {
+            final int bitIndex = index * bits;
+            final int arrayIndex = bitIndex >>> 6;
+            final int bitOffset = bitIndex & 63;
+            long value = 0L;
+            if (arrayIndex < blockStates.length) {
+                value = blockStates[arrayIndex] >>> bitOffset;
+            }
+            if (bitOffset + bits > Long.SIZE && arrayIndex + 1 < blockStates.length) {
+                value |= blockStates[arrayIndex + 1] << (Long.SIZE - bitOffset);
+            }
+            final int paletteIndex = (int) (value & mask);
+            if (paletteIndex < 0 || paletteIndex >= palette.size()) {
+                continue;
+            }
+            final MaterialKey key = palette.get(paletteIndex);
+            if (key != null) {
+                totals.merge(key, 1, Integer::sum);
+            }
+        }
+    }
+
+    private static List<MaterialKey> buildPalette(final NbtList paletteData) {
+        final List<MaterialKey> palette = new ArrayList<>(paletteData.size());
+        for (int index = 0; index < paletteData.size(); index++) {
+            final NbtCompound entry = paletteData.getCompound(index);
+            palette.add(resolvePaletteEntry(entry));
+        }
+        return palette;
+    }
+
+    private static MaterialKey resolvePaletteEntry(final NbtCompound entry) {
+        if (entry == null || !entry.contains("Name", NbtElement.STRING_TYPE)) {
+            return null;
+        }
+        final String name = entry.getString("Name");
+        if (name.isEmpty()) {
+            return null;
+        }
+        final Identifier blockId = new Identifier(name);
+        final Block block = Registry.BLOCK.getOrEmpty(blockId).orElse(Blocks.AIR);
+        if (block == Blocks.AIR) {
+            return null;
+        }
+        final Item item = block.asItem();
+        if (item == Items.AIR) {
+            return null;
+        }
+        final Identifier itemId = Registry.ITEM.getId(item);
+        if (itemId == null) {
+            return null;
+        }
+        return new MaterialKey(itemId, "");
+    }
+
+    private static int bitsForPalette(final int paletteSize) {
+        if (paletteSize <= 1) {
+            return 1;
+        }
+        return 32 - Integer.numberOfLeadingZeros(paletteSize - 1);
+    }
+
+    private static int[] resolveSize(final NbtCompound region) {
+        if (region.contains("Size", NbtElement.INT_ARRAY_TYPE)) {
+            final int[] raw = region.getIntArray("Size");
+            if (raw.length >= 3) {
+                return new int[]{Math.abs(raw[0]), Math.abs(raw[1]), Math.abs(raw[2])};
+            }
+            return null;
+        }
+        if (region.contains("Size", NbtElement.COMPOUND_TYPE)) {
+            final NbtCompound compound = region.getCompound("Size");
+            if (compound.contains("x", NbtElement.INT_TYPE)
+                && compound.contains("y", NbtElement.INT_TYPE)
+                && compound.contains("z", NbtElement.INT_TYPE)) {
+                final int sizeX = Math.abs(compound.getInt("x"));
+                final int sizeY = Math.abs(compound.getInt("y"));
+                final int sizeZ = Math.abs(compound.getInt("z"));
+                if (sizeX == 0 || sizeY == 0 || sizeZ == 0) {
+                    return null;
+                }
+                return new int[]{sizeX, sizeY, sizeZ};
+            }
+        }
+        return null;
+    }
+
+    private static long[] resolveBlockStates(final NbtCompound region) {
+        if (region.contains("BlockStates", NbtElement.LONG_ARRAY_TYPE)) {
+            return region.getLongArray("BlockStates");
+        }
+        if (region.contains("BlockStates", NbtElement.INT_ARRAY_TYPE)) {
+            final int[] ints = region.getIntArray("BlockStates");
+            final long[] longs = new long[ints.length];
+            for (int index = 0; index < ints.length; index++) {
+                longs[index] = ints[index] & 0xFFFFFFFFL;
+            }
+            return longs;
+        }
+        return new long[0];
     }
 }
