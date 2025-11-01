@@ -243,11 +243,13 @@ public class ServerCommunicationManager extends CommunicationManager {
         if (self == null) {
             return;
         }
-        final PlayerIdentifier currentOwner = placement.getMaterialProgress().getEntries().stream()
+        final MaterialProgressEntry matchedEntry = placement.getMaterialProgress().getEntries().stream()
                 .filter(entry -> entry.getKey().equals(key))
-                .map(MaterialProgressEntry::getClaimedBy)
                 .findFirst()
-                .orElse(PlayerIdentifier.MISSING_PLAYER);
+                .orElse(null);
+        final PlayerIdentifier currentOwner = matchedEntry == null
+                ? PlayerIdentifier.MISSING_PLAYER
+                : matchedEntry.getClaimedBy();
         if (claim) {
             if (currentOwner == null || currentOwner == PlayerIdentifier.MISSING_PLAYER || currentOwner.equals(self)) {
                 context.getMaterialService().setClaimant(placementId, key, self);
