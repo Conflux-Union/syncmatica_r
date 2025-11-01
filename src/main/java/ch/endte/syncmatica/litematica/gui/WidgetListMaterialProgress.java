@@ -33,13 +33,22 @@ public class WidgetListMaterialProgress extends WidgetListBase<SyncmaticaMateria
         RenderUtils.drawRect(posX, posY, browserWidth, browserEntriesOffsetY, 0x30000000);
         final int baseX = posX + 6;
         final int textColor = 0xFFFFFFFF;
-        // Header row labels stay fixed while entries scroll beneath.
+        
+        final int requiredColumnRight = baseX + 170;
+        final int stockColumnRight = baseX + 220;
+        final int missingColumnRight = baseX + 270;
+        
         drawString(matrixStack, StringUtils.translate("syncmatica.gui.label.material.column.material"), baseX, posY + 6, textColor);
-        drawString(matrixStack, StringUtils.translate("syncmatica.gui.label.material.column.required"), baseX + 140, posY + 6, textColor);
-        drawString(matrixStack, StringUtils.translate("syncmatica.gui.label.material.column.player"), baseX + 180, posY + 6, textColor);
-        drawString(matrixStack, StringUtils.translate("syncmatica.gui.label.material.column.stock"), baseX + 220, posY + 6, textColor);
-        drawString(matrixStack, StringUtils.translate("syncmatica.gui.label.material.column.missing"), baseX + 260, posY + 6, textColor);
-        drawString(matrixStack, StringUtils.translate("syncmatica.gui.label.material.column.claimed"), baseX + 300, posY + 6, textColor);
+        
+        final String requiredLabel = StringUtils.translate("syncmatica.gui.label.material.column.required");
+        drawString(matrixStack, requiredLabel, requiredColumnRight - getStringWidth(requiredLabel), posY + 6, textColor);
+        
+        final String stockLabel = StringUtils.translate("syncmatica.gui.label.material.column.stock");
+        drawString(matrixStack, stockLabel, stockColumnRight - getStringWidth(stockLabel), posY + 6, textColor);
+        
+        final String missingLabel = StringUtils.translate("syncmatica.gui.label.material.column.missing");
+        drawString(matrixStack, missingLabel, missingColumnRight - getStringWidth(missingLabel), posY + 6, textColor);
+        
         super.drawContents(matrixStack, mouseX, mouseY, partialTicks);
     }
 
@@ -56,7 +65,7 @@ public class WidgetListMaterialProgress extends WidgetListBase<SyncmaticaMateria
 
     @Override
     protected WidgetMaterialProgressEntry createListEntryWidget(final int x, final int y, final int listIndex, final boolean isOdd, final SyncmaticaMaterialEntry entry) {
-        return new WidgetMaterialProgressEntry(x, y, browserEntryWidth, browserEntryHeight, entry, listIndex, placement);
+        return new WidgetMaterialProgressEntry(x, y, browserEntryWidth, browserEntryHeight, entry, listIndex);
     }
 
     @Override
@@ -65,7 +74,6 @@ public class WidgetListMaterialProgress extends WidgetListBase<SyncmaticaMateria
         if (entry.getKey() != null) {
             filter.add(entry.getKey().toString().toLowerCase());
         }
-        filter.add(String.valueOf(entry.getClaimedBy()));
         return filter;
     }
 }

@@ -23,11 +23,7 @@ public class SyncmaticaMaterialList {
             final SyncmaticaMaterialEntry snapshot = new SyncmaticaMaterialEntry();
             snapshot.setKey(entry.getKey());
             snapshot.setAmountRequired(entry.getRequiredAmount());
-            snapshot.setPlayerSupplied(entry.getPlayerSupplied());
             snapshot.setStockingSupplied(entry.getStockingSupplied());
-            if (entry.getClaimedBy() != null) {
-                snapshot.setClaimedBy(entry.getClaimedBy().getName());
-            }
             list.add(snapshot);
         }
     }
@@ -43,7 +39,6 @@ public class SyncmaticaMaterialList {
     public SyncmaticaMaterialEntry getUnclaimedEntry() {
         final Optional<SyncmaticaMaterialEntry> unclaimed = list.parallelStream()
                 .filter(SyncmaticaMaterialEntry.UNFINISHED)
-                .filter(SyncmaticaMaterialEntry.UNCLAIMED)
                 .findFirst();
         if (unclaimed.isPresent()) {
             return unclaimed.get();

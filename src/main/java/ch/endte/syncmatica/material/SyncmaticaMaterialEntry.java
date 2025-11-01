@@ -8,11 +8,8 @@ import java.util.function.Predicate;
 public class SyncmaticaMaterialEntry {
     private MaterialKey key;
     private int amountRequired;
-    private int playerSupplied;
     private int stockingSupplied;
-    private String claimedBy;
 
-    public static final Unclaimed UNCLAIMED = new Unclaimed();
     public static final Unfinished UNFINISHED = new Unfinished();
 
     public int getAmountRequired() {
@@ -28,31 +25,15 @@ public class SyncmaticaMaterialEntry {
     }
 
     public int getAmountPresent() {
-        return playerSupplied + stockingSupplied;
+        return stockingSupplied;
     }
 
     public int getAmountMissing() {
         return Math.max(0, amountRequired - getAmountPresent());
     }
 
-    public boolean isClaimed() {
-        return claimedBy != null;
-    }
-
-    public String getClaimedBy() {
-        return claimedBy;
-    }
-
     public boolean isFinished() {
         return getAmountPresent() >= amountRequired;
-    }
-
-    public int getPlayerSupplied() {
-        return playerSupplied;
-    }
-
-    public void setPlayerSupplied(final int playerSupplied) {
-        this.playerSupplied = Math.max(0, playerSupplied);
     }
 
     public int getStockingSupplied() {
@@ -65,17 +46,6 @@ public class SyncmaticaMaterialEntry {
 
     public void setAmountRequired(final int amountRequired) {
         this.amountRequired = Math.max(0, amountRequired);
-    }
-
-    public void setClaimedBy(final String claimedBy) {
-        this.claimedBy = claimedBy;
-    }
-
-    public static class Unclaimed implements Predicate<SyncmaticaMaterialEntry> {
-        @Override
-        public boolean test(final SyncmaticaMaterialEntry arg0) {
-            return !arg0.isClaimed();
-        }
     }
 
     public static class Unfinished implements Predicate<SyncmaticaMaterialEntry> {

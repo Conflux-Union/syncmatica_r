@@ -74,9 +74,6 @@ public enum PacketType {
     // send from client to server to mark that the editing of placement values has concluded
     // sends along the final data of the placement
 
-    MATERIAL_CONTRIBUTE("syncmatica:material_contribute"),
-    MATERIAL_CLAIM("syncmatica:material_claim"),
-
     MESSAGE("syncmatica:mesage");
     // sends a message from client to server - allows for future compatability
     // can't fix the typo here lol
