@@ -197,16 +197,7 @@ public abstract class CommunicationManager {
             buf.writeString(entry.getKey().getItemId().toString());
             buf.writeString(entry.getKey().getVariant());
             buf.writeInt(entry.getRequiredAmount());
-            buf.writeInt(entry.getPlayerSupplied());
             buf.writeInt(entry.getStockingSupplied());
-            final PlayerIdentifier claimedBy = entry.getClaimedBy();
-            if (claimedBy != null && claimedBy != PlayerIdentifier.MISSING_PLAYER) {
-                buf.writeBoolean(true);
-                buf.writeUuid(claimedBy.uuid);
-                buf.writeString(claimedBy.getName());
-            } else {
-                buf.writeBoolean(false);
-            }
         }
     }
 
@@ -233,12 +224,6 @@ public abstract class CommunicationManager {
                 buf.readString(32767);
                 buf.readInt();
                 buf.readInt();
-                buf.readInt();
-                final boolean hasClaim = buf.readBoolean();
-                if (hasClaim) {
-                    buf.readUuid();
-                    buf.readString(32767);
-                }
             }
             return;
         }
@@ -247,16 +232,7 @@ public abstract class CommunicationManager {
             final MaterialKey key = new MaterialKey(new Identifier(buf.readString(32767)), buf.readString(32767));
             final int required = buf.readInt();
             final MaterialProgressEntry entry = snapshot.getOrCreate(key, required);
-            entry.setPlayerSupplied(buf.readInt());
             entry.setStockingSupplied(buf.readInt());
-            final boolean hasClaim = buf.readBoolean();
-            if (hasClaim) {
-                final PlayerIdentifier claimed = context.getPlayerIdentifierProvider().createOrGet(
-                        buf.readUuid(),
-                        buf.readString(32767)
-                );
-                entry.setClaimedBy(claimed);
-            }
         }
         placement.applyMaterialProgressSnapshot(snapshot);
     }

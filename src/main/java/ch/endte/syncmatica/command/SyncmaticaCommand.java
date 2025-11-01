@@ -10,6 +10,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import net.minecraft.command.argument.BlockPosArgumentType;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.LiteralText;
@@ -17,7 +18,6 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.Optional;
 
-import static com.mojang.brigadier.arguments.IntegerArgumentType.integer;
 import static com.mojang.brigadier.arguments.StringArgumentType.string;
 
 /**
@@ -36,16 +36,19 @@ public final class SyncmaticaCommand {
 
     private static RequiredArgumentBuilder<ServerCommandSource, String> projectArgument() {
         return CommandManager.argument("project_name", string())
+                .suggests((context, builder) -> {
+                    final Context syncmaticaContext = Syncmatica.getContext(Syncmatica.SERVER_CONTEXT);
+                    if (syncmaticaContext != null) {
+                        syncmaticaContext.getSyncmaticManager().getAll().stream()
+                                .map(ServerPlacement::getName)
+                                .forEach(builder::suggest);
+                    }
+                    return builder.buildFuture();
+                })
                 .then(CommandManager.literal("setStockingarea")
-                        .then(vectorArgument("x1", "y1", "z1")
-                                .then(vectorArgument("x2", "y2", "z2")
+                        .then(CommandManager.argument("pos1", BlockPosArgumentType.blockPos())
+                                .then(CommandManager.argument("pos2", BlockPosArgumentType.blockPos())
                                         .executes(SyncmaticaCommand::handleSetStockingArea))));
-    }
-
-    private static RequiredArgumentBuilder<ServerCommandSource, Integer> vectorArgument(final String xName, final String yName, final String zName) {
-        return CommandManager.argument(xName, integer())
-                .then(CommandManager.argument(yName, integer())
-                        .then(CommandManager.argument(zName, integer())));
     }
 
     private static int handleSetStockingArea(final CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
@@ -67,16 +70,8 @@ public final class SyncmaticaCommand {
             context.getSource().sendError(new LiteralText("Unknown Syncmatica project: " + projectName));
             return 0;
         }
-        final BlockPos first = new BlockPos(
-                context.getArgument("x1", Integer.class),
-                context.getArgument("y1", Integer.class),
-                context.getArgument("z1", Integer.class)
-        );
-        final BlockPos second = new BlockPos(
-                context.getArgument("x2", Integer.class),
-                context.getArgument("y2", Integer.class),
-                context.getArgument("z2", Integer.class)
-        );
+        final BlockPos first = BlockPosArgumentType.getBlockPos(context, "pos1");
+        final BlockPos second = BlockPosArgumentType.getBlockPos(context, "pos2");
         final String dimensionId = context.getSource().getWorld().getRegistryKey().getValue().toString();
         final StockingAreaDefinition definition = new StockingAreaDefinition(dimensionId, first, second);
         materialService.setStockingArea(placement.get(), definition);

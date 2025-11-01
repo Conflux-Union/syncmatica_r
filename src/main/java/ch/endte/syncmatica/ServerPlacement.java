@@ -142,9 +142,7 @@ public class ServerPlacement {
         }
         snapshot.getEntries().forEach(entry -> {
             final MaterialProgressEntry target = materialProgress.getOrCreate(entry.getKey(), entry.getRequiredAmount());
-            target.setPlayerSupplied(entry.getPlayerSupplied());
             target.setStockingSupplied(entry.getStockingSupplied());
-            target.setClaimedBy(entry.getClaimedBy());
         });
     }
 
@@ -234,7 +232,7 @@ public class ServerPlacement {
             }
 
             if (obj.has("materials")) {
-                MaterialProgressSerializer.fromJson(obj.get("materials").getAsJsonObject(), context.getPlayerIdentifierProvider(), newPlacement.materialProgress);
+                MaterialProgressSerializer.fromJson(obj.get("materials").getAsJsonObject(), newPlacement.materialProgress);
             }
 
             if (obj.has("stockingArea")) {
