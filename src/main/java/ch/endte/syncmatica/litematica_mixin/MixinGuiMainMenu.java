@@ -24,13 +24,12 @@ public class MixinGuiMainMenu extends GuiBase {
         int y = 30;
         createChangeMenuButton(x, y, width, MainMenuButtonType.VIEW_SYNCMATICS);
         y += 22;
-        createChangeMenuButton(x, y, width, MainMenuButtonType.MATERIAL_GATHERINGS).setEnabled(false);
+        createChangeMenuButton(x, y, width, MainMenuButtonType.MATERIAL_GATHERINGS);
     }
 
     private ButtonGeneric createChangeMenuButton(final int x, final int y, final int width, final MainMenuButtonType type) {
         final ButtonGeneric button = new ButtonGeneric(x, y, width, 20, type.getTranslatedKey(), type.getIcon());
-        final Context con = LitematicManager.getInstance().getActiveContext();
-        button.setEnabled(con != null && con.isStarted());
+        button.setEnabled(true);
         addButton(button, new ButtonListenerChangeMenu(type, this));
         return button;
     }

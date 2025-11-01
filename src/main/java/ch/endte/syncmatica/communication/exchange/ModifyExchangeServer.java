@@ -39,6 +39,9 @@ public class ModifyExchangeServer extends AbstractExchange {
             );
             placement.setLastModifiedBy(identifier);
             getContext().getSyncmaticManager().updateServerPlacement(placement);
+            if (getContext().getMaterialService() != null) {
+                getContext().getMaterialService().refreshPlacement(placement);
+            }
             succeed();
         }
     }

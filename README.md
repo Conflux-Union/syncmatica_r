@@ -63,8 +63,9 @@ I have also seen that many servers have a problem with the amount of syncmatics 
 The ownership is a pre-requirement for the change that is supposed to fix this.
 Adding a better fix for this is also on the roadmap, but I'm debating the priority since I don't get any feedback like this anymore.
 
-The MaterialGatherings button is supposed, to aid with collecting the materials as a group. It should synchronize and
-simplify the collection of material across the server. As of now it does nothing.
+The MaterialGatherings button now opens a live material tracker so groups can coordinate required resources. Players can
+claim individual materials, adjust their delivered counts (left click +1, shift +16, ctrl +64; right click subtracts),
+and view stocking scans when the server enables the feature.
 
 ## Contact
 

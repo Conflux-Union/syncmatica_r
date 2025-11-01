@@ -56,7 +56,7 @@ public class WidgetListMaterialProgress extends WidgetListBase<SyncmaticaMateria
 
     @Override
     protected WidgetMaterialProgressEntry createListEntryWidget(final int x, final int y, final int listIndex, final boolean isOdd, final SyncmaticaMaterialEntry entry) {
-        return new WidgetMaterialProgressEntry(x, y, browserEntryWidth, browserEntryHeight, entry, listIndex);
+        return new WidgetMaterialProgressEntry(x, y, browserEntryWidth, browserEntryHeight, entry, listIndex, placement);
     }
 
     @Override

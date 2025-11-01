@@ -8,6 +8,10 @@
 	"syncmatica.gui.button.downloading": "Downloading...",
 	"syncmatica.gui.button.share": "Share",
 	"syncmatica.gui.button.material_gathering_placement": "Materials",
+	"syncmatica.gui.button.material.claim": "Claim",
+	"syncmatica.gui.button.material.unclaim": "Unclaim",
+	"syncmatica.gui.button.material.claimed": "Claimed",
+	"syncmatica.gui.button.material.contribute": "Contribute",
 	"syncmatica.gui.button.back": "Back",
 	"syncmatica.gui.title.manage_server_placements": "Manage Server Placements",
 	"syncmatica.gui.title.material_progress": "Materials",
@@ -30,5 +34,7 @@
 	"syncmatica.gui.label.material.column.player": "Player",
 	"syncmatica.gui.label.material.column.stock": "Stock",
 	"syncmatica.gui.label.material.column.missing": "Missing",
-	"syncmatica.gui.label.material.column.claimed": "Claimed"
+	"syncmatica.gui.label.material.column.claimed": "Claimed",
+	"syncmatica.gui.tooltip.material.contribute.primary": "Left click: +1 (Shift:+16, Ctrl:+64)",
+	"syncmatica.gui.tooltip.material.contribute.secondary": "Right click subtracts the same amount"
 }

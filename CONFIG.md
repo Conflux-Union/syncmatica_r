@@ -62,3 +62,4 @@ The key "materials" governs the shared material progress tracking on the server.
 
 * `enabled` toggles the material aggregation and syncing pipeline. When disabled, the server will not advertise or transmit material progress.
 * `scan_interval` defines how often (in server ticks) the stocking area is re-scanned for block counts. The minimum accepted value is 20 ticks (1 second).
+* The service is enabled by default; set `enabled` to `false` to hide the Material Gatherings UI and stop contribution syncing.
