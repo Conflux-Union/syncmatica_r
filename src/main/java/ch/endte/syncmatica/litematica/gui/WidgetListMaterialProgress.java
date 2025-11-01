@@ -33,13 +33,14 @@ public class WidgetListMaterialProgress extends WidgetListBase<SyncmaticaMateria
         RenderUtils.drawRect(posX, posY, browserWidth, browserEntriesOffsetY, 0x30000000);
         final int baseX = posX + 6;
         final int textColor = 0xFFFFFFFF;
-        
-        final int requiredColumnRight = baseX + 170;
-        final int stockColumnRight = baseX + 220;
-        final int missingColumnRight = baseX + 270;
-        
-        drawString(matrixStack, StringUtils.translate("syncmatica.gui.label.material.column.material"), baseX, posY + 6, textColor);
-        
+
+        final int requiredColumnRight = baseX + WidgetMaterialProgressEntry.REQUIRED_COLUMN_RIGHT_OFFSET;
+        final int stockColumnRight = baseX + WidgetMaterialProgressEntry.STOCK_COLUMN_RIGHT_OFFSET;
+        final int missingColumnRight = baseX + WidgetMaterialProgressEntry.MISSING_COLUMN_RIGHT_OFFSET;
+
+        drawString(matrixStack, StringUtils.translate("syncmatica.gui.label.material.column.material"),
+                baseX + WidgetMaterialProgressEntry.NAME_COLUMN_LEFT_OFFSET, posY + 6, textColor);
+
         final String requiredLabel = StringUtils.translate("syncmatica.gui.label.material.column.required");
         drawString(matrixStack, requiredLabel, requiredColumnRight - getStringWidth(requiredLabel), posY + 6, textColor);
         
