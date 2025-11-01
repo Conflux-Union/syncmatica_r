@@ -81,7 +81,7 @@ public final class SyncmaticaCommand {
         final StockingAreaDefinition definition = new StockingAreaDefinition(dimensionId, first, second);
         materialService.setStockingArea(placement.get(), definition);
         // Trigger a synchronous scan to honour the command contract.
-        materialService.scanNow(context.getSource().getMinecraftServer(), placement.get());
+        materialService.scanNow(context.getSource().getServer(), placement.get());
         context.getSource().sendFeedback(new LiteralText("Stocking area updated for " + projectName), false);
         return 1;
     }

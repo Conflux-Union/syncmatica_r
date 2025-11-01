@@ -5,6 +5,8 @@ import ch.endte.syncmatica.LocalLitematicState;
 import ch.endte.syncmatica.ServerPlacement;
 import ch.endte.syncmatica.communication.exchange.*;
 import ch.endte.syncmatica.extended_core.PlayerIdentifier;
+import ch.endte.syncmatica.material.MaterialKey;
+import ch.endte.syncmatica.material.MaterialProgressEntry;
 import com.mojang.authlib.GameProfile;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.PacketByteBuf;
@@ -64,6 +66,14 @@ public class ServerCommunicationManager extends CommunicationManager {
 
     @Override
     protected void handle(final ExchangeTarget source, final Identifier id, final PacketByteBuf packetBuf) {
+        if (id.equals(PacketType.MATERIAL_CONTRIBUTE.identifier)) {
+            handleMaterialContribution(source, packetBuf);
+            return;
+        }
+        if (id.equals(PacketType.MATERIAL_CLAIM.identifier)) {
+            handleMaterialClaim(source, packetBuf);
+            return;
+        }
         if (id.equals(PacketType.REQUEST_LITEMATIC.identifier)) {
             final UUID syncmaticaId = packetBuf.readUuid();
             final ServerPlacement placement = context.getSyncmaticManager().getPlacement(syncmaticaId);
@@ -170,30 +180,90 @@ public class ServerCommunicationManager extends CommunicationManager {
         }
         if (exchange instanceof ModifyExchangeServer && exchange.isSuccessful()) {
             final ServerPlacement placement = ((ModifyExchangeServer) exchange).getPlacement();
-            for (final ExchangeTarget client : broadcastTargets) {
-                if (client.getFeatureSet().hasFeature(Feature.MODIFY)) {
-                    // client supports modify so just send modify
-                    final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
-                    buf.writeUuid(placement.getId());
-                    putPositionData(placement, buf, client);
-                    putMaterialData(placement, buf, client);
-                    if (client.getFeatureSet().hasFeature(Feature.CORE_EX)) {
-                        buf.writeUuid(placement.getLastModifiedBy().uuid);
-                        buf.writeString(placement.getLastModifiedBy().getName());
-                    }
-                    client.sendPacket(PacketType.MODIFY.identifier, buf, context);
-                } else {
-                    // client doesn't support modification so
-                    // send data and then
-                    final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
-                    buf.writeUuid(placement.getId());
-                    client.sendPacket(PacketType.REMOVE_SYNCMATIC.identifier, buf, context);
-                    final PacketByteBuf buf2 = new PacketByteBuf(Unpooled.buffer());
-                    putMetaData(placement, buf2, client);
-                    client.sendPacket(PacketType.REGISTER_METADATA.identifier, buf2, context);
-                }
-            }
+            broadcastPlacementUpdate(placement);
         }
+    }
+
+    public void broadcastPlacementUpdate(final ServerPlacement placement) {
+        for (final ExchangeTarget client : broadcastTargets) {
+            if (client.getFeatureSet().hasFeature(Feature.MODIFY)) {
+                final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
+                buf.writeUuid(placement.getId());
+                putPositionData(placement, buf, client);
+                putMaterialData(placement, buf, client);
+                if (client.getFeatureSet().hasFeature(Feature.CORE_EX)) {
+                    buf.writeUuid(placement.getLastModifiedBy().uuid);
+                    buf.writeString(placement.getLastModifiedBy().getName());
+                }
+                client.sendPacket(PacketType.MODIFY.identifier, buf, context);
+                continue;
+            }
+            final PacketByteBuf removal = new PacketByteBuf(Unpooled.buffer());
+            removal.writeUuid(placement.getId());
+            client.sendPacket(PacketType.REMOVE_SYNCMATIC.identifier, removal, context);
+            final PacketByteBuf registration = new PacketByteBuf(Unpooled.buffer());
+            putMetaData(placement, registration, client);
+            client.sendPacket(PacketType.REGISTER_METADATA.identifier, registration, context);
+        }
+    }
+
+    private void handleMaterialContribution(final ExchangeTarget source, final PacketByteBuf packetBuf) {
+        if (context.getMaterialService() == null || !context.getMaterialService().isEnabled()) {
+            return;
+        }
+        final UUID placementId = packetBuf.readUuid();
+        final Identifier itemId = new Identifier(packetBuf.readString(32767));
+        final String variant = packetBuf.readString(32767);
+        final int delta = packetBuf.readInt();
+        if (delta == 0) {
+            return;
+        }
+        final ServerPlacement placement = context.getSyncmaticManager().getPlacement(placementId);
+        if (placement == null) {
+            return;
+        }
+        final MaterialKey key = new MaterialKey(itemId, variant);
+        context.getMaterialService().addManualContribution(placement.getId(), key, delta);
+    }
+
+    private void handleMaterialClaim(final ExchangeTarget source, final PacketByteBuf packetBuf) {
+        if (context.getMaterialService() == null || !context.getMaterialService().isEnabled()) {
+            return;
+        }
+        final UUID placementId = packetBuf.readUuid();
+        final Identifier itemId = new Identifier(packetBuf.readString(32767));
+        final String variant = packetBuf.readString(32767);
+        final boolean claim = packetBuf.readBoolean();
+        final ServerPlacement placement = context.getSyncmaticManager().getPlacement(placementId);
+        if (placement == null) {
+            return;
+        }
+        final MaterialKey key = new MaterialKey(itemId, variant);
+        final PlayerIdentifier self = resolvePlayerIdentifier(source);
+        if (self == null) {
+            return;
+        }
+        final PlayerIdentifier currentOwner = placement.getMaterialProgress().getEntries().stream()
+                .filter(entry -> entry.getKey().equals(key))
+                .map(MaterialProgressEntry::getClaimedBy)
+                .findFirst()
+                .orElse(PlayerIdentifier.MISSING_PLAYER);
+        if (claim) {
+            if (currentOwner == null || currentOwner == PlayerIdentifier.MISSING_PLAYER || currentOwner.equals(self)) {
+                context.getMaterialService().setClaimant(placementId, key, self);
+            }
+        } else if (currentOwner != null && currentOwner.equals(self)) {
+            context.getMaterialService().setClaimant(placementId, key, null);
+        }
+    }
+
+    private PlayerIdentifier resolvePlayerIdentifier(final ExchangeTarget source) {
+        final ServerPlayerEntity player = playerMap.get(source);
+        if (player == null) {
+            return null;
+        }
+        final GameProfile profile = player.getGameProfile();
+        return context.getPlayerIdentifierProvider().createOrGet(profile);
     }
 
     private void addPlacement(final ExchangeTarget t, final ServerPlacement placement) {

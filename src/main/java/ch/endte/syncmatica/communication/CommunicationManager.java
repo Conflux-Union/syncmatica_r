@@ -214,6 +214,12 @@ public abstract class CommunicationManager {
         if (!exchangeTarget.getFeatureSet().hasFeature(Feature.MATERIAL_PROGRESS)) {
             return;
         }
+        if (buf.readableBytes() < Integer.BYTES) {
+            if (!context.isServer()) {
+                placement.getMaterialProgress().clear();
+            }
+            return;
+        }
         final int total = buf.readInt();
         if (total <= 0) {
             if (!context.isServer()) {

@@ -2,10 +2,12 @@ package ch.endte.syncmatica.service;
 
 import ch.endte.syncmatica.ServerPlacement;
 import ch.endte.syncmatica.ServerPosition;
+import ch.endte.syncmatica.communication.ServerCommunicationManager;
 import ch.endte.syncmatica.extended_core.PlayerIdentifier;
 import ch.endte.syncmatica.material.MaterialKey;
 import ch.endte.syncmatica.material.MaterialProgressEntry;
 import ch.endte.syncmatica.material.MaterialProgressState;
+import ch.endte.syncmatica.material.MaterialRequirementExtractor;
 import ch.endte.syncmatica.material.StockingAreaDefinition;
 import net.minecraft.block.BlockState;
 import net.minecraft.server.MinecraftServer;
@@ -16,13 +18,14 @@ import net.minecraft.util.registry.Registry;
 import net.minecraft.util.registry.RegistryKey;
 import net.minecraft.world.World;
 
+import java.io.File;
 import java.util.*;
 
 /**
  * Aggregates material requirements, manual contributions, and stocking scans per placement.
  */
 public class MaterialService extends AbstractService {
-    public static final boolean ENABLED_DEFAULT = false;
+    public static final boolean ENABLED_DEFAULT = true;
     public static final int SCAN_INTERVAL_DEFAULT = 200;
 
     // Tracks every placement currently managed on the server.
@@ -50,6 +53,14 @@ public class MaterialService extends AbstractService {
         placements.put(placement.getId(), placement);
         stockingAreas.put(placement.getId(), placement.getStockingArea());
         seedFromExistingSnapshot(placement);
+        if (enabled && placement.getMaterialProgress().isEmpty()) {
+            final Map<MaterialKey, Integer> required = loadRequirementsFromSchematic(placement);
+            if (!required.isEmpty()) {
+                requiredTotals.put(placement.getId(), required);
+                rebuildSnapshot(placement, true);
+                return;
+            }
+        }
         rebuildSnapshot(placement, false);
     }
 
@@ -78,6 +89,33 @@ public class MaterialService extends AbstractService {
         }
     }
 
+    public void addManualContribution(final UUID placementId, final MaterialKey key, final int delta) {
+        if (delta == 0) {
+            return;
+        }
+        final ServerPlacement placement = placements.get(placementId);
+        if (placement == null) {
+            return;
+        }
+        ensureRequirementsLoaded(placement);
+        final Map<MaterialKey, Integer> required = requiredTotals.get(placementId);
+        if (required == null || !required.containsKey(key)) {
+            return;
+        }
+        final Map<MaterialKey, Integer> totals = playerSuppliedTotals.computeIfAbsent(placementId, unused -> new HashMap<>());
+        final int current = totals.getOrDefault(key, 0);
+        int next = current + delta;
+        if (next < 0) {
+            next = 0;
+        }
+        final int requiredAmount = required.getOrDefault(key, Integer.MAX_VALUE);
+        if (requiredAmount != Integer.MAX_VALUE) {
+            next = Math.min(next, requiredAmount);
+        }
+        totals.put(key, next);
+        rebuildSnapshot(placement, true);
+    }
+
     public void setStockingContributions(final UUID placementId, final Map<MaterialKey, Integer> totals) {
         stockingTotals.put(placementId, new HashMap<>(totals));
         final ServerPlacement placement = placements.get(placementId);
@@ -87,7 +125,12 @@ public class MaterialService extends AbstractService {
     }
 
     public void setClaimant(final UUID placementId, final MaterialKey key, final PlayerIdentifier identifier) {
-        claimants.computeIfAbsent(placementId, unused -> new HashMap<>()).put(key, identifier);
+        final Map<MaterialKey, PlayerIdentifier> map = claimants.computeIfAbsent(placementId, unused -> new HashMap<>());
+        if (identifier == null || identifier == PlayerIdentifier.MISSING_PLAYER) {
+            map.remove(key);
+        } else {
+            map.put(key, identifier);
+        }
         final ServerPlacement placement = placements.get(placementId);
         if (placement != null) {
             rebuildSnapshot(placement, true);
@@ -172,6 +215,7 @@ public class MaterialService extends AbstractService {
             }
             return;
         }
+        ensureRequirementsLoaded(placement);
         final UUID placementId = placement.getId();
         final Map<MaterialKey, Integer> required = requiredTotals.getOrDefault(placementId, Collections.emptyMap());
         final Map<MaterialKey, Integer> manual = playerSuppliedTotals.getOrDefault(placementId, Collections.emptyMap());
@@ -194,6 +238,9 @@ public class MaterialService extends AbstractService {
         }
         if (notify) {
             context.getSyncmaticManager().updateServerPlacement(placement);
+            if (context.getCommunicationManager() instanceof ServerCommunicationManager) {
+                ((ServerCommunicationManager) context.getCommunicationManager()).broadcastPlacementUpdate(placement);
+            }
         }
     }
 
@@ -216,6 +263,51 @@ public class MaterialService extends AbstractService {
                 claims.put(entry.getKey(), entry.getClaimedBy());
             }
         });
+    }
+
+    private Map<MaterialKey, Integer> loadRequirementsFromSchematic(final ServerPlacement placement) {
+        final File file = context.getFileStorage().getLocalLitematic(placement);
+        if (file == null) {
+            return Collections.emptyMap();
+        }
+        return MaterialRequirementExtractor.extract(file);
+    }
+
+    private void ensureRequirementsLoaded(final ServerPlacement placement) {
+        final Map<MaterialKey, Integer> required = requiredTotals.computeIfAbsent(placement.getId(), unused -> new HashMap<>());
+        if (!required.isEmpty()) {
+            return;
+        }
+        final Map<MaterialKey, Integer> extracted = loadRequirementsFromSchematic(placement);
+        if (extracted.isEmpty()) {
+            return;
+        }
+        required.clear();
+        required.putAll(extracted);
+    }
+
+    public void refreshPlacement(final ServerPlacement placement) {
+        if (!enabled) {
+            return;
+        }
+        final Map<MaterialKey, Integer> extracted = loadRequirementsFromSchematic(placement);
+        if (extracted.isEmpty()) {
+            return;
+        }
+        requiredTotals.put(placement.getId(), new HashMap<>(extracted));
+        final Map<MaterialKey, Integer> manual = playerSuppliedTotals.get(placement.getId());
+        if (manual != null) {
+            manual.keySet().retainAll(extracted.keySet());
+        }
+        final Map<MaterialKey, Integer> stock = stockingTotals.get(placement.getId());
+        if (stock != null) {
+            stock.keySet().retainAll(extracted.keySet());
+        }
+        final Map<MaterialKey, PlayerIdentifier> existingClaims = claimants.get(placement.getId());
+        if (existingClaims != null) {
+            existingClaims.keySet().retainAll(extracted.keySet());
+        }
+        rebuildSnapshot(placement, true);
     }
 
     private void scanPlacement(final MinecraftServer server, final ServerPlacement placement, final StockingAreaDefinition area) {
@@ -248,7 +340,7 @@ public class MaterialService extends AbstractService {
         if ("minecraft:the_end".equals(dimensionId)) {
             return server.getWorld(World.END);
         }
-        final RegistryKey<World> key = RegistryKey.of(Registry.DIMENSION, new Identifier(dimensionId));
+        final RegistryKey<World> key = RegistryKey.of(Registry.WORLD_KEY, new Identifier(dimensionId));
         return server.getWorld(key);
     }
 }
