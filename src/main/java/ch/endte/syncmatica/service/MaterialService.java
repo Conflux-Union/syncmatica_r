@@ -44,6 +44,8 @@ public class MaterialService extends AbstractService {
     private final Map<UUID, Map<MaterialKey, Integer>> stockingTotals = new HashMap<>();
     // Cached stocking area definitions for later rescans.
     private final Map<UUID, StockingAreaDefinition> stockingAreas = new HashMap<>();
+    // Global default area used when a placement has none.
+    private StockingAreaDefinition defaultStockingArea;
 
     private boolean enabled = ENABLED_DEFAULT;
     private int scanInterval = SCAN_INTERVAL_DEFAULT;
@@ -102,6 +104,15 @@ public class MaterialService extends AbstractService {
         return stockingAreas.get(placementId);
     }
 
+    public void setDefaultStockingArea(final StockingAreaDefinition area) {
+        // Set or replace the server-wide default area (non-persistent).
+        defaultStockingArea = area;
+    }
+
+    public StockingAreaDefinition getDefaultStockingArea() {
+        return defaultStockingArea;
+    }
+
     public void tick(final MinecraftServer server) {
         if (!enabled) {
             return;
@@ -111,12 +122,20 @@ public class MaterialService extends AbstractService {
             return;
         }
         tickCounter = 0;
+        // If a default area exists, pre-scan it once and distribute totals.
+        final Map<String, Map<MaterialKey, Integer>> defaultTotals =
+                (defaultStockingArea != null) ? scanDefaultArea(server, defaultStockingArea) : Collections.emptyMap();
+
         for (final ServerPlacement placement : placements.values()) {
             final StockingAreaDefinition area = stockingAreas.get(placement.getId());
-            if (area == null) {
+            if (area != null) {
+                scanPlacement(server, placement, area);
                 continue;
             }
-            scanPlacement(server, placement, area);
+            if (defaultStockingArea != null) {
+                final Map<MaterialKey, Integer> totals = defaultTotals.getOrDefault(placement.getName(), Collections.emptyMap());
+                setStockingContributions(placement.getId(), totals);
+            }
         }
     }
 
@@ -125,10 +144,28 @@ public class MaterialService extends AbstractService {
             return;
         }
         final StockingAreaDefinition area = stockingAreas.get(placement.getId());
-        if (area == null) {
+        if (area != null) {
+            scanPlacement(server, placement, area);
             return;
         }
-        scanPlacement(server, placement, area);
+        if (defaultStockingArea != null) {
+            final Map<String, Map<MaterialKey, Integer>> map = scanDefaultArea(server, defaultStockingArea);
+            final Map<MaterialKey, Integer> totals = map.getOrDefault(placement.getName(), Collections.emptyMap());
+            setStockingContributions(placement.getId(), totals);
+        }
+    }
+
+    public void scanDefaultNow(final MinecraftServer server) {
+        if (!enabled || defaultStockingArea == null) {
+            return;
+        }
+        final Map<String, Map<MaterialKey, Integer>> map = scanDefaultArea(server, defaultStockingArea);
+        for (final ServerPlacement placement : placements.values()) {
+            if (stockingAreas.get(placement.getId()) == null) {
+                final Map<MaterialKey, Integer> totals = map.getOrDefault(placement.getName(), Collections.emptyMap());
+                setStockingContributions(placement.getId(), totals);
+            }
+        }
     }
 
     @Override
@@ -159,6 +196,7 @@ public class MaterialService extends AbstractService {
         requiredTotals.clear();
         stockingTotals.clear();
         stockingAreas.clear();
+        defaultStockingArea = null;
     }
 
     private void rebuildSnapshot(final ServerPlacement placement, final boolean notify) {
@@ -255,12 +293,10 @@ public class MaterialService extends AbstractService {
         final Map<MaterialKey, Integer> totals = new HashMap<>();
         final BlockPos min = area.getMin();
         final BlockPos max = area.getMax();
-        
-        // 遍历指定区域内的所有方块位置
+        // Iterate all positions inside the axis-aligned box
         for (final BlockPos pos : BlockPos.iterate(min, max)) {
             final BlockEntity blockEntity = world.getBlockEntity(pos);
-            
-            // 检查是否是容器（箱子、桶、潜影盒等）
+            // Count any block entity that implements Inventory (chest, barrel, shulker, etc.)
             if (blockEntity instanceof Inventory) {
                 final Inventory inventory = (Inventory) blockEntity;
                 scanInventory(inventory, totals);
@@ -269,9 +305,103 @@ public class MaterialService extends AbstractService {
         
         setStockingContributions(placement.getId(), totals);
     }
+
+    // Build per-project totals by reading signs in the default area and mapping nearby chests.
+    private Map<String, Map<MaterialKey, Integer>> scanDefaultArea(final MinecraftServer server, final StockingAreaDefinition area) {
+        final ServerWorld world = resolveWorld(server, area.getDimensionId());
+        if (world == null) {
+            return Collections.emptyMap();
+        }
+        final Map<String, Map<MaterialKey, Integer>> result = new HashMap<>();
+        final BlockPos min = area.getMin();
+        final BlockPos max = area.getMax();
+
+        for (final BlockPos pos : BlockPos.iterate(min, max)) {
+            final BlockEntity be = world.getBlockEntity(pos);
+            if (!(be instanceof net.minecraft.block.entity.SignBlockEntity)) {
+                continue;
+            }
+            final net.minecraft.block.entity.SignBlockEntity sign = (net.minecraft.block.entity.SignBlockEntity) be;
+            final java.util.List<String> names = new java.util.ArrayList<>(4);
+            for (int i = 0; i < 4; i++) {
+                try {
+                    final net.minecraft.text.Text t = sign.getTextOnRow(i, false);
+                    if (t != null) {
+                        final String s = t.getString();
+                        if (s != null) {
+                            final String trimmed = s.trim();
+                            if (!trimmed.isEmpty()) {
+                                names.add(trimmed);
+                            }
+                        }
+                    }
+                } catch (final Throwable ignored) {
+                    // Keep going if mappings differ slightly.
+                }
+            }
+            if (names.isEmpty()) {
+                continue;
+            }
+            final Inventory inv = resolveInventoryForSign(world, pos);
+            if (inv == null) {
+                continue;
+            }
+            for (final String projectName : names) {
+                final Map<MaterialKey, Integer> totals = result.computeIfAbsent(projectName, k -> new HashMap<>());
+                scanInventory(inv, totals);
+            }
+        }
+        return result;
+    }
+
+    // Resolve the inventory a sign is attached to: wall sign -> behind block; standing sign -> below block.
+    private Inventory resolveInventoryForSign(final ServerWorld world, final BlockPos signPos) {
+        final net.minecraft.block.BlockState state = world.getBlockState(signPos);
+        BlockPos candidate = null;
+        if (state.getBlock() instanceof net.minecraft.block.WallSignBlock) {
+            final net.minecraft.util.math.Direction facing = state.get(net.minecraft.state.property.Properties.HORIZONTAL_FACING);
+            if (facing != null) {
+                candidate = signPos.offset(facing.getOpposite());
+            }
+        } else if (state.getBlock() instanceof net.minecraft.block.SignBlock) {
+            candidate = signPos.down();
+        }
+        if (candidate == null) {
+            // Only accept signs attached to a side or placed on top; no other associations.
+            return null;
+        }
+        return getInventoryAt(world, candidate);
+    }
+
+    // Get an Inventory at a position; for chests, return the combined double-inventory when available.
+    private Inventory getInventoryAt(final ServerWorld world, final BlockPos pos) {
+        final net.minecraft.block.BlockState state = world.getBlockState(pos);
+        final BlockEntity be = world.getBlockEntity(pos);
+        if (!(be instanceof Inventory)) {
+            return null;
+        }
+        // Try to return a combined inventory for double chests; otherwise the raw inventory.
+        if (state.getBlock() instanceof net.minecraft.block.ChestBlock) {
+            final net.minecraft.block.entity.BlockEntityType<?> type = be.getType();
+            final Inventory primary = (Inventory) be;
+            // Probe horizontal neighbors for the matching chest half.
+            for (final net.minecraft.util.math.Direction dir : new net.minecraft.util.math.Direction[]{
+                    net.minecraft.util.math.Direction.NORTH,
+                    net.minecraft.util.math.Direction.SOUTH,
+                    net.minecraft.util.math.Direction.EAST,
+                    net.minecraft.util.math.Direction.WEST}) {
+                final BlockPos otherPos = pos.offset(dir);
+                final BlockEntity otherBe = world.getBlockEntity(otherPos);
+                if (otherBe != null && otherBe.getType() == type && otherBe instanceof Inventory) {
+                    return new net.minecraft.inventory.DoubleInventory(primary, (Inventory) otherBe);
+                }
+            }
+        }
+        return (Inventory) be;
+    }
     
     /**
-     * 扫描容器内的所有物品，包括嵌套的潜影盒
+     * Scan all items in an inventory, including nested shulker boxes.
      */
     private void scanInventory(final Inventory inventory, final Map<MaterialKey, Integer> totals) {
         for (int slot = 0; slot < inventory.size(); slot++) {
@@ -279,13 +409,11 @@ public class MaterialService extends AbstractService {
             if (stack == null || stack.isEmpty()) {
                 continue;
             }
-            
-            // 统计当前物品
+            // Count the current stack
             final Identifier itemId = Registry.ITEM.getId(stack.getItem());
             final MaterialKey key = new MaterialKey(itemId, "");
             totals.merge(key, stack.getCount(), Integer::sum);
-            
-            // 检查是否是潜影盒（可能包含嵌套物品）
+            // Handle possible shulker box nesting via NBT
             if (stack.getItem() instanceof BlockItem) {
                 final NbtCompound nbt = stack.getNbt();
                 if (nbt != null && nbt.contains("BlockEntityTag")) {
@@ -299,7 +427,7 @@ public class MaterialService extends AbstractService {
     }
     
     /**
-     * 扫描潜影盒NBT数据内的物品（递归处理嵌套潜影盒）
+     * Recursively scan items contained in a shulker box NBT payload.
      */
     private void scanShulkerBoxContents(final NbtList itemsNbt, final Map<MaterialKey, Integer> totals) {
         for (int i = 0; i < itemsNbt.size(); i++) {
@@ -311,12 +439,10 @@ public class MaterialService extends AbstractService {
             try {
                 final Identifier itemId = new Identifier(itemNbt.getString("id"));
                 final int count = itemNbt.getByte("Count");
-                
-                // 统计潜影盒内的物品
+                // Count items inside shulker box
                 final MaterialKey key = new MaterialKey(itemId, "");
                 totals.merge(key, count, Integer::sum);
-                
-                // 递归处理嵌套的潜影盒
+                // Recurse nested shulker boxes
                 if (itemNbt.contains("tag")) {
                     final NbtCompound tag = itemNbt.getCompound("tag");
                     if (tag.contains("BlockEntityTag")) {
@@ -327,7 +453,7 @@ public class MaterialService extends AbstractService {
                     }
                 }
             } catch (final Exception e) {
-                // 忽略无效的物品ID
+                // Ignore malformed entries
             }
         }
     }

@@ -30,7 +30,8 @@ public final class SyncmaticaCommand {
     public static void register(final CommandDispatcher<ServerCommandSource> dispatcher) {
         final LiteralArgumentBuilder<ServerCommandSource> root = CommandManager.literal("syncmatica")
                 .requires(source -> source.hasPermissionLevel(2))
-                .then(projectArgument());
+                .then(projectArgument())
+                .then(defaultArgument());
         dispatcher.register(root);
     }
 
@@ -78,6 +79,38 @@ public final class SyncmaticaCommand {
         // Trigger a synchronous scan to honour the command contract.
         materialService.scanNow(context.getSource().getServer(), placement.get());
         context.getSource().sendFeedback(new LiteralText("Stocking area updated for " + projectName), false);
+        return 1;
+    }
+
+    private static LiteralArgumentBuilder<ServerCommandSource> defaultArgument() {
+        // Sets a server-wide default stocking area.
+        return CommandManager.literal("default")
+                .then(CommandManager.literal("setStockingarea")
+                        .then(CommandManager.argument("pos1", BlockPosArgumentType.blockPos())
+                                .then(CommandManager.argument("pos2", BlockPosArgumentType.blockPos())
+                                        .executes(SyncmaticaCommand::handleSetDefaultStockingArea))));
+    }
+
+    private static int handleSetDefaultStockingArea(final CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+        final Context syncmaticaContext = Syncmatica.getContext(Syncmatica.SERVER_CONTEXT);
+        if (syncmaticaContext == null || syncmaticaContext.getMaterialService() == null) {
+            context.getSource().sendError(new LiteralText("Syncmatica materials service unavailable"));
+            return 0;
+        }
+        final MaterialService materialService = syncmaticaContext.getMaterialService();
+        if (!materialService.isEnabled()) {
+            context.getSource().sendError(new LiteralText("Material sharing is disabled"));
+            return 0;
+        }
+        final BlockPos first = BlockPosArgumentType.getBlockPos(context, "pos1");
+        final BlockPos second = BlockPosArgumentType.getBlockPos(context, "pos2");
+        final String dimensionId = context.getSource().getWorld().getRegistryKey().getValue().toString();
+        final StockingAreaDefinition definition = new StockingAreaDefinition(dimensionId, first, second);
+        materialService.setDefaultStockingArea(definition);
+        // Synchronous pass to reflect immediately and persist to disk.
+        materialService.scanDefaultNow(context.getSource().getServer());
+        syncmaticaContext.getSyncmaticManager().saveServerState();
+        context.getSource().sendFeedback(new LiteralText("Default stocking area updated"), false);
         return 1;
     }
 }
