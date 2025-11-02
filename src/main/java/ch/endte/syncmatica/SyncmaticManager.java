@@ -12,6 +12,7 @@ import java.util.function.Consumer;
 
 public class SyncmaticManager {
     public static final String PLACEMENTS_JSON_KEY = "placements";
+    public static final String DEFAULT_STOCKING_AREA_JSON_KEY = "defaultStockingArea";
     private final Map<UUID, ServerPlacement> schematics = new HashMap<>();
     private final Collection<Consumer<ServerPlacement>> consumers = new ArrayList<>();
 
@@ -76,6 +77,13 @@ public class SyncmaticManager {
     public void shutdown() {
     }
 
+    public void saveServerState() { // explicit entrypoint for services/commands to persist
+        if (!context.isServer()) {
+            return;
+        }
+        saveServer();
+    }
+
     private void saveServer() {
         final JsonObject obj = new JsonObject();
         final JsonArray arr = new JsonArray();
@@ -85,6 +93,13 @@ public class SyncmaticManager {
         }
 
         obj.add(PLACEMENTS_JSON_KEY, arr);
+        // Persist default stocking area if present
+        if (context.getMaterialService() != null) {
+            final ch.endte.syncmatica.material.StockingAreaDefinition def = context.getMaterialService().getDefaultStockingArea();
+            if (def != null) {
+                obj.add(DEFAULT_STOCKING_AREA_JSON_KEY, def.toJson());
+            }
+        }
         final File backup = new File(context.getConfigFolder(), "placements.json.bak");
         final File incoming = new File(context.getConfigFolder(), "placements.json.new");
         final File current = new File(context.getConfigFolder(), "placements.json");
@@ -120,16 +135,26 @@ public class SyncmaticManager {
             }
             try {
                 final JsonObject obj = element.getAsJsonObject();
-                if (obj == null || !obj.has(PLACEMENTS_JSON_KEY)) {
-                    return;
-                }
-                final JsonArray arr = obj.getAsJsonArray(PLACEMENTS_JSON_KEY);
-                for (final JsonElement elem : arr) {
-                    final ServerPlacement placement = ServerPlacement.fromJson(elem.getAsJsonObject(), context);
-                    schematics.put(placement.getId(), placement); // NOSONAR
-                    if (context.getMaterialService() != null) {
-                        context.getMaterialService().attachPlacement(placement);
+                if (obj == null) { return; }
+
+                // Restore placements
+                if (obj.has(PLACEMENTS_JSON_KEY)) {
+                    final JsonArray arr = obj.getAsJsonArray(PLACEMENTS_JSON_KEY);
+                    for (final JsonElement elem : arr) {
+                        final ServerPlacement placement = ServerPlacement.fromJson(elem.getAsJsonObject(), context);
+                        schematics.put(placement.getId(), placement); // NOSONAR
+                        if (context.getMaterialService() != null) {
+                            context.getMaterialService().attachPlacement(placement);
+                        }
                     }
+                }
+
+                // Restore default stocking area if present
+                if (context.getMaterialService() != null && obj.has(DEFAULT_STOCKING_AREA_JSON_KEY)) {
+                    final ch.endte.syncmatica.material.StockingAreaDefinition def =
+                            ch.endte.syncmatica.material.StockingAreaDefinition.fromJson(
+                                    obj.getAsJsonObject(DEFAULT_STOCKING_AREA_JSON_KEY));
+                    context.getMaterialService().setDefaultStockingArea(def);
                 }
 
             } catch (final IllegalStateException | NullPointerException e) {
