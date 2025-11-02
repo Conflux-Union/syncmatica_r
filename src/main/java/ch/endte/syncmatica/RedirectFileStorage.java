@@ -17,7 +17,7 @@ public class RedirectFileStorage implements IFileStorage {
 
     // stores the redirects
     // will associate a hash with a specific file on the disk
-    // not sure how to solve storage and make everything convenient for the user
+    
     private final Map<UUID, RedirectData> redirect = new HashMap<>();
 
     public RedirectFileStorage() {

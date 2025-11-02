@@ -13,7 +13,7 @@ public interface IButtonType {
 	IGuiIcon getIcon();
 
 	// returns the key when it is already translated
-	// allows for the most freedom in the implementation
+	
 	String getTranslatedKey();
 
 	List<String> getHoverStrings();
@@ -21,7 +21,7 @@ public interface IButtonType {
 	IButtonActionListener getButtonListener();
 
 	// returns whether a button type is active or not
-	// for MultiTypeButtons this check essentially checks which type is selected
+	
 	boolean isActive();
 
 }

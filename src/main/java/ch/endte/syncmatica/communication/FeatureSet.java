@@ -4,7 +4,7 @@ import ch.endte.syncmatica.Feature;
 
 import java.util.*;
 
-// a class representing what kind of features a syncmatica instance supports
+
 // or has enabled/disabled
 
 public class FeatureSet {

@@ -34,6 +34,8 @@
 	"syncmatica.gui.label.material.column.player": "Player",
 	"syncmatica.gui.label.material.column.stock": "Stock",
 	"syncmatica.gui.label.material.column.missing": "Missing",
+	"syncmatica.gui.label.material.missing.format": "%1$d Shulkers %2$d Stacks %3$d Items (%4$d Items)",
+	"syncmatica.gui.label.material.missing.short.total": "%1$d",
 	"syncmatica.gui.label.material.column.claimed": "Claimed",
 	"syncmatica.gui.tooltip.material.contribute.primary": "Left click: +1 (Shift:+16, Ctrl:+64)",
 	"syncmatica.gui.tooltip.material.contribute.secondary": "Right click subtracts the same amount"

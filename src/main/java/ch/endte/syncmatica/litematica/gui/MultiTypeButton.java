@@ -9,7 +9,7 @@ import java.util.List;
 // Not sure how to add Icon support to this without a problematic implementation
 // Icon assumes final in its field - we cannot change the fact that the rendering probably
 // executes based on this assumption
-// for now I will leave the icons alone and pretend they don't exist
+
 // actually upon reading the code there might not be a problem with this.
 public class MultiTypeButton extends ButtonGeneric {
 

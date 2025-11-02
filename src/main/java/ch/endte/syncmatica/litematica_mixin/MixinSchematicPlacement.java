@@ -23,7 +23,7 @@ import java.util.UUID;
 @Mixin(SchematicPlacement.class)
 public abstract class MixinSchematicPlacement implements IIDContainer, MovingFinisher {
 
-    // unsure if I can just make an assignment here so I mixin to the constructor
+    
     @Unique
     UUID serverId;
 

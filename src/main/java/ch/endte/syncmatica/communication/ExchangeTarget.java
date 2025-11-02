@@ -15,7 +15,7 @@ import java.util.Collection;
 import java.util.List;
 
 // since Client/Server PlayNetworkHandler are 2 different classes, but I want to use exchanges
-// on both without having to recode them individually I have an adapter class here
+
 
 public class ExchangeTarget {
     private ClientPlayNetworkHandler server = null;
@@ -36,7 +36,7 @@ public class ExchangeTarget {
     }
 
     // this application exclusively communicates in CustomPayLoad packets
-    // this class handles the sending of either S2C or C2S packets
+    
     public void sendPacket(final Identifier id, final PacketByteBuf packetBuf, final Context context) {
         context.getDebugService().logSendPacket(id, persistentName);
         if (server == null) {

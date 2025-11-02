@@ -68,11 +68,16 @@ public class ClientCommunicationManager extends CommunicationManager {
                         packetBuf.readUuid(),
                         packetBuf.readString(32767)
                 );
-
-                toModify.setLastModifiedBy(lastModifiedBy);
+                if (toModify != null) {
+                    toModify.setLastModifiedBy(lastModifiedBy);
+                }
             }
-            LitematicManager.getInstance().updateRendered(toModify);
-            context.getSyncmaticManager().updateServerPlacement(toModify);
+            if (toModify != null) {
+                LitematicManager.getInstance().updateRendered(toModify);
+                context.getSyncmaticManager().updateServerPlacement(toModify);
+            } else {
+                
+            }
             return;
         }
         if (id.equals(PacketType.MESSAGE.identifier)) {

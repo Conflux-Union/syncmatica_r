@@ -22,15 +22,15 @@ import net.minecraft.util.math.BlockPos;
 import java.io.File;
 import java.util.*;
 
-// responsible for loading and keeping track of rendered syncmatic placements
-// responsible for keeping track redirected litematic files (e.g. if the syncmatic was
+
+
 // shared from this client)
 
 public class LitematicManager {
     private static LitematicManager instance = null;
 
 
-    // links syncmatic to schematic if it is rendered on the client
+    
     // specific client
     private final Map<ServerPlacement, SchematicPlacement> rendering;
     private Collection<SchematicPlacement> preLoadList = new ArrayList<>();
@@ -51,7 +51,7 @@ public class LitematicManager {
         rendering = new HashMap<>();
     }
 
-    // sets the active context for the gui side of things
+    
     public void setActiveContext(final Context con) {
         if (con.isServer()) {
             throw new Context.ContextMismatchException("Applied server context where client context was expected");
@@ -106,7 +106,7 @@ public class LitematicManager {
     // removed side effects
     public ServerPlacement syncmaticFromSchematic(final SchematicPlacement schem) {
         if (rendering.containsValue(schem)) {
-            // TODO: use the new ID for faster retrieval
+            
             for (final ServerPlacement checkPlacement : rendering.keySet()) {
                 if (rendering.get(checkPlacement) == schem) {
                     return checkPlacement;
@@ -279,7 +279,7 @@ public class LitematicManager {
     }
 
     // gets called by code mixed into litematicas loading stage
-    // its responsible for keeping the litematics that got loaded in such a way
+    
     // until a time where the server has told the client which syncmatics actually are still loaded
     public void preLoad(final SchematicPlacement schem) {
         if (context != null && context.isStarted()) {

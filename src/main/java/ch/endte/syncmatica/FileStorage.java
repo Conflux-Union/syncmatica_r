@@ -53,7 +53,7 @@ public class FileStorage implements IFileStorage {
         }
     }
 
-    // method for creating an empty file for the litematic data
+    
     @Override
     public File createLocalLitematic(final ServerPlacement placement) {
         if (getLocalState(placement).isLocalFileReady()) {

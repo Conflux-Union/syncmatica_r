@@ -11,7 +11,7 @@ import net.minecraft.util.Identifier;
 // to be the vm holding this exchange only the partner has to be noted
 // another thing of note is that an Exchange is only one half of the entire exchange
 // thus only encompasses half of the entire behavior of an exchange
-// e.g. there could be a class receiveData and a class sendData creating
+
 // the 2 halves of a TRANSMIT_DATA_EXCHANGE
 
 
@@ -20,7 +20,7 @@ public interface Exchange {
     // uniquely identifies the partner of this exchange
     ExchangeTarget getPartner();
 
-    // in case an exchange starts another exchange they need to be able to reach for
+    
     // the manager
     Context getContext();
 
@@ -40,8 +40,8 @@ public interface Exchange {
     boolean isSuccessful();
 
     // marks an external unsuccessful close
-    // upon a close the exchange might send a cancel packet for this request
-    // if the notifyPartner boolean is set to true
+    
+    
     // otherwise this will not happen
     void close(boolean notifyPartner);
 

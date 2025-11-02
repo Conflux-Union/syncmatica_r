@@ -15,7 +15,7 @@ import java.io.*;
 
 public class UploadExchange extends AbstractExchange {
 
-    // The maximum buffer size for CustomPayloadPackets is actually 32767
+    
     // so 32768 is a bad value to send - thus adjusted it to 16384 - exactly halved
     private static final int BUFFER_SIZE = 16384;
 
@@ -41,7 +41,7 @@ public class UploadExchange extends AbstractExchange {
     @Override
     public void handle(final Identifier id, final PacketByteBuf packetBuf) {
 
-        packetBuf.readUuid(); // uncertain if the data has to be consumed
+        packetBuf.readUuid(); 
         if (id.equals(PacketType.RECEIVED_LITEMATIC.identifier)) {
             send();
         }

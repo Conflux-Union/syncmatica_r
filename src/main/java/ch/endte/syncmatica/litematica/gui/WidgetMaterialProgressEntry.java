@@ -18,7 +18,7 @@ import net.minecraft.util.registry.Registry;
  * Renders a single material progress row showing stocking totals.
  */
 public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaMaterialEntry> {
-    // Shared layout offsets for both header and rows.
+    
     public static final int NAME_COLUMN_LEFT_OFFSET = 24;
     public static final int REQUIRED_COLUMN_RIGHT_OFFSET = 194;
     public static final int STOCK_COLUMN_RIGHT_OFFSET = 244;
@@ -38,8 +38,10 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
 
         final int baseX = x + 6;
         final int requiredColumnRight = baseX + REQUIRED_COLUMN_RIGHT_OFFSET;
-        final int stockColumnRight = baseX + STOCK_COLUMN_RIGHT_OFFSET;
-        final int missingColumnRight = baseX + MISSING_COLUMN_RIGHT_OFFSET;
+        // Anchor the missing column to the right edge to use available space.
+        final int missingColumnRight = x + width - 8;
+        // Place stock column between total(required) and missing by anchoring it near the missing column.
+        final int stockColumnRight = missingColumnRight - 100;
 
         final ItemStack stack = resolveDisplayStack(material == null ? null : material.getKey());
         if (!stack.isEmpty()) {
@@ -55,8 +57,24 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         final String stockText = String.valueOf(material.getStockingSupplied());
         drawString(stockColumnRight - getStringWidth(stockText), y + 6, secondaryColor, stockText, matrixStack);
 
-        final String missingText = String.valueOf(material.getAmountMissing());
-        drawString(missingColumnRight - getStringWidth(missingText), y + 6, material.isFinished() ? 0x80FF80 : 0xFFFF80, missingText, matrixStack);
+        final String missingText = formatMissingShortText(material);
+        final int missingColor = material.isFinished() ? 0x80FF80 : 0xFFFF80;
+        final int missingTextX = missingColumnRight - getStringWidth(missingText);
+        drawString(missingTextX, y + 6, missingColor, missingText, matrixStack);
+
+        // Tooltip on hover: show verbose format when mouse is over the missing column.
+        final int missingLeftBound = stockColumnRight + 4;
+        final int rowTop = y;
+        final int rowBottom = y + height;
+        if (mouseX >= missingLeftBound && mouseX <= missingColumnRight && mouseY >= rowTop && mouseY <= rowBottom) {
+            final net.minecraft.client.gui.screen.Screen screen = net.minecraft.client.MinecraftClient.getInstance().currentScreen;
+            if (screen != null) {
+                final java.util.List<net.minecraft.text.Text> lines = java.util.Collections.singletonList(
+                        new net.minecraft.text.LiteralText(formatMissingVerboseText(material))
+                );
+                screen.renderTooltip(matrixStack, lines, mouseX, mouseY);
+            }
+        }
     }
 
     // Build a simple display stack from the material identifier.
@@ -83,7 +101,7 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         RenderSystem.disableDepthTest();
     }
 
-    // Fallback to the identifier string if no translation is available.
+    
     private String resolveDisplayName(final SyncmaticaMaterialEntry material, final ItemStack stack) {
         if (!stack.isEmpty()) {
             return stack.getName().getString();
@@ -92,5 +110,41 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
             return material.getKey().toString();
         }
         return "unknown";
+    }
+
+    // Verbose format: <boxes> Shulkers <stacks> Stacks <singles> Items (<total> Items) via i18n.
+    private String formatMissingVerboseText(final SyncmaticaMaterialEntry material) {
+        if (material == null) {
+            return "0";
+        }
+        final int totalMissing = Math.max(0, material.getAmountMissing());
+        final ItemStack stack = resolveDisplayStack(material.getKey());
+
+        
+        final int stackSize = stack.isEmpty() ? 64 : Math.max(1, stack.getMaxCount());
+        final int perShulker = 27 * stackSize;
+
+        final int boxes = totalMissing / perShulker;
+        final int remAfterBoxes = totalMissing - boxes * perShulker;
+        final int stacks = remAfterBoxes / stackSize;
+        final int singles = remAfterBoxes - stacks * stackSize;
+
+        // Use translation key to avoid embedding non-English literals in code.
+        // Key should be defined in language assets as a printf-style pattern.
+        return fi.dy.masa.malilib.util.StringUtils.translate(
+                "syncmatica.gui.label.material.missing.format",
+                boxes, stacks, singles, totalMissing
+        );
+    }
+
+    
+    private String formatMissingShortText(final SyncmaticaMaterialEntry material) {
+        if (material == null) {
+            return "0";
+        }
+        final int totalMissing = Math.max(0, material.getAmountMissing());
+        return fi.dy.masa.malilib.util.StringUtils.translate(
+                "syncmatica.gui.label.material.missing.short.total", totalMissing
+        );
     }
 }

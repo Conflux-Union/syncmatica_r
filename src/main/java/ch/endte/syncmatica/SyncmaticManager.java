@@ -77,7 +77,7 @@ public class SyncmaticManager {
     public void shutdown() {
     }
 
-    public void saveServerState() { // explicit entrypoint for services/commands to persist
+    public void saveServerState() { 
         if (!context.isServer()) {
             return;
         }
@@ -93,7 +93,7 @@ public class SyncmaticManager {
         }
 
         obj.add(PLACEMENTS_JSON_KEY, arr);
-        // Persist default stocking area if present
+        
         if (context.getMaterialService() != null) {
             final ch.endte.syncmatica.material.StockingAreaDefinition def = context.getMaterialService().getDefaultStockingArea();
             if (def != null) {
@@ -149,7 +149,7 @@ public class SyncmaticManager {
                     }
                 }
 
-                // Restore default stocking area if present
+                
                 if (context.getMaterialService() != null && obj.has(DEFAULT_STOCKING_AREA_JSON_KEY)) {
                     final ch.endte.syncmatica.material.StockingAreaDefinition def =
                             ch.endte.syncmatica.material.StockingAreaDefinition.fromJson(
