@@ -134,7 +134,9 @@ public class SyncmaticManager {
             }
             try {
                 final JsonObject obj = element.getAsJsonObject();
-                if (obj == null) { return; }
+                if (obj == null) {
+                    return;
+                }
 
                 if (obj.has(PLACEMENTS_JSON_KEY)) {
                     final JsonArray arr = obj.getAsJsonArray(PLACEMENTS_JSON_KEY);

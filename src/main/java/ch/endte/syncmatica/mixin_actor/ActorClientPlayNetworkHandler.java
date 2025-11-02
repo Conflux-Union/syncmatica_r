@@ -31,6 +31,10 @@ public class ActorClientPlayNetworkHandler {
         return instance;
     }
 
+    private static void setClientPlayNetworkHandler(final ClientPlayNetworkHandler clientPlayNetworkHandler) {
+        ActorClientPlayNetworkHandler.clientPlayNetworkHandler = clientPlayNetworkHandler;
+    }
+
     public void startEvent(final ClientPlayNetworkHandler clientPlayNetworkHandler) {
         setClientPlayNetworkHandler(clientPlayNetworkHandler);
         startClient();
@@ -77,9 +81,5 @@ public class ActorClientPlayNetworkHandler {
         clientCommunication = null;
         exTarget = null;
         clientPlayNetworkHandler = null;
-    }
-
-    private static void setClientPlayNetworkHandler(final ClientPlayNetworkHandler clientPlayNetworkHandler) {
-        ActorClientPlayNetworkHandler.clientPlayNetworkHandler = clientPlayNetworkHandler;
     }
 }

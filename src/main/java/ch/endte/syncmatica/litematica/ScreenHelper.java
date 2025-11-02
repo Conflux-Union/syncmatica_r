@@ -16,6 +16,9 @@ public class ScreenHelper {
     private GuiBase currentGui = null;
     private Context context;
 
+    private ScreenHelper() {
+    }
+
     public static void ifPresent(final Consumer<ScreenHelper> callable) {
         if (instance != null) {
             callable.accept(instance);
@@ -34,9 +37,6 @@ public class ScreenHelper {
             instance.detach();
         }
         instance = null;
-    }
-
-    private ScreenHelper() {
     }
 
     public void setActiveContext(final Context con) {

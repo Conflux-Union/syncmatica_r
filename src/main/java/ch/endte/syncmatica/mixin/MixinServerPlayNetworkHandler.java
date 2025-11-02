@@ -25,13 +25,12 @@ import java.util.function.Consumer;
 @Mixin(ServerPlayNetworkHandler.class)
 public abstract class MixinServerPlayNetworkHandler {
 
+    @Shadow
+    public ServerPlayerEntity player;
     @Unique
     private ExchangeTarget exTarget = null;
     @Unique
     private ServerCommunicationManager comManager = null;
-
-    @Shadow
-    public ServerPlayerEntity player;
 
     @Inject(method = "<init>", at = @At("TAIL"))
     public void onConnect(final MinecraftServer server, final ClientConnection connection, final ServerPlayerEntity player, final CallbackInfo ci) {

@@ -87,9 +87,7 @@ public class WidgetSyncmaticaServerPlacementEntry extends WidgetListEntryBase<Se
             RenderUtils.drawRect(x, y, width, height, 0x70FFFFFF);
         } else if (isOdd) {
             RenderUtils.drawRect(x, y, width, height, 0x20FFFFFF);
-        }
-
-        else {
+        } else {
             RenderUtils.drawRect(x, y, width, height, 0x50FFFFFF);
         }
 

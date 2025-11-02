@@ -9,14 +9,21 @@ import java.util.UUID;
 
 public abstract class AbstractExchange implements Exchange {
 
-    private boolean success = false;
-    private boolean finished = false;
     private final ExchangeTarget partner;
     private final Context context;
+    private boolean success = false;
+    private boolean finished = false;
 
     protected AbstractExchange(final ExchangeTarget partner, final Context con) {
         this.partner = partner;
         context = con;
+    }
+
+    protected static boolean checkUUID(final PacketByteBuf sourceBuf, final UUID targetId) {
+        final int r = sourceBuf.readerIndex();
+        final UUID sourceId = sourceBuf.readUuid();
+        sourceBuf.readerIndex(r);
+        return sourceId.equals(targetId);
     }
 
     @Override
@@ -64,13 +71,6 @@ public abstract class AbstractExchange implements Exchange {
         success = true;
 
         onClose();
-    }
-
-    protected static boolean checkUUID(final PacketByteBuf sourceBuf, final UUID targetId) {
-        final int r = sourceBuf.readerIndex();
-        final UUID sourceId = sourceBuf.readUuid();
-        sourceBuf.readerIndex(r);
-        return sourceId.equals(targetId);
     }
 
 }

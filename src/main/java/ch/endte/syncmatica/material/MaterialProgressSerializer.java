@@ -22,9 +22,9 @@ public final class MaterialProgressSerializer {
         final JsonArray entries = new JsonArray();
         for (final MaterialProgressEntry entry : state.getEntries()) {
             final JsonObject node = new JsonObject();
-            node.add(FIELD_ITEM, new JsonPrimitive(entry.getKey().getItemId().toString()));
-            if (!entry.getKey().getVariant().isEmpty()) {
-                node.add(FIELD_VARIANT, new JsonPrimitive(entry.getKey().getVariant()));
+            node.add(FIELD_ITEM, new JsonPrimitive(entry.getKey().itemId().toString()));
+            if (!entry.getKey().variant().isEmpty()) {
+                node.add(FIELD_VARIANT, new JsonPrimitive(entry.getKey().variant()));
             }
             node.add(FIELD_REQUIRED, new JsonPrimitive(entry.getRequiredAmount()));
             node.add(FIELD_STOCK, new JsonPrimitive(entry.getStockingSupplied()));

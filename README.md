@@ -47,21 +47,23 @@ with everyone.
 
 ## Project Status & Road Map
 
-v0.3.8 attempts to achieve compatability with 1.19.3 
+v0.3.8 attempts to achieve compatability with 1.19.3
+
 - In doing so I change the way the mod starts up (client now starts when the first custom packet is received)
-- I also had to remove a detection for the removal of GUIs - 
-this now might cause crashes under very rare conditions.  Please look out for any kind of issues regarding this.
+- I also had to remove a detection for the removal of GUIs -
+  this now might cause crashes under very rare conditions. Please look out for any kind of issues regarding this.
 
 Sadly all existing single player placements will be lost unless you specifically rescue them.
-To rescue them move the file `placements.json` from `%minecraft_folder%/config/syncmatica/placements.json` to 
-`%minecraft_folder%/saves/%minecraft_world%/syncmatica`. If the folder doesn't exist yet just create it. 
-When you start minecraft afterwards your syncmatica placements should be back. 
+To rescue them move the file `placements.json` from `%minecraft_folder%/config/syncmatica/placements.json` to
+`%minecraft_folder%/saves/%minecraft_world%/syncmatica`. If the folder doesn't exist yet just create it.
+When you start minecraft afterwards your syncmatica placements should be back.
 
-You can also do so later at any point as long as no-one deletes `placements.json`. 
+You can also do so later at any point as long as no-one deletes `placements.json`.
 
-I have also seen that many servers have a problem with the amount of syncmatics that are persistently shared. 
+I have also seen that many servers have a problem with the amount of syncmatics that are persistently shared.
 The ownership is a pre-requirement for the change that is supposed to fix this.
-Adding a better fix for this is also on the roadmap, but I'm debating the priority since I don't get any feedback like this anymore.
+Adding a better fix for this is also on the roadmap, but I'm debating the priority since I don't get any feedback like
+this anymore.
 
 The MaterialGatherings button now opens a live material tracker so groups can coordinate required resources. Players can
 claim individual materials, adjust their delivered counts (left click +1, shift +16, ctrl +64; right click subtracts),

@@ -4,9 +4,9 @@ import ch.endte.syncmatica.Context;
 
 public interface IService {
 
-    void setContext(Context context);
-
     Context getContext();
+
+    void setContext(Context context);
 
     void getDefaultConfiguration(IServiceConfiguration configuration);
 

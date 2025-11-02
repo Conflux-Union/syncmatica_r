@@ -7,7 +7,17 @@ import java.util.*;
 public class FeatureSet {
 
     private static final Map<String, FeatureSet> versionFeatures;
+
+    static {
+        versionFeatures = new HashMap<>();
+        versionFeatures.put("0.1", new FeatureSet(Collections.singletonList(Feature.CORE)));
+    }
+
     private final Collection<Feature> features;
+
+    public FeatureSet(final Collection<Feature> features) {
+        this.features = features;
+    }
 
     public static FeatureSet fromVersionString(String version) {
         if (version.matches("^\\d+(\\.\\d+){2,4}$")) {
@@ -45,17 +55,8 @@ public class FeatureSet {
         return output.toString();
     }
 
-    public FeatureSet(final Collection<Feature> features) {
-        this.features = features;
-    }
-
     public boolean hasFeature(final Feature f) {
         return features.contains(f);
-    }
-
-    static {
-        versionFeatures = new HashMap<>();
-        versionFeatures.put("0.1", new FeatureSet(Collections.singletonList(Feature.CORE)));
     }
 
 }

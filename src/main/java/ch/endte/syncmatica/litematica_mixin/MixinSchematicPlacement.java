@@ -29,16 +29,6 @@ public abstract class MixinSchematicPlacement implements IIDContainer, MovingFin
     private MixinSchematicPlacement() {
     }
 
-    @Inject(method = "toJson", at = @At("RETURN"), remap = false)
-    public void saveUuid(final CallbackInfoReturnable<JsonObject> cir) {
-        final JsonObject saveData = cir.getReturnValue();
-        if (saveData != null) {
-            if (serverId != null) {
-                saveData.add("syncmatica_uuid", new JsonPrimitive(serverId.toString()));
-            }
-        }
-    }
-
     @Inject(method = "fromJson", at = @At("RETURN"), remap = false, cancellable = true)
     private static void loadSyncmatic(final JsonObject obj, final CallbackInfoReturnable<SchematicPlacement> cir) {
         if (JsonUtils.hasString(obj, "syncmatica_uuid")) {
@@ -51,19 +41,29 @@ public abstract class MixinSchematicPlacement implements IIDContainer, MovingFin
         }
     }
 
+    @Inject(method = "toJson", at = @At("RETURN"), remap = false)
+    public void saveUuid(final CallbackInfoReturnable<JsonObject> cir) {
+        final JsonObject saveData = cir.getReturnValue();
+        if (saveData != null) {
+            if (serverId != null) {
+                saveData.add("syncmatica_uuid", new JsonPrimitive(serverId.toString()));
+            }
+        }
+    }
+
     @Inject(method = "<init>", at = @At("TAIL"), remap = false)
     public void setNull(final LitematicaSchematic schematic, final BlockPos origin, final String name, final boolean enabled, final boolean enableRender, final CallbackInfo ci) {
         serverId = null;
     }
 
     @Override
-    public void setServerId(final UUID i) {
-        serverId = i;
+    public UUID getServerId() {
+        return serverId;
     }
 
     @Override
-    public UUID getServerId() {
-        return serverId;
+    public void setServerId(final UUID i) {
+        serverId = i;
     }
 
     @Override

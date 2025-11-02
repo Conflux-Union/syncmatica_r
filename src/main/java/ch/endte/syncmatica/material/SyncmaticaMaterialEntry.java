@@ -7,15 +7,18 @@ import java.util.List;
 import java.util.function.Predicate;
 
 public class SyncmaticaMaterialEntry {
+    public static final Unfinished UNFINISHED = new Unfinished();
+    private final List<String> claimers = new ArrayList<>();
     private MaterialKey key;
     private int amountRequired;
     private int stockingSupplied;
-    private final List<String> claimers = new ArrayList<>();
-
-    public static final Unfinished UNFINISHED = new Unfinished();
 
     public int getAmountRequired() {
         return amountRequired;
+    }
+
+    public void setAmountRequired(final int amountRequired) {
+        this.amountRequired = Math.max(0, amountRequired);
     }
 
     public MaterialKey getKey() {
@@ -46,8 +49,8 @@ public class SyncmaticaMaterialEntry {
         this.stockingSupplied = Math.max(0, stockingSupplied);
     }
 
-    public void setAmountRequired(final int amountRequired) {
-        this.amountRequired = Math.max(0, amountRequired);
+    public List<String> getClaimers() {
+        return Collections.unmodifiableList(claimers);
     }
 
     public void setClaimers(final Collection<String> names) {
@@ -55,10 +58,6 @@ public class SyncmaticaMaterialEntry {
         if (names != null) {
             claimers.addAll(names);
         }
-    }
-
-    public List<String> getClaimers() {
-        return Collections.unmodifiableList(claimers);
     }
 
     public static class Unfinished implements Predicate<SyncmaticaMaterialEntry> {

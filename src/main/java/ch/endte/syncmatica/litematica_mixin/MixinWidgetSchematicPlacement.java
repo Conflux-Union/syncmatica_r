@@ -37,8 +37,7 @@ public abstract class MixinWidgetSchematicPlacement extends WidgetListEntryBase<
         int i = 0;
         if (LitematicManager.getInstance().isSyncmatic(placement)) {
             for (final WidgetBase base : subWidgets) {
-                if (base instanceof ButtonBase) {
-                    final ButtonBase button = (ButtonBase) base;
+                if (base instanceof ButtonBase button) {
                     if (++i == 1) {
                         final IButtonActionListener oldAction = ((MixinButtonBase) button).getActionListener();
                         button.setActionListener((b, k) -> {

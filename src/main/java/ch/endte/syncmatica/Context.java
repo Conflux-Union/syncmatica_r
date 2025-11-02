@@ -3,11 +3,7 @@ package ch.endte.syncmatica;
 import ch.endte.syncmatica.communication.CommunicationManager;
 import ch.endte.syncmatica.communication.FeatureSet;
 import ch.endte.syncmatica.extended_core.PlayerIdentifierProvider;
-import ch.endte.syncmatica.service.DebugService;
-import ch.endte.syncmatica.service.IService;
-import ch.endte.syncmatica.service.JsonConfiguration;
-import ch.endte.syncmatica.service.MaterialService;
-import ch.endte.syncmatica.service.QuotaService;
+import ch.endte.syncmatica.service.*;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -21,16 +17,16 @@ public class Context {
     private final IFileStorage files;
     private final CommunicationManager comMan;
     private final SyncmaticManager synMan;
-    private FeatureSet fs = null;
     private final boolean server;
     private final boolean integratedServer;
     private final File litematicFolder;
     private final File worldFolder;
-    private boolean isStarted = false;
     private final QuotaService quota;
     private final DebugService debugService;
     private final PlayerIdentifierProvider playerIdentifierProvider;
     private final MaterialService materialService;
+    private FeatureSet fs = null;
+    private boolean isStarted = false;
 
     public Context(
             final IFileStorage fs,

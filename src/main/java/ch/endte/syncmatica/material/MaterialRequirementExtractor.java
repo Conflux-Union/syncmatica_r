@@ -158,8 +158,8 @@ public final class MaterialRequirementExtractor {
         if (region.contains("Size", NbtElement.COMPOUND_TYPE)) {
             final NbtCompound compound = region.getCompound("Size");
             if (compound.contains("x", NbtElement.INT_TYPE)
-                && compound.contains("y", NbtElement.INT_TYPE)
-                && compound.contains("z", NbtElement.INT_TYPE)) {
+                    && compound.contains("y", NbtElement.INT_TYPE)
+                    && compound.contains("z", NbtElement.INT_TYPE)) {
                 final int sizeX = Math.abs(compound.getInt("x"));
                 final int sizeY = Math.abs(compound.getInt("y"));
                 final int sizeZ = Math.abs(compound.getInt("z"));

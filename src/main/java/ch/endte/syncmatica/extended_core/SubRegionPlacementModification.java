@@ -20,22 +20,6 @@ public class SubRegionPlacementModification {
         this.mirror = mirror;
     }
 
-    public JsonObject toJson() {
-        final JsonObject obj = new JsonObject();
-
-        final JsonArray arr = new JsonArray();
-        arr.add(position.getX());
-        arr.add(position.getY());
-        arr.add(position.getZ());
-        obj.add("position", arr);
-
-        obj.add("name", new JsonPrimitive(name));
-        obj.add("rotation", new JsonPrimitive(rotation.name()));
-        obj.add("mirror", new JsonPrimitive(mirror.name()));
-
-        return obj;
-    }
-
     public static SubRegionPlacementModification fromJson(final JsonObject obj) {
         if (
                 !obj.has("name")
@@ -63,6 +47,22 @@ public class SubRegionPlacementModification {
         final BlockMirror mirror = BlockMirror.valueOf(obj.get("mirror").getAsString());
 
         return new SubRegionPlacementModification(name, position, rotation, mirror);
+    }
+
+    public JsonObject toJson() {
+        final JsonObject obj = new JsonObject();
+
+        final JsonArray arr = new JsonArray();
+        arr.add(position.getX());
+        arr.add(position.getY());
+        arr.add(position.getZ());
+        obj.add("position", arr);
+
+        obj.add("name", new JsonPrimitive(name));
+        obj.add("rotation", new JsonPrimitive(rotation.name()));
+        obj.add("mirror", new JsonPrimitive(mirror.name()));
+
+        return obj;
     }
 
     @Override
