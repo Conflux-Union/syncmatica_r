@@ -42,7 +42,7 @@ public class MaterialService extends AbstractService {
     private final Map<UUID, Map<MaterialKey, Integer>> requiredTotals = new HashMap<>();
     // Stocking area scans folded into material counts.
     private final Map<UUID, Map<MaterialKey, Integer>> stockingTotals = new HashMap<>();
-    // Cached stocking area definitions for later rescans.
+    
     private final Map<UUID, StockingAreaDefinition> stockingAreas = new HashMap<>();
     // Global default area used when a placement has none.
     private StockingAreaDefinition defaultStockingArea;
@@ -336,7 +336,7 @@ public class MaterialService extends AbstractService {
                         }
                     }
                 } catch (final Throwable ignored) {
-                    // Keep going if mappings differ slightly.
+                    
                 }
             }
             if (names.isEmpty()) {
@@ -354,7 +354,7 @@ public class MaterialService extends AbstractService {
         return result;
     }
 
-    // Resolve the inventory a sign is attached to: wall sign -> behind block; standing sign -> below block.
+    
     private Inventory resolveInventoryForSign(final ServerWorld world, final BlockPos signPos) {
         final net.minecraft.block.BlockState state = world.getBlockState(signPos);
         BlockPos candidate = null;
@@ -367,24 +367,24 @@ public class MaterialService extends AbstractService {
             candidate = signPos.down();
         }
         if (candidate == null) {
-            // Only accept signs attached to a side or placed on top; no other associations.
+            
             return null;
         }
         return getInventoryAt(world, candidate);
     }
 
-    // Get an Inventory at a position; for chests, return the combined double-inventory when available.
+    
     private Inventory getInventoryAt(final ServerWorld world, final BlockPos pos) {
         final net.minecraft.block.BlockState state = world.getBlockState(pos);
         final BlockEntity be = world.getBlockEntity(pos);
         if (!(be instanceof Inventory)) {
             return null;
         }
-        // Try to return a combined inventory for double chests; otherwise the raw inventory.
+        
         if (state.getBlock() instanceof net.minecraft.block.ChestBlock) {
             final net.minecraft.block.entity.BlockEntityType<?> type = be.getType();
             final Inventory primary = (Inventory) be;
-            // Probe horizontal neighbors for the matching chest half.
+            
             for (final net.minecraft.util.math.Direction dir : new net.minecraft.util.math.Direction[]{
                     net.minecraft.util.math.Direction.NORTH,
                     net.minecraft.util.math.Direction.SOUTH,

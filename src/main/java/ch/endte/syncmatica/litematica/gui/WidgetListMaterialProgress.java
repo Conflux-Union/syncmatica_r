@@ -35,8 +35,10 @@ public class WidgetListMaterialProgress extends WidgetListBase<SyncmaticaMateria
         final int textColor = 0xFFFFFFFF;
 
         final int requiredColumnRight = baseX + WidgetMaterialProgressEntry.REQUIRED_COLUMN_RIGHT_OFFSET;
-        final int stockColumnRight = baseX + WidgetMaterialProgressEntry.STOCK_COLUMN_RIGHT_OFFSET;
-        final int missingColumnRight = baseX + WidgetMaterialProgressEntry.MISSING_COLUMN_RIGHT_OFFSET;
+        // Anchor the "missing" header to the right edge like the row entries.
+        final int missingColumnRight = posX + browserEntryWidth - 8;
+        // Place stock header between total(required) and missing by anchoring near missing column.
+        final int stockColumnRight = missingColumnRight - 100;
 
         drawString(matrixStack, StringUtils.translate("syncmatica.gui.label.material.column.material"),
                 baseX + WidgetMaterialProgressEntry.NAME_COLUMN_LEFT_OFFSET, posY + 6, textColor);
@@ -55,8 +57,14 @@ public class WidgetListMaterialProgress extends WidgetListBase<SyncmaticaMateria
 
     @Override
     protected Collection<SyncmaticaMaterialEntry> getAllEntries() {
+        
         final List<SyncmaticaMaterialEntry> snapshot = new ArrayList<>(placement.getMaterialList().getEntries());
         snapshot.sort((left, right) -> {
+            final int lm = left.getAmountMissing();
+            final int rm = right.getAmountMissing();
+            if (lm != rm) {
+                return Integer.compare(rm, lm);
+            }
             final String leftKey = left.getKey() == null ? "" : left.getKey().toString();
             final String rightKey = right.getKey() == null ? "" : right.getKey().toString();
             return leftKey.compareTo(rightKey);

@@ -48,8 +48,8 @@ public class ServerPosition {
             final BlockPos pos = new BlockPos(x, y, z);
             return new ServerPosition(pos, obj.get("dimension").getAsString());
         }
-        // could try to throw an exception and catch it or maybe log the thing idk
-        // TODO: Decide
+        
+        
         return null;
     }
 }

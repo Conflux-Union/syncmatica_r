@@ -15,7 +15,7 @@ import net.minecraft.util.Identifier;
 
 public class ModifyExchangeClient extends AbstractExchange {
 
-    //bad practice but valid for communication with deprecated systems
+    
     private boolean expectRemove = false;
 
     private final ServerPlacement placement;

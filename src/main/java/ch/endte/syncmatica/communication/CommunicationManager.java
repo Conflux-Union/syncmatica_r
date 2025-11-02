@@ -28,7 +28,7 @@ import java.util.*;
 public abstract class CommunicationManager {
     protected final Collection<ExchangeTarget> broadcastTargets;
 
-    // TODO: Refactor this bs
+    
     protected final Map<UUID, Boolean> downloadState;
     protected final Map<UUID, Exchange> modifyState;
 
@@ -67,10 +67,10 @@ public abstract class CommunicationManager {
         }
     }
 
-    // will get called for every packet not handled by an exchange
+    
     protected abstract void handle(ExchangeTarget source, Identifier id, PacketByteBuf packetBuf);
 
-    // will get called for every finished exchange (successful or not)
+    
     protected abstract void handleExchange(Exchange exchange);
 
     public void sendMetaData(final ServerPlacement metaData, final ExchangeTarget target) {
@@ -99,7 +99,7 @@ public abstract class CommunicationManager {
     public void putPositionData(final ServerPlacement metaData, final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
         buf.writeBlockPos(metaData.getPosition());
         buf.writeString(metaData.getDimension());
-        // one of the rare use cases for ordinal
+        
         // transmitting the information of a non modifying enum to another
         // instance of this application with no regard to the persistence
         // of the ordinal values over time
@@ -160,23 +160,38 @@ public abstract class CommunicationManager {
     }
 
     public void receivePositionData(final ServerPlacement placement, final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
+        // Read all fields from buffer regardless of placement availability to keep stream in sync
         final BlockPos pos = buf.readBlockPos();
         final String dimensionId = buf.readString(32767);
         final BlockRotation rot = rotOrdinals[buf.readInt()];
         final BlockMirror mir = mirOrdinals[buf.readInt()];
-        placement.move(dimensionId, pos, rot, mir);
+
+        if (placement != null) {
+            placement.move(dimensionId, pos, rot, mir);
+        }
 
         if (exchangeTarget.getFeatureSet().hasFeature(Feature.CORE_EX)) {
-            final SubRegionData subRegionData = placement.getSubRegionData();
-            subRegionData.reset();
+            
             final int limit = buf.readInt();
-            for (int i = 0; i < limit; i++) {
-                subRegionData.modify(
-                        buf.readString(32767),
-                        buf.readBlockPos(),
-                        rotOrdinals[buf.readInt()],
-                        mirOrdinals[buf.readInt()]
-                );
+            if (placement != null) {
+                final SubRegionData subRegionData = placement.getSubRegionData();
+                subRegionData.reset();
+                for (int i = 0; i < limit; i++) {
+                    subRegionData.modify(
+                            buf.readString(32767),
+                            buf.readBlockPos(),
+                            rotOrdinals[buf.readInt()],
+                            mirOrdinals[buf.readInt()]
+                    );
+                }
+            } else {
+                for (int i = 0; i < limit; i++) {
+                    // discard values when placement is unknown
+                    buf.readString(32767);
+                    buf.readBlockPos();
+                    buf.readInt();
+                    buf.readInt();
+                }
             }
         }
     }
@@ -206,19 +221,30 @@ public abstract class CommunicationManager {
             return;
         }
         if (buf.readableBytes() < Integer.BYTES) {
-            if (!context.isServer()) {
+            if (!context.isServer() && placement != null) {
                 placement.getMaterialProgress().clear();
             }
             return;
         }
         final int total = buf.readInt();
         if (total <= 0) {
-            if (!context.isServer()) {
+            if (!context.isServer() && placement != null) {
                 placement.getMaterialProgress().clear();
             }
             return;
         }
         if (context.isServer() && context.getMaterialService() != null) {
+            for (int i = 0; i < total; i++) {
+                buf.readString(32767);
+                buf.readString(32767);
+                buf.readInt();
+                buf.readInt();
+            }
+            return;
+        }
+        // client side consumption
+        if (placement == null) {
+            // consume and discard to keep buffer aligned
             for (int i = 0; i < total; i++) {
                 buf.readString(32767);
                 buf.readString(32767);

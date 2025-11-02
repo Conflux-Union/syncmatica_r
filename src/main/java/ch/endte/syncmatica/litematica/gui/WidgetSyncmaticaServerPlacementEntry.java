@@ -84,13 +84,13 @@ public class WidgetSyncmaticaServerPlacementEntry extends WidgetListEntryBase<Se
         // Source: WidgetSchematicEntry
         RenderUtils.color(1f, 1f, 1f, 1f);
 
-        // Draw a lighter background for the hovered and the selected entry
+        
         if (selected || isMouseOver(mouseX, mouseY)) {
             RenderUtils.drawRect(x, y, width, height, 0x70FFFFFF);
         } else if (isOdd) {
             RenderUtils.drawRect(x, y, width, height, 0x20FFFFFF);
         }
-        // Draw a slightly lighter background for even entries
+        
         else {
             RenderUtils.drawRect(x, y, width, height, 0x50FFFFFF);
         }

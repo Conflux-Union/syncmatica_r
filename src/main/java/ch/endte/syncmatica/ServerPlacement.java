@@ -23,7 +23,7 @@ public class ServerPlacement {
     private final UUID id;
 
     private final String fileName;
-    private final UUID hashValue; // UUID for the file contents
+    private final UUID hashValue; 
     // UUID since easier to transmit compare etc.
 
     private PlayerIdentifier owner; // player that shared it
