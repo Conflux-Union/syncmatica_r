@@ -22,16 +22,9 @@ import net.minecraft.util.math.BlockPos;
 import java.io.File;
 import java.util.*;
 
-
-
-// shared from this client)
-
 public class LitematicManager {
     private static LitematicManager instance = null;
 
-
-    
-    // specific client
     private final Map<ServerPlacement, SchematicPlacement> rendering;
     private Collection<SchematicPlacement> preLoadList = new ArrayList<>();
     private Context context;
@@ -51,7 +44,6 @@ public class LitematicManager {
         rendering = new HashMap<>();
     }
 
-    
     public void setActiveContext(final Context con) {
         if (con.isServer()) {
             throw new Context.ContextMismatchException("Applied server context where client context was expected");
@@ -64,8 +56,6 @@ public class LitematicManager {
         return context;
     }
 
-    // 1st case syncmatic placement is present and is now enabled from GUI
-    // or another source
     public void renderSyncmatic(final ServerPlacement placement) {
         final String dimension = MinecraftClient.getInstance().getCameraEntity().getEntityWorld().getRegistryKey().getValue().toString();
         if (!dimension.equals(placement.getDimension())) {
@@ -102,17 +92,14 @@ public class LitematicManager {
         context.getSyncmaticManager().updateServerPlacement(placement);
     }
 
-    // 2nd case litematic placement is present but gets turned into ServerPlacement
-    // removed side effects
     public ServerPlacement syncmaticFromSchematic(final SchematicPlacement schem) {
         if (rendering.containsValue(schem)) {
-            
+
             for (final ServerPlacement checkPlacement : rendering.keySet()) {
                 if (rendering.get(checkPlacement) == schem) {
                     return checkPlacement;
                 }
             }
-            // theoretically not a possible branch that will be taken
 
             return null;
         }
@@ -132,7 +119,7 @@ public class LitematicManager {
             );
 
             final ServerPlacement placement = new ServerPlacement(UUID.randomUUID(), placementFile, owner);
-            // thanks miniHUD
+
             final String dimension = MinecraftClient.getInstance().getCameraEntity().getEntityWorld().getRegistryKey().getValue().toString();
             placement.move(dimension, schem.getOrigin(), schem.getRotation(), schem.getMirror());
             transferSubregionDataToServerPlacement(schem, placement);
@@ -193,9 +180,6 @@ public class LitematicManager {
         return rendering.get(p);
     }
 
-    // 3rd case litematic placement is loaded from file at startup or because the syncmatic got created from
-    // it on this client
-    // and the server gives confirmation that the schematic exists
     public void renderSyncmatic(final ServerPlacement placement, final SchematicPlacement litematicaPlacement, final boolean addToRendering) {
         if (rendering.containsKey(placement)) {
             return;
@@ -250,7 +234,7 @@ public class LitematicManager {
 
     public void updateServerPlacement(final SchematicPlacement placement, final ServerPlacement serverPlacement) {
         serverPlacement.move(
-                serverPlacement.getDimension(), // dimension never changes
+                serverPlacement.getDimension(),
                 placement.getOrigin(),
                 placement.getRotation(),
                 placement.getMirror()
@@ -278,9 +262,6 @@ public class LitematicManager {
         mutable.setBlockPosition(defaultPos);
     }
 
-    // gets called by code mixed into litematicas loading stage
-    
-    // until a time where the server has told the client which syncmatics actually are still loaded
     public void preLoad(final SchematicPlacement schem) {
         if (context != null && context.isStarted()) {
             final UUID id = ((IIDContainer) schem).getServerId();

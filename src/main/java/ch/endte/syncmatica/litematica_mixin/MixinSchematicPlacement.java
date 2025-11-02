@@ -23,7 +23,6 @@ import java.util.UUID;
 @Mixin(SchematicPlacement.class)
 public abstract class MixinSchematicPlacement implements IIDContainer, MovingFinisher {
 
-    
     @Unique
     UUID serverId;
 

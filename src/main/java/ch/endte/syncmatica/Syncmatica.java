@@ -9,8 +9,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-// could probably turn this into a singleton
-
 public class Syncmatica {
 
     public static final String VERSION = "0.3.8";

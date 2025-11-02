@@ -1,5 +1,11 @@
 package ch.endte.syncmatica.litematica.gui;
 
+import ch.endte.syncmatica.Context;
+import ch.endte.syncmatica.ServerPlacement;
+import ch.endte.syncmatica.communication.ClientCommunicationManager;
+import ch.endte.syncmatica.communication.ExchangeTarget;
+import ch.endte.syncmatica.communication.PacketType;
+import ch.endte.syncmatica.litematica.LitematicManager;
 import ch.endte.syncmatica.material.MaterialKey;
 import ch.endte.syncmatica.material.SyncmaticaMaterialEntry;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -13,34 +19,47 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.util.registry.Registry;
+import io.netty.buffer.Unpooled;
+import net.minecraft.network.PacketByteBuf;
 
-/**
- * Renders a single material progress row showing stocking totals.
- */
 public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaMaterialEntry> {
-    
+
     public static final int NAME_COLUMN_LEFT_OFFSET = 24;
     public static final int REQUIRED_COLUMN_RIGHT_OFFSET = 194;
     public static final int STOCK_COLUMN_RIGHT_OFFSET = 244;
     public static final int MISSING_COLUMN_RIGHT_OFFSET = 294;
 
+    private final ServerPlacement placement;
+
     public WidgetMaterialProgressEntry(final int x, final int y, final int width, final int height,
-                                       final SyncmaticaMaterialEntry entry, final int listIndex) {
+                                       final SyncmaticaMaterialEntry entry, final int listIndex,
+                                       final ServerPlacement placement) {
         super(x, y, width, height, entry, listIndex);
+        this.placement = placement;
     }
 
     @Override
     public void render(final int mouseX, final int mouseY, final boolean selected, final MatrixStack matrixStack) {
+
         RenderUtils.drawRect(x, y, width, height, listIndex % 2 == 0 ? 0x20FFFFFF : 0x10FFFFFF);
-        final SyncmaticaMaterialEntry material = getEntry();
+
+        final SyncmaticaMaterialEntry material = resolveCurrentEntry();
+
+        if (material != null && material.getClaimers() != null && !material.getClaimers().isEmpty()) {
+            final net.minecraft.client.MinecraftClient cli = net.minecraft.client.MinecraftClient.getInstance();
+            final String self = cli != null && cli.player != null ? cli.player.getGameProfile().getName() : "";
+            final boolean selfClaimed = material.getClaimers().contains(self);
+            final int overlay = selfClaimed ? 0x3040FF40 : 0x30FFFF80;
+            RenderUtils.drawRect(x, y, width, height, overlay);
+        }
         final int textColor = 0xFFFFFFFF;
         final int secondaryColor = 0xC0FFFFFF;
 
         final int baseX = x + 6;
         final int requiredColumnRight = baseX + REQUIRED_COLUMN_RIGHT_OFFSET;
-        // Anchor the missing column to the right edge to use available space.
+
         final int missingColumnRight = x + width - 8;
-        // Place stock column between total(required) and missing by anchoring it near the missing column.
+
         final int stockColumnRight = missingColumnRight - 100;
 
         final ItemStack stack = resolveDisplayStack(material == null ? null : material.getKey());
@@ -49,7 +68,8 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         }
 
         final String displayName = resolveDisplayName(material, stack);
-        drawString(baseX + NAME_COLUMN_LEFT_OFFSET, y + 6, textColor, displayName, matrixStack);
+        final int nameX = baseX + NAME_COLUMN_LEFT_OFFSET;
+        drawString(nameX, y + 6, textColor, displayName, matrixStack);
 
         final String requiredText = String.valueOf(material.getAmountRequired());
         drawString(requiredColumnRight - getStringWidth(requiredText), y + 6, secondaryColor, requiredText, matrixStack);
@@ -62,7 +82,6 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         final int missingTextX = missingColumnRight - getStringWidth(missingText);
         drawString(missingTextX, y + 6, missingColor, missingText, matrixStack);
 
-        // Tooltip on hover: show verbose format when mouse is over the missing column.
         final int missingLeftBound = stockColumnRight + 4;
         final int rowTop = y;
         final int rowBottom = y + height;
@@ -75,9 +94,97 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
                 screen.renderTooltip(matrixStack, lines, mouseX, mouseY);
             }
         }
+
+        final int blankLeft = nameX + getStringWidth(displayName) + 6;
+        final int blankRight = requiredColumnRight - 6;
+        if (mouseX >= blankLeft && mouseX <= blankRight && mouseY >= rowTop && mouseY <= rowBottom) {
+            final net.minecraft.client.gui.screen.Screen screen = net.minecraft.client.MinecraftClient.getInstance().currentScreen;
+            if (screen != null) {
+                final java.util.List<net.minecraft.text.Text> lines = new java.util.ArrayList<>();
+                final java.util.List<String> claimers = material == null ? java.util.Collections.emptyList() : material.getClaimers();
+                if (claimers.isEmpty()) {
+                    lines.add(new net.minecraft.text.LiteralText(fi.dy.masa.malilib.util.StringUtils.translate("syncmatica.gui.tooltip.material.claim.none")));
+                } else {
+                    final String joined = String.join(", ", claimers);
+                    lines.add(new net.minecraft.text.LiteralText(
+                            fi.dy.masa.malilib.util.StringUtils.translate("syncmatica.gui.tooltip.material.claimers", joined))
+                    );
+                }
+                final net.minecraft.client.MinecraftClient cli = net.minecraft.client.MinecraftClient.getInstance();
+                final String self = cli != null && cli.player != null ? cli.player.getGameProfile().getName() : "";
+                final boolean canToggle = claimers.isEmpty() || claimers.contains(self);
+                final String key = canToggle
+                        ? "syncmatica.gui.tooltip.material.claim.action"
+                        : "syncmatica.gui.tooltip.material.claim.locked";
+                lines.add(new net.minecraft.text.LiteralText(fi.dy.masa.malilib.util.StringUtils.translate(key)));
+                screen.renderTooltip(matrixStack, lines, mouseX, mouseY);
+            }
+        }
     }
 
-    // Build a simple display stack from the material identifier.
+    public boolean mouseClicked(final int mouseX, final int mouseY, final int mouseButton) {
+        if (mouseButton != 0 || !isMouseOver(mouseX, mouseY) || placement == null) {
+            return false;
+        }
+        if (!fi.dy.masa.malilib.gui.GuiBase.isShiftDown()) {
+            return false;
+        }
+        final SyncmaticaMaterialEntry material = getEntry();
+        final int baseX = x + 6;
+        final int requiredColumnRight = baseX + REQUIRED_COLUMN_RIGHT_OFFSET;
+
+        final int blankLeft = baseX + NAME_COLUMN_LEFT_OFFSET;
+        final int blankRight = requiredColumnRight - 6;
+        if (mouseX < blankLeft || mouseX > blankRight || mouseY < y || mouseY > y + height) {
+            return false;
+        }
+
+        final java.util.List<String> claimers = material == null ? java.util.Collections.emptyList() : material.getClaimers();
+        final net.minecraft.client.MinecraftClient cli = net.minecraft.client.MinecraftClient.getInstance();
+        final String self = cli != null && cli.player != null ? cli.player.getGameProfile().getName() : "";
+        if (!claimers.isEmpty() && !claimers.contains(self)) {
+            return true;
+        }
+        sendToggleClaim(material);
+        return true;
+    }
+
+    public boolean onMouseClicked(final int mouseX, final int mouseY, final int mouseButton) {
+        return mouseClicked(mouseX, mouseY, mouseButton);
+    }
+
+    private void sendToggleClaim(final SyncmaticaMaterialEntry material) {
+        if (material == null || material.getKey() == null) {
+            return;
+        }
+        final Context con = LitematicManager.getInstance().getActiveContext();
+        if (!(con.getCommunicationManager() instanceof ClientCommunicationManager)) {
+            return;
+        }
+        final ExchangeTarget server = ((ClientCommunicationManager) con.getCommunicationManager()).getServer();
+        if (server == null) {
+            return;
+        }
+        final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
+        buf.writeUuid(placement.getId());
+        buf.writeString(material.getKey().getItemId().toString());
+        buf.writeString(material.getKey().getVariant());
+        server.sendPacket(PacketType.MATERIAL_CLAIM_TOGGLE.identifier, buf, con);
+    }
+
+    private SyncmaticaMaterialEntry resolveCurrentEntry() {
+        final SyncmaticaMaterialEntry original = getEntry();
+        if (placement == null || original == null || original.getKey() == null) {
+            return original;
+        }
+        for (final SyncmaticaMaterialEntry e : placement.getMaterialList().getEntries()) {
+            if (e.getKey() != null && e.getKey().equals(original.getKey())) {
+                return e;
+            }
+        }
+        return original;
+    }
+
     private ItemStack resolveDisplayStack(final MaterialKey key) {
         if (key == null) {
             return ItemStack.EMPTY;
@@ -89,7 +196,6 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         return new ItemStack(item);
     }
 
-    // Render the stack icon using the vanilla item renderer.
     private void renderItemStack(final ItemStack stack, final int iconX, final int iconY) {
         final MinecraftClient client = MinecraftClient.getInstance();
         final ItemRenderer itemRenderer = client.getItemRenderer();
@@ -101,7 +207,6 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         RenderSystem.disableDepthTest();
     }
 
-    
     private String resolveDisplayName(final SyncmaticaMaterialEntry material, final ItemStack stack) {
         if (!stack.isEmpty()) {
             return stack.getName().getString();
@@ -112,7 +217,6 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         return "unknown";
     }
 
-    // Verbose format: <boxes> Shulkers <stacks> Stacks <singles> Items (<total> Items) via i18n.
     private String formatMissingVerboseText(final SyncmaticaMaterialEntry material) {
         if (material == null) {
             return "0";
@@ -120,7 +224,6 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         final int totalMissing = Math.max(0, material.getAmountMissing());
         final ItemStack stack = resolveDisplayStack(material.getKey());
 
-        
         final int stackSize = stack.isEmpty() ? 64 : Math.max(1, stack.getMaxCount());
         final int perShulker = 27 * stackSize;
 
@@ -129,15 +232,12 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         final int stacks = remAfterBoxes / stackSize;
         final int singles = remAfterBoxes - stacks * stackSize;
 
-        // Use translation key to avoid embedding non-English literals in code.
-        // Key should be defined in language assets as a printf-style pattern.
         return fi.dy.masa.malilib.util.StringUtils.translate(
                 "syncmatica.gui.label.material.missing.format",
                 boxes, stacks, singles, totalMissing
         );
     }
 
-    
     private String formatMissingShortText(final SyncmaticaMaterialEntry material) {
         if (material == null) {
             return "0";

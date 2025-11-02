@@ -22,7 +22,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.function.Consumer;
 
-
 @Mixin(ServerPlayNetworkHandler.class)
 public abstract class MixinServerPlayNetworkHandler {
 

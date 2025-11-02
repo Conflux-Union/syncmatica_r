@@ -11,9 +11,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-/**
- * Backed by the placement material snapshot.
- */
 public class WidgetListMaterialProgress extends WidgetListBase<SyncmaticaMaterialEntry, WidgetMaterialProgressEntry> {
 
     private final ServerPlacement placement;
@@ -35,9 +32,9 @@ public class WidgetListMaterialProgress extends WidgetListBase<SyncmaticaMateria
         final int textColor = 0xFFFFFFFF;
 
         final int requiredColumnRight = baseX + WidgetMaterialProgressEntry.REQUIRED_COLUMN_RIGHT_OFFSET;
-        // Anchor the "missing" header to the right edge like the row entries.
+
         final int missingColumnRight = posX + browserEntryWidth - 8;
-        // Place stock header between total(required) and missing by anchoring near missing column.
+
         final int stockColumnRight = missingColumnRight - 100;
 
         drawString(matrixStack, StringUtils.translate("syncmatica.gui.label.material.column.material"),
@@ -45,19 +42,19 @@ public class WidgetListMaterialProgress extends WidgetListBase<SyncmaticaMateria
 
         final String requiredLabel = StringUtils.translate("syncmatica.gui.label.material.column.required");
         drawString(matrixStack, requiredLabel, requiredColumnRight - getStringWidth(requiredLabel), posY + 6, textColor);
-        
+
         final String stockLabel = StringUtils.translate("syncmatica.gui.label.material.column.stock");
         drawString(matrixStack, stockLabel, stockColumnRight - getStringWidth(stockLabel), posY + 6, textColor);
-        
+
         final String missingLabel = StringUtils.translate("syncmatica.gui.label.material.column.missing");
         drawString(matrixStack, missingLabel, missingColumnRight - getStringWidth(missingLabel), posY + 6, textColor);
-        
+
         super.drawContents(matrixStack, mouseX, mouseY, partialTicks);
     }
 
     @Override
     protected Collection<SyncmaticaMaterialEntry> getAllEntries() {
-        
+
         final List<SyncmaticaMaterialEntry> snapshot = new ArrayList<>(placement.getMaterialList().getEntries());
         snapshot.sort((left, right) -> {
             final int lm = left.getAmountMissing();
@@ -74,7 +71,7 @@ public class WidgetListMaterialProgress extends WidgetListBase<SyncmaticaMateria
 
     @Override
     protected WidgetMaterialProgressEntry createListEntryWidget(final int x, final int y, final int listIndex, final boolean isOdd, final SyncmaticaMaterialEntry entry) {
-        return new WidgetMaterialProgressEntry(x, y, browserEntryWidth, browserEntryHeight, entry, listIndex);
+        return new WidgetMaterialProgressEntry(x, y, browserEntryWidth, browserEntryHeight, entry, listIndex, placement);
     }
 
     @Override

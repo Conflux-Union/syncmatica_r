@@ -48,8 +48,7 @@ public class ServerPosition {
             final BlockPos pos = new BlockPos(x, y, z);
             return new ServerPosition(pos, obj.get("dimension").getAsString());
         }
-        
-        
+
         return null;
     }
 }

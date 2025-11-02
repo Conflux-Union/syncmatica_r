@@ -6,11 +6,6 @@ import fi.dy.masa.malilib.gui.button.IButtonActionListener;
 
 import java.util.List;
 
-// Not sure how to add Icon support to this without a problematic implementation
-// Icon assumes final in its field - we cannot change the fact that the rendering probably
-// executes based on this assumption
-
-// actually upon reading the code there might not be a problem with this.
 public class MultiTypeButton extends ButtonGeneric {
 
     IButtonType activeType;
@@ -45,7 +40,7 @@ public class MultiTypeButton extends ButtonGeneric {
                 return;
             }
         }
-        // default type is 0
+
         activeType = types.get(0);
     }
 
@@ -67,7 +62,7 @@ public class MultiTypeButton extends ButtonGeneric {
     private int calculateWidth(final IButtonType type) {
         int w = 0;
         if (type.getTranslatedKey() != null) {
-            // is it really 30px?? need to check
+
             w += getStringWidth(type.getTranslatedKey()) + 10;
         }
         if (type.getIcon() != null) {
@@ -76,7 +71,6 @@ public class MultiTypeButton extends ButtonGeneric {
         return w;
     }
 
-    // gracefully ignored
     @Override
     public MultiTypeButton setActionListener(final IButtonActionListener listener) {
         return this;

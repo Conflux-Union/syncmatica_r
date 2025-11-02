@@ -75,7 +75,7 @@ public class ServerCommunicationManager extends CommunicationManager {
             try {
                 upload = new UploadExchange(placement, toUpload, source, context);
             } catch (final FileNotFoundException e) {
-                // should be fine
+
                 e.printStackTrace();
                 return;
             }
@@ -90,7 +90,6 @@ public class ServerCommunicationManager extends CommunicationManager {
                 return;
             }
 
-            // when the client does not communicate the owner
             final GameProfile profile = playerMap.get(source).getGameProfile();
             final PlayerIdentifier playerIdentifier = context.getPlayerIdentifierProvider().createOrGet(profile);
             if (!placement.getOwner().equals(playerIdentifier)) {
@@ -99,7 +98,7 @@ public class ServerCommunicationManager extends CommunicationManager {
             }
 
             if (!context.getFileStorage().getLocalState(placement).isLocalFileReady()) {
-                // special edge case because files are transmitted by placement rather than file names/hashes
+
                 if (context.getFileStorage().getLocalState(placement) == LocalLitematicState.DOWNLOADING_LITEMATIC) {
                     downloadingFile.computeIfAbsent(placement.getHash(), key -> new ArrayList<>()).add(placement);
                     return;
@@ -138,6 +137,39 @@ public class ServerCommunicationManager extends CommunicationManager {
             final UUID placementId = packetBuf.readUuid();
             final ModifyExchangeServer modifier = new ModifyExchangeServer(placementId, source, context);
             startExchange(modifier);
+        }
+        if (id.equals(PacketType.MATERIAL_CLAIM_TOGGLE.identifier)) {
+            final UUID placementId = packetBuf.readUuid();
+            final String itemId = packetBuf.readString(32767);
+            final String variant = packetBuf.readString(32767);
+            final ServerPlacement placement = context.getSyncmaticManager().getPlacement(placementId);
+            if (placement == null) {
+                return;
+            }
+            final ch.endte.syncmatica.material.MaterialKey key = new ch.endte.syncmatica.material.MaterialKey(new net.minecraft.util.Identifier(itemId), variant);
+            final ch.endte.syncmatica.material.MaterialProgressEntry entry = placement.getMaterialProgress().getOrCreate(key, 0);
+            final net.minecraft.server.network.ServerPlayerEntity player = playerMap.get(source);
+            if (player == null) {
+                return;
+            }
+            final ch.endte.syncmatica.extended_core.PlayerIdentifier pid = context.getPlayerIdentifierProvider().createOrGet(player.getGameProfile());
+            final java.util.Collection<ch.endte.syncmatica.extended_core.PlayerIdentifier> current = entry.getClaimants();
+            if (entry.hasClaimer(pid)) {
+
+                entry.removeClaimer(pid);
+            } else if (!current.isEmpty()) {
+
+                final ch.endte.syncmatica.extended_core.PlayerIdentifier owner = current.iterator().next();
+                sendMessage(source, ch.endte.syncmatica.communication.MessageType.WARNING,
+                        "Already claimed by " + owner.getName());
+                return;
+            } else {
+
+                entry.addClaimer(pid);
+            }
+            placement.setLastModifiedBy(pid);
+            context.getSyncmaticManager().updateServerPlacement(placement);
+            broadcastPlacementUpdate(placement);
         }
     }
 

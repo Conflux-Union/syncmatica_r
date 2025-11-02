@@ -31,7 +31,6 @@ public class MixinMinecraftServer {
         SyncmaticaCommand.register(returnValue.getCommandManager().getDispatcher());
     }
 
-    // at
     @Inject(method = "shutdown", at = @At("TAIL"))
     public void shutdownSyncmatica(final CallbackInfo ci) {
         Syncmatica.shutdown();

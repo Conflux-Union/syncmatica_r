@@ -32,7 +32,6 @@ public class Context {
     private final PlayerIdentifierProvider playerIdentifierProvider;
     private final MaterialService materialService;
 
-
     public Context(
             final IFileStorage fs,
             final CommunicationManager comMan,
@@ -130,7 +129,9 @@ public class Context {
     private void generateFeatureSet() {
         final ArrayList<Feature> features = new ArrayList<>(Arrays.asList(Feature.values()));
         if (isServer() && (materialService == null || !materialService.isEnabled())) {
+
             features.remove(Feature.MATERIAL_PROGRESS);
+            features.remove(Feature.MATERIAL_CLAIMS);
         }
         fs = new FeatureSet(features);
     }

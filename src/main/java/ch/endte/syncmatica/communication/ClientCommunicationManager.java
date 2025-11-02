@@ -76,7 +76,7 @@ public class ClientCommunicationManager extends CommunicationManager {
                 LitematicManager.getInstance().updateRendered(toModify);
                 context.getSyncmaticManager().updateServerPlacement(toModify);
             } else {
-                
+
             }
             return;
         }
@@ -103,7 +103,7 @@ public class ClientCommunicationManager extends CommunicationManager {
     @Override
     public void setDownloadState(final ServerPlacement syncmatic, final boolean state) {
         downloadState.put(syncmatic.getHash(), state);
-        if (state || LitematicManager.getInstance().isRendered(syncmatic)) { //change client behavior so that the Load button doesn't show up naturally
+        if (state || LitematicManager.getInstance().isRendered(syncmatic)) {
             context.getSyncmaticManager().updateServerPlacement(syncmatic);
         }
     }

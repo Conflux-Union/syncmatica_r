@@ -33,7 +33,7 @@ public class VersionHandshakeServer extends FeatureExchange {
             partnerVersion = packetBuf.readString(32767);
             if (!getContext().checkPartnerVersion(partnerVersion)) {
                 LogManager.getLogger(VersionHandshakeServer.class).info("Denying syncmatica join due to outdated client with local version {} and client version {}", Syncmatica.VERSION, partnerVersion);
-                // same as client - avoid further packets
+
                 close(false);
                 return;
             }

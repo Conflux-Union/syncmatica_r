@@ -1,6 +1,5 @@
 package ch.endte.syncmatica.extended_core;
 
-
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import net.minecraft.util.BlockMirror;
@@ -12,7 +11,7 @@ import java.util.Map;
 
 public class SubRegionData {
     private boolean isModified;
-    private Map<String, SubRegionPlacementModification> modificationData; // is null when isModified is false
+    private Map<String, SubRegionPlacementModification> modificationData;
 
     public SubRegionData() {
         this(false, null);

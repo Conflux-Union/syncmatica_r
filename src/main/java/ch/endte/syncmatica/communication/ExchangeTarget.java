@@ -14,16 +14,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-// since Client/Server PlayNetworkHandler are 2 different classes, but I want to use exchanges
-
-
 public class ExchangeTarget {
     private ClientPlayNetworkHandler server = null;
     private ServerPlayNetworkHandler client = null;
     private final String persistentName;
 
     private FeatureSet features;
-    private final List<Exchange> ongoingExchanges = new ArrayList<>(); // implicitly relies on priority
+    private final List<Exchange> ongoingExchanges = new ArrayList<>();
 
     public ExchangeTarget(final ClientPlayNetworkHandler server) {
         this.server = server;
@@ -35,8 +32,6 @@ public class ExchangeTarget {
         persistentName = client.player.getUuidAsString();
     }
 
-    // this application exclusively communicates in CustomPayLoad packets
-    
     public void sendPacket(final Identifier id, final PacketByteBuf packetBuf, final Context context) {
         context.getDebugService().logSendPacket(id, persistentName);
         if (server == null) {
@@ -47,8 +42,6 @@ public class ExchangeTarget {
             server.sendPacket(packet);
         }
     }
-
-    // removed equals code due to issues with Collection.contains
 
     public FeatureSet getFeatureSet() {
         return features;

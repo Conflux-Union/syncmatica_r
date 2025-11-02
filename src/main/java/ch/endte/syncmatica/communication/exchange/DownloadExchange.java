@@ -30,7 +30,7 @@ public class DownloadExchange extends AbstractExchange {
     public DownloadExchange(final ServerPlacement syncmatic, final File downloadFile, final ExchangeTarget partner, final Context context) throws IOException, NoSuchAlgorithmException {
         super(partner, context);
         this.downloadFile = downloadFile;
-        final OutputStream os = new FileOutputStream(downloadFile); //NOSONAR
+        final OutputStream os = new FileOutputStream(downloadFile);
         toDownload = syncmatic;
         md5 = MessageDigest.getInstance("MD5");
         outputStream = new DigestOutputStream(os, md5);
@@ -48,7 +48,7 @@ public class DownloadExchange extends AbstractExchange {
 
     @Override
     public void handle(final Identifier id, final PacketByteBuf packetBuf) {
-        packetBuf.readUuid(); //skips the UUID
+        packetBuf.readUuid();
         if (id.equals(PacketType.SEND_LITEMATIC.identifier)) {
             final int size = packetBuf.readInt();
             bytesSent += size;
@@ -84,7 +84,7 @@ public class DownloadExchange extends AbstractExchange {
             if (downloadHash.equals(toDownload.getHash())) {
                 succeed();
             } else {
-                // no need to notify partner since exchange is closed on partner side
+
                 close(false);
             }
             return;
@@ -113,7 +113,7 @@ public class DownloadExchange extends AbstractExchange {
             e.printStackTrace();
         }
         if (!isSuccessful() && downloadFile.exists()) {
-            downloadFile.delete(); // NOSONAR
+            downloadFile.delete();
         }
     }
 

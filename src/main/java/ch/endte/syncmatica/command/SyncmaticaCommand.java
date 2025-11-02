@@ -20,9 +20,6 @@ import java.util.Optional;
 
 import static com.mojang.brigadier.arguments.StringArgumentType.string;
 
-/**
- * Registers the /syncmatica command surface.
- */
 public final class SyncmaticaCommand {
     private SyncmaticaCommand() {
     }
@@ -76,14 +73,14 @@ public final class SyncmaticaCommand {
         final String dimensionId = context.getSource().getWorld().getRegistryKey().getValue().toString();
         final StockingAreaDefinition definition = new StockingAreaDefinition(dimensionId, first, second);
         materialService.setStockingArea(placement.get(), definition);
-        // Trigger a synchronous scan to honour the command contract.
+
         materialService.scanNow(context.getSource().getServer(), placement.get());
         context.getSource().sendFeedback(new LiteralText("Stocking area updated for " + projectName), false);
         return 1;
     }
 
     private static LiteralArgumentBuilder<ServerCommandSource> defaultArgument() {
-        // Sets a server-wide default stocking area.
+
         return CommandManager.literal("default")
                 .then(CommandManager.literal("setStockingarea")
                         .then(CommandManager.argument("pos1", BlockPosArgumentType.blockPos())
@@ -107,7 +104,7 @@ public final class SyncmaticaCommand {
         final String dimensionId = context.getSource().getWorld().getRegistryKey().getValue().toString();
         final StockingAreaDefinition definition = new StockingAreaDefinition(dimensionId, first, second);
         materialService.setDefaultStockingArea(definition);
-        // Synchronous pass to reflect immediately and persist to disk.
+
         materialService.scanDefaultNow(context.getSource().getServer());
         syncmaticaContext.getSyncmaticManager().saveServerState();
         context.getSource().sendFeedback(new LiteralText("Default stocking area updated"), false);

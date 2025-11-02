@@ -16,7 +16,7 @@ public class GuiSyncmaticaServerPlacementList extends GuiListBase<ServerPlacemen
 	@Override
 	public void initGui() {
 		super.initGui();
-		// source GuiSchematicLoadedList
+
 		final ButtonListenerChangeMenu.ButtonType type = ButtonListenerChangeMenu.ButtonType.MAIN_MENU;
 		final String label = StringUtils.translate(type.getLabelKey());
 		final int buttonWidth = getStringWidth(label) + 20;

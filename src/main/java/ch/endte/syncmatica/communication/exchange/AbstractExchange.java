@@ -62,7 +62,7 @@ public abstract class AbstractExchange implements Exchange {
     protected void succeed() {
         finished = true;
         success = true;
-        // Ctrl+C Ctrl+V and forget to adapt the success state - typical
+
         onClose();
     }
 

@@ -28,7 +28,6 @@ import java.util.*;
 public abstract class CommunicationManager {
     protected final Collection<ExchangeTarget> broadcastTargets;
 
-    
     protected final Map<UUID, Boolean> downloadState;
     protected final Map<UUID, Exchange> modifyState;
 
@@ -67,10 +66,8 @@ public abstract class CommunicationManager {
         }
     }
 
-    
     protected abstract void handle(ExchangeTarget source, Identifier id, PacketByteBuf packetBuf);
 
-    
     protected abstract void handleExchange(Exchange exchange);
 
     public void sendMetaData(final ServerPlacement metaData, final ExchangeTarget target) {
@@ -99,10 +96,7 @@ public abstract class CommunicationManager {
     public void putPositionData(final ServerPlacement metaData, final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
         buf.writeBlockPos(metaData.getPosition());
         buf.writeString(metaData.getDimension());
-        
-        // transmitting the information of a non modifying enum to another
-        // instance of this application with no regard to the persistence
-        // of the ordinal values over time
+
         buf.writeInt(metaData.getRotation().ordinal());
         buf.writeInt(metaData.getMirror().ordinal());
 
@@ -160,7 +154,7 @@ public abstract class CommunicationManager {
     }
 
     public void receivePositionData(final ServerPlacement placement, final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
-        // Read all fields from buffer regardless of placement availability to keep stream in sync
+
         final BlockPos pos = buf.readBlockPos();
         final String dimensionId = buf.readString(32767);
         final BlockRotation rot = rotOrdinals[buf.readInt()];
@@ -171,7 +165,7 @@ public abstract class CommunicationManager {
         }
 
         if (exchangeTarget.getFeatureSet().hasFeature(Feature.CORE_EX)) {
-            
+
             final int limit = buf.readInt();
             if (placement != null) {
                 final SubRegionData subRegionData = placement.getSubRegionData();
@@ -186,7 +180,7 @@ public abstract class CommunicationManager {
                 }
             } else {
                 for (int i = 0; i < limit; i++) {
-                    // discard values when placement is unknown
+
                     buf.readString(32767);
                     buf.readBlockPos();
                     buf.readInt();
@@ -213,6 +207,14 @@ public abstract class CommunicationManager {
             buf.writeString(entry.getKey().getVariant());
             buf.writeInt(entry.getRequiredAmount());
             buf.writeInt(entry.getStockingSupplied());
+            if (exchangeTarget.getFeatureSet().hasFeature(Feature.MATERIAL_CLAIMS)) {
+                final java.util.Collection<ch.endte.syncmatica.extended_core.PlayerIdentifier> claimers = entry.getClaimants();
+                buf.writeInt(claimers.size());
+                for (final ch.endte.syncmatica.extended_core.PlayerIdentifier p : claimers) {
+                    buf.writeUuid(p.uuid);
+                    buf.writeString(p.getName());
+                }
+            }
         }
     }
 
@@ -242,9 +244,9 @@ public abstract class CommunicationManager {
             }
             return;
         }
-        // client side consumption
+
         if (placement == null) {
-            // consume and discard to keep buffer aligned
+
             for (int i = 0; i < total; i++) {
                 buf.readString(32767);
                 buf.readString(32767);
@@ -259,6 +261,16 @@ public abstract class CommunicationManager {
             final int required = buf.readInt();
             final MaterialProgressEntry entry = snapshot.getOrCreate(key, required);
             entry.setStockingSupplied(buf.readInt());
+            if (exchangeTarget.getFeatureSet().hasFeature(Feature.MATERIAL_CLAIMS)) {
+                entry.clearClaimants();
+                final int cc = buf.readInt();
+                final ch.endte.syncmatica.extended_core.PlayerIdentifierProvider provider = context.getPlayerIdentifierProvider();
+                for (int c = 0; c < cc; c++) {
+                    final java.util.UUID id = buf.readUuid();
+                    final String name = buf.readString(32767);
+                    entry.addClaimer(provider.createOrGet(id, name));
+                }
+            }
         }
         placement.applyMaterialProgressSnapshot(snapshot);
     }
@@ -269,7 +281,7 @@ public abstract class CommunicationManager {
 
     public void download(final ServerPlacement syncmatic, final ExchangeTarget source) throws NoSuchAlgorithmException, IOException {
         if (!context.getFileStorage().getLocalState(syncmatic).isReadyForDownload()) {
-            // forgot a negation here
+
             throw new IllegalArgumentException(syncmatic.toString() + " is not ready for download local state is: " + context.getFileStorage().getLocalState(syncmatic).toString());
         }
         final File toDownload = context.getFileStorage().createLocalLitematic(syncmatic);

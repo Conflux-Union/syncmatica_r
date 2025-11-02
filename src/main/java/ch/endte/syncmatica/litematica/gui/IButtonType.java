@@ -5,23 +5,15 @@ import fi.dy.masa.malilib.gui.interfaces.IGuiIcon;
 
 import java.util.List;
 
-// Represents a type of button
-// e.g. the onClickListener / whether it is active or not
-// its text and icon
-
 public interface IButtonType {
 	IGuiIcon getIcon();
 
-	// returns the key when it is already translated
-	
 	String getTranslatedKey();
 
 	List<String> getHoverStrings();
 
 	IButtonActionListener getButtonListener();
 
-	// returns whether a button type is active or not
-	
 	boolean isActive();
 
 }

@@ -29,7 +29,7 @@ public class ModifyExchangeServer extends AbstractExchange {
 
     @Override
     public void handle(final Identifier id, final PacketByteBuf packetBuf) {
-        packetBuf.readUuid(); // consume uuid
+        packetBuf.readUuid();
         if (id.equals(PacketType.MODIFY_FINISH.identifier)) {
             getContext().getCommunicationManager().receivePositionData(placement, packetBuf, getPartner());
             getContext().getCommunicationManager().receiveMaterialData(placement, packetBuf, getPartner());
@@ -49,7 +49,7 @@ public class ModifyExchangeServer extends AbstractExchange {
     @Override
     public void init() {
         if (getPlacement() == null || getContext().getCommunicationManager().getModifier(placement) != null) {
-            close(true); // equivalent to deny
+            close(true);
         } else {
             accept();
         }

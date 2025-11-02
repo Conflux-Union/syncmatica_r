@@ -5,9 +5,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * Mutable aggregation bucket per placement, producing immutable snapshots for syncing.
- */
 public class MaterialProgressState {
     private final Map<MaterialKey, MaterialProgressEntry> entries = new LinkedHashMap<>();
 

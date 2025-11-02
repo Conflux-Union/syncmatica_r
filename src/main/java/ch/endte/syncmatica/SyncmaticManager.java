@@ -77,7 +77,7 @@ public class SyncmaticManager {
     public void shutdown() {
     }
 
-    public void saveServerState() { 
+    public void saveServerState() {
         if (!context.isServer()) {
             return;
         }
@@ -93,7 +93,7 @@ public class SyncmaticManager {
         }
 
         obj.add(PLACEMENTS_JSON_KEY, arr);
-        
+
         if (context.getMaterialService() != null) {
             final ch.endte.syncmatica.material.StockingAreaDefinition def = context.getMaterialService().getDefaultStockingArea();
             if (def != null) {
@@ -130,26 +130,23 @@ public class SyncmaticManager {
             }
             if (element == null) {
 
-
                 return;
             }
             try {
                 final JsonObject obj = element.getAsJsonObject();
                 if (obj == null) { return; }
 
-                // Restore placements
                 if (obj.has(PLACEMENTS_JSON_KEY)) {
                     final JsonArray arr = obj.getAsJsonArray(PLACEMENTS_JSON_KEY);
                     for (final JsonElement elem : arr) {
                         final ServerPlacement placement = ServerPlacement.fromJson(elem.getAsJsonObject(), context);
-                        schematics.put(placement.getId(), placement); // NOSONAR
+                        schematics.put(placement.getId(), placement);
                         if (context.getMaterialService() != null) {
                             context.getMaterialService().attachPlacement(placement);
                         }
                     }
                 }
 
-                
                 if (context.getMaterialService() != null && obj.has(DEFAULT_STOCKING_AREA_JSON_KEY)) {
                     final ch.endte.syncmatica.material.StockingAreaDefinition def =
                             ch.endte.syncmatica.material.StockingAreaDefinition.fromJson(
