@@ -1,15 +1,9 @@
 package ch.endte.syncmatica.service;
 
 import ch.endte.syncmatica.ServerPlacement;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import ch.endte.syncmatica.ServerPosition;
 import ch.endte.syncmatica.communication.ServerCommunicationManager;
-import ch.endte.syncmatica.material.MaterialKey;
-import ch.endte.syncmatica.material.MaterialProgressEntry;
-import ch.endte.syncmatica.material.MaterialProgressState;
-import ch.endte.syncmatica.material.MaterialRequirementExtractor;
-import ch.endte.syncmatica.material.StockingAreaDefinition;
+import ch.endte.syncmatica.material.*;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.item.BlockItem;
@@ -23,16 +17,16 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.util.registry.RegistryKey;
 import net.minecraft.world.World;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.util.*;
 
 public class MaterialService extends AbstractService {
-    private static final Logger LOGGER = LogManager.getLogger(MaterialService.class);
-
     public static final boolean ENABLED_DEFAULT = true;
     public static final int SCAN_INTERVAL_DEFAULT = 200;
-
+    private static final Logger LOGGER = LogManager.getLogger(MaterialService.class);
     private final Map<UUID, ServerPlacement> placements = new HashMap<>();
 
     private final Map<UUID, Map<MaterialKey, Integer>> requiredTotals = new HashMap<>();
@@ -100,13 +94,13 @@ public class MaterialService extends AbstractService {
         return stockingAreas.get(placementId);
     }
 
+    public StockingAreaDefinition getDefaultStockingArea() {
+        return defaultStockingArea;
+    }
+
     public void setDefaultStockingArea(final StockingAreaDefinition area) {
 
         defaultStockingArea = area;
-    }
-
-    public StockingAreaDefinition getDefaultStockingArea() {
-        return defaultStockingArea;
     }
 
     public void tick(final MinecraftServer server) {
@@ -254,7 +248,7 @@ public class MaterialService extends AbstractService {
         final File file = context.getFileStorage().getLocalLitematic(placement);
         if (file == null) {
             LOGGER.warn("Cannot load material requirements for placement '{}' (hash: {}): file not found",
-                placement.getName(), placement.getHash());
+                    placement.getName(), placement.getHash());
             return Collections.emptyMap();
         }
         LOGGER.debug("Loading material requirements from: {} (exists={})", file.getAbsolutePath(), file.exists());
@@ -304,8 +298,7 @@ public class MaterialService extends AbstractService {
         for (final BlockPos pos : BlockPos.iterate(min, max)) {
             final BlockEntity blockEntity = world.getBlockEntity(pos);
 
-            if (blockEntity instanceof Inventory) {
-                final Inventory inventory = (Inventory) blockEntity;
+            if (blockEntity instanceof Inventory inventory) {
                 scanInventory(inventory, totals);
             }
         }
@@ -324,10 +317,9 @@ public class MaterialService extends AbstractService {
 
         for (final BlockPos pos : BlockPos.iterate(min, max)) {
             final BlockEntity be = world.getBlockEntity(pos);
-            if (!(be instanceof net.minecraft.block.entity.SignBlockEntity)) {
+            if (!(be instanceof net.minecraft.block.entity.SignBlockEntity sign)) {
                 continue;
             }
-            final net.minecraft.block.entity.SignBlockEntity sign = (net.minecraft.block.entity.SignBlockEntity) be;
             final java.util.List<String> names = new java.util.ArrayList<>(4);
             for (int i = 0; i < 4; i++) {
                 try {
@@ -381,13 +373,12 @@ public class MaterialService extends AbstractService {
     private Inventory getInventoryAt(final ServerWorld world, final BlockPos pos) {
         final net.minecraft.block.BlockState state = world.getBlockState(pos);
         final BlockEntity be = world.getBlockEntity(pos);
-        if (!(be instanceof Inventory)) {
+        if (!(be instanceof Inventory primary)) {
             return null;
         }
 
         if (state.getBlock() instanceof net.minecraft.block.ChestBlock) {
             final net.minecraft.block.entity.BlockEntityType<?> type = be.getType();
-            final Inventory primary = (Inventory) be;
 
             for (final net.minecraft.util.math.Direction dir : new net.minecraft.util.math.Direction[]{
                     net.minecraft.util.math.Direction.NORTH,

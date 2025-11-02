@@ -4,21 +4,10 @@ import net.minecraft.util.Identifier;
 
 import java.util.Objects;
 
-public final class MaterialKey {
-    private final Identifier itemId;
-    private final String variant;
-
+public record MaterialKey(Identifier itemId, String variant) {
     public MaterialKey(final Identifier itemId, final String variant) {
         this.itemId = Objects.requireNonNull(itemId, "itemId");
         this.variant = variant == null ? "" : variant;
-    }
-
-    public Identifier getItemId() {
-        return itemId;
-    }
-
-    public String getVariant() {
-        return variant;
     }
 
     @Override
@@ -31,11 +20,6 @@ public final class MaterialKey {
         }
         final MaterialKey other = (MaterialKey) obj;
         return itemId.equals(other.itemId) && variant.equals(other.variant);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(itemId, variant);
     }
 
     @Override

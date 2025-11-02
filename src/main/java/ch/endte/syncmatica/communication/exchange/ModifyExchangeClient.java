@@ -15,10 +15,9 @@ import net.minecraft.util.Identifier;
 
 public class ModifyExchangeClient extends AbstractExchange {
 
-    private boolean expectRemove = false;
-
     private final ServerPlacement placement;
     private final SchematicPlacement litematic;
+    private boolean expectRemove = false;
 
     public ModifyExchangeClient(final ServerPlacement placement, final ExchangeTarget partner, final Context con) {
         super(partner, con);

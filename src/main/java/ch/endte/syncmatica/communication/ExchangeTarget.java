@@ -15,12 +15,11 @@ import java.util.Collection;
 import java.util.List;
 
 public class ExchangeTarget {
+    private final String persistentName;
+    private final List<Exchange> ongoingExchanges = new ArrayList<>();
     private ClientPlayNetworkHandler server = null;
     private ServerPlayNetworkHandler client = null;
-    private final String persistentName;
-
     private FeatureSet features;
-    private final List<Exchange> ongoingExchanges = new ArrayList<>();
 
     public ExchangeTarget(final ClientPlayNetworkHandler server) {
         this.server = server;

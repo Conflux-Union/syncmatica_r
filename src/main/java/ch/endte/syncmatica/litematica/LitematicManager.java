@@ -29,6 +29,10 @@ public class LitematicManager {
     private Collection<SchematicPlacement> preLoadList = new ArrayList<>();
     private Context context;
 
+    private LitematicManager() {
+        rendering = new HashMap<>();
+    }
+
     public static LitematicManager getInstance() {
         if (instance == null) {
             instance = new LitematicManager();
@@ -40,8 +44,8 @@ public class LitematicManager {
         instance = null;
     }
 
-    private LitematicManager() {
-        rendering = new HashMap<>();
+    public Context getActiveContext() {
+        return context;
     }
 
     public void setActiveContext(final Context con) {
@@ -50,10 +54,6 @@ public class LitematicManager {
         }
         context = con;
         ScreenHelper.ifPresent(s -> s.setActiveContext(con));
-    }
-
-    public Context getActiveContext() {
-        return context;
     }
 
     public void renderSyncmatic(final ServerPlacement placement) {

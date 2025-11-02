@@ -1,28 +1,28 @@
 {
-	"schemaVersion": 1,
-	"id": "syncmatica",
-	"version": "${version}",
-	"name": "Syncmatica",
-	"description": "Server-wide shared litematics.",
-	"authors": [
-		"nnnik",
-		"samipourquoi"
-	],
-	"contact": {
-		"sources": "https://github.com/endtech/syncmatica"
-	},
-	"license": "CC0-1.0",
-	"environment": "*",
-	"entrypoints": {},
-	"mixins": [
-		"syncmatica.mixin.json",
-		"syncmatica.litematica_mixin.json"
-	],
-	"depends": {
-	},
-	"suggests": {
-		"litematica": "*",
-		"malilib": "*"
-	},
-	"icon": "assets/syncmatica/icon/logo.png"
+  "schemaVersion": 1,
+  "id": "syncmatica",
+  "version": "${version}",
+  "name": "Syncmatica",
+  "description": "Server-wide shared litematics.",
+  "authors": [
+    "nnnik",
+    "samipourquoi"
+  ],
+  "contact": {
+    "sources": "https://github.com/endtech/syncmatica"
+  },
+  "license": "CC0-1.0",
+  "environment": "*",
+  "entrypoints": {},
+  "mixins": [
+    "syncmatica.mixin.json",
+    "syncmatica.litematica_mixin.json"
+  ],
+  "depends": {
+  },
+  "suggests": {
+    "litematica": "*",
+    "malilib": "*"
+  },
+  "icon": "assets/syncmatica/icon/logo.png"
 }

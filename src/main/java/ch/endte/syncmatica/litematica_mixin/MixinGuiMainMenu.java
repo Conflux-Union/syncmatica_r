@@ -1,7 +1,5 @@
 package ch.endte.syncmatica.litematica_mixin;
 
-import ch.endte.syncmatica.Context;
-import ch.endte.syncmatica.litematica.LitematicManager;
 import ch.endte.syncmatica.litematica.gui.ButtonListenerChangeMenu;
 import ch.endte.syncmatica.litematica.gui.MainMenuButtonType;
 import fi.dy.masa.litematica.gui.GuiMainMenu;

@@ -26,15 +26,12 @@ import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 public abstract class CommunicationManager {
-    protected final Collection<ExchangeTarget> broadcastTargets;
-
-    protected final Map<UUID, Boolean> downloadState;
-    protected final Map<UUID, Exchange> modifyState;
-
-    protected Context context;
-
     protected static final BlockRotation[] rotOrdinals = BlockRotation.values();
     protected static final BlockMirror[] mirOrdinals = BlockMirror.values();
+    protected final Collection<ExchangeTarget> broadcastTargets;
+    protected final Map<UUID, Boolean> downloadState;
+    protected final Map<UUID, Exchange> modifyState;
+    protected Context context;
 
     protected CommunicationManager() {
         broadcastTargets = new ArrayList<>();
@@ -203,8 +200,8 @@ public abstract class CommunicationManager {
             return;
         }
         for (final MaterialProgressEntry entry : entries) {
-            buf.writeString(entry.getKey().getItemId().toString());
-            buf.writeString(entry.getKey().getVariant());
+            buf.writeString(entry.getKey().itemId().toString());
+            buf.writeString(entry.getKey().variant());
             buf.writeInt(entry.getRequiredAmount());
             buf.writeInt(entry.getStockingSupplied());
             if (exchangeTarget.getFeatureSet().hasFeature(Feature.MATERIAL_CLAIMS)) {

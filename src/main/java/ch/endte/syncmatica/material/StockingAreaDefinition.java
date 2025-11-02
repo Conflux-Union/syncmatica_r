@@ -29,6 +29,24 @@ public final class StockingAreaDefinition {
         max = new BlockPos(maxX, maxY, maxZ);
     }
 
+    public static StockingAreaDefinition fromJson(final JsonObject json) {
+        if (json == null || !json.has(FIELD_DIMENSION)) {
+            return null;
+        }
+        final String dimension = json.get(FIELD_DIMENSION).getAsString();
+        final BlockPos min = new BlockPos(
+                json.get(FIELD_MIN_X).getAsInt(),
+                json.get(FIELD_MIN_Y).getAsInt(),
+                json.get(FIELD_MIN_Z).getAsInt()
+        );
+        final BlockPos max = new BlockPos(
+                json.get(FIELD_MAX_X).getAsInt(),
+                json.get(FIELD_MAX_Y).getAsInt(),
+                json.get(FIELD_MAX_Z).getAsInt()
+        );
+        return new StockingAreaDefinition(dimension, min, max);
+    }
+
     public String getDimensionId() {
         return dimensionId;
     }
@@ -51,23 +69,5 @@ public final class StockingAreaDefinition {
         json.add(FIELD_MAX_Y, new JsonPrimitive(max.getY()));
         json.add(FIELD_MAX_Z, new JsonPrimitive(max.getZ()));
         return json;
-    }
-
-    public static StockingAreaDefinition fromJson(final JsonObject json) {
-        if (json == null || !json.has(FIELD_DIMENSION)) {
-            return null;
-        }
-        final String dimension = json.get(FIELD_DIMENSION).getAsString();
-        final BlockPos min = new BlockPos(
-                json.get(FIELD_MIN_X).getAsInt(),
-                json.get(FIELD_MIN_Y).getAsInt(),
-                json.get(FIELD_MIN_Z).getAsInt()
-        );
-        final BlockPos max = new BlockPos(
-                json.get(FIELD_MAX_X).getAsInt(),
-                json.get(FIELD_MAX_Y).getAsInt(),
-                json.get(FIELD_MAX_Z).getAsInt()
-        );
-        return new StockingAreaDefinition(dimension, min, max);
     }
 }

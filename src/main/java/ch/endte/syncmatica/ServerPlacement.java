@@ -2,11 +2,7 @@ package ch.endte.syncmatica;
 
 import ch.endte.syncmatica.extended_core.PlayerIdentifier;
 import ch.endte.syncmatica.extended_core.SubRegionData;
-import ch.endte.syncmatica.material.MaterialProgressEntry;
-import ch.endte.syncmatica.material.MaterialProgressSerializer;
-import ch.endte.syncmatica.material.MaterialProgressState;
-import ch.endte.syncmatica.material.StockingAreaDefinition;
-import ch.endte.syncmatica.material.SyncmaticaMaterialList;
+import ch.endte.syncmatica.material.*;
 import ch.endte.syncmatica.util.SyncmaticaUtil;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
@@ -24,18 +20,14 @@ public class ServerPlacement {
 
     private final String fileName;
     private final UUID hashValue;
-
+    private final SyncmaticaMaterialList materialList = new SyncmaticaMaterialList();
+    private final MaterialProgressState materialProgress = new MaterialProgressState();
     private PlayerIdentifier owner;
     private PlayerIdentifier lastModifiedBy;
-
     private ServerPosition origin;
     private BlockRotation rotation;
     private BlockMirror mirror;
-
     private SubRegionData subRegionData = new SubRegionData();
-
-    private final SyncmaticaMaterialList materialList = new SyncmaticaMaterialList();
-    private final MaterialProgressState materialProgress = new MaterialProgressState();
     private StockingAreaDefinition stockingArea;
 
     public ServerPlacement(final UUID id, final String fileName, final UUID hashValue, final PlayerIdentifier owner) {
@@ -48,6 +40,78 @@ public class ServerPlacement {
 
     public ServerPlacement(final UUID id, final File file, final PlayerIdentifier owner) {
         this(id, removeExtension(file), generateHash(file), owner);
+    }
+
+    private static String removeExtension(final File file) {
+
+        final String fileName = file.getName();
+        final int pos = fileName.lastIndexOf(".");
+        return fileName.substring(0, pos);
+    }
+
+    private static UUID generateHash(final File file) {
+        UUID hash = null;
+        try {
+            hash = SyncmaticaUtil.createChecksum(new FileInputStream(file));
+        } catch (final Exception e) {
+            throw new RuntimeException(e);
+        }
+        return hash;
+    }
+
+    public static ServerPlacement fromJson(final JsonObject obj, final Context context) {
+        if (obj.has("id")
+                && obj.has("file_name")
+                && obj.has("hash")
+                && obj.has("origin")
+                && obj.has("rotation")
+                && obj.has("mirror")) {
+            final UUID id = UUID.fromString(obj.get("id").getAsString());
+            final String name = obj.get("file_name").getAsString();
+            final UUID hashValue = UUID.fromString(obj.get("hash").getAsString());
+
+            PlayerIdentifier owner = PlayerIdentifier.MISSING_PLAYER;
+            if (obj.has("owner")) {
+                owner = context.getPlayerIdentifierProvider().fromJson(obj.get("owner").getAsJsonObject());
+            }
+
+            final ServerPlacement newPlacement = new ServerPlacement(id, name, hashValue, owner);
+
+            final ServerPosition pos = ServerPosition.fromJson(obj.get("origin").getAsJsonObject());
+            if (pos == null) {
+                return null;
+            }
+            newPlacement.origin = pos;
+            newPlacement.rotation = BlockRotation.valueOf(obj.get("rotation").getAsString());
+            newPlacement.mirror = BlockMirror.valueOf(obj.get("mirror").getAsString());
+
+            if (obj.has("lastModifiedBy")) {
+                newPlacement.lastModifiedBy = context.getPlayerIdentifierProvider()
+                        .fromJson(obj.get("lastModifiedBy").getAsJsonObject());
+            } else {
+                newPlacement.lastModifiedBy = owner;
+            }
+
+            if (obj.has("subregionData")) {
+                newPlacement.subRegionData = SubRegionData.fromJson(obj.get("subregionData"));
+            }
+
+            if (obj.has("materials")) {
+                MaterialProgressSerializer.fromJson(
+                        obj.get("materials").getAsJsonObject(),
+                        newPlacement.materialProgress,
+                        context.getPlayerIdentifierProvider()
+                );
+            }
+
+            if (obj.has("stockingArea")) {
+                newPlacement.stockingArea = StockingAreaDefinition.fromJson(obj.getAsJsonObject("stockingArea"));
+            }
+
+            return newPlacement;
+        }
+
+        return null;
     }
 
     public UUID getId() {
@@ -149,23 +213,6 @@ public class ServerPlacement {
         });
     }
 
-    private static String removeExtension(final File file) {
-
-        final String fileName = file.getName();
-        final int pos = fileName.lastIndexOf(".");
-        return fileName.substring(0, pos);
-    }
-
-    private static UUID generateHash(final File file) {
-        UUID hash = null;
-        try {
-            hash = SyncmaticaUtil.createChecksum(new FileInputStream(file));
-        } catch (final Exception e) {
-            throw new RuntimeException(e);
-        }
-        return hash;
-    }
-
     public JsonObject toJson() {
         final JsonObject obj = new JsonObject();
         obj.add("id", new JsonPrimitive(id.toString()));
@@ -195,60 +242,5 @@ public class ServerPlacement {
         }
 
         return obj;
-    }
-
-    public static ServerPlacement fromJson(final JsonObject obj, final Context context) {
-        if (obj.has("id")
-                && obj.has("file_name")
-                && obj.has("hash")
-                && obj.has("origin")
-                && obj.has("rotation")
-                && obj.has("mirror")) {
-            final UUID id = UUID.fromString(obj.get("id").getAsString());
-            final String name = obj.get("file_name").getAsString();
-            final UUID hashValue = UUID.fromString(obj.get("hash").getAsString());
-
-            PlayerIdentifier owner = PlayerIdentifier.MISSING_PLAYER;
-            if (obj.has("owner")) {
-                owner = context.getPlayerIdentifierProvider().fromJson(obj.get("owner").getAsJsonObject());
-            }
-
-            final ServerPlacement newPlacement = new ServerPlacement(id, name, hashValue, owner);
-
-            final ServerPosition pos = ServerPosition.fromJson(obj.get("origin").getAsJsonObject());
-            if (pos == null) {
-                return null;
-            }
-            newPlacement.origin = pos;
-            newPlacement.rotation = BlockRotation.valueOf(obj.get("rotation").getAsString());
-            newPlacement.mirror = BlockMirror.valueOf(obj.get("mirror").getAsString());
-
-            if (obj.has("lastModifiedBy")) {
-                newPlacement.lastModifiedBy = context.getPlayerIdentifierProvider()
-                        .fromJson(obj.get("lastModifiedBy").getAsJsonObject());
-            } else {
-                newPlacement.lastModifiedBy = owner;
-            }
-
-            if (obj.has("subregionData")) {
-                newPlacement.subRegionData = SubRegionData.fromJson(obj.get("subregionData"));
-            }
-
-            if (obj.has("materials")) {
-                MaterialProgressSerializer.fromJson(
-                        obj.get("materials").getAsJsonObject(),
-                        newPlacement.materialProgress,
-                        context.getPlayerIdentifierProvider()
-                );
-            }
-
-            if (obj.has("stockingArea")) {
-                newPlacement.stockingArea = StockingAreaDefinition.fromJson(obj.getAsJsonObject("stockingArea"));
-            }
-
-            return newPlacement;
-        }
-
-        return null;
     }
 }

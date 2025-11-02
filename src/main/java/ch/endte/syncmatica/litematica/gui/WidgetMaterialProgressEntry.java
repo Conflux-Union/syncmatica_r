@@ -11,6 +11,7 @@ import ch.endte.syncmatica.material.SyncmaticaMaterialEntry;
 import com.mojang.blaze3d.systems.RenderSystem;
 import fi.dy.masa.malilib.gui.widgets.WidgetListEntryBase;
 import fi.dy.masa.malilib.render.RenderUtils;
+import io.netty.buffer.Unpooled;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.render.item.ItemRenderer;
@@ -18,9 +19,8 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.util.registry.Registry;
-import io.netty.buffer.Unpooled;
 import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.registry.Registry;
 
 public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaMaterialEntry> {
 
@@ -167,8 +167,8 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         }
         final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
         buf.writeUuid(placement.getId());
-        buf.writeString(material.getKey().getItemId().toString());
-        buf.writeString(material.getKey().getVariant());
+        buf.writeString(material.getKey().itemId().toString());
+        buf.writeString(material.getKey().variant());
         server.sendPacket(PacketType.MATERIAL_CLAIM_TOGGLE.identifier, buf, con);
     }
 
@@ -189,7 +189,7 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         if (key == null) {
             return ItemStack.EMPTY;
         }
-        final Item item = Registry.ITEM.get(key.getItemId());
+        final Item item = Registry.ITEM.get(key.itemId());
         if (item == Items.AIR) {
             return ItemStack.EMPTY;
         }

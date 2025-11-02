@@ -6,14 +6,14 @@ import fi.dy.masa.malilib.gui.interfaces.IGuiIcon;
 import java.util.List;
 
 public interface IButtonType {
-	IGuiIcon getIcon();
+    IGuiIcon getIcon();
 
-	String getTranslatedKey();
+    String getTranslatedKey();
 
-	List<String> getHoverStrings();
+    List<String> getHoverStrings();
 
-	IButtonActionListener getButtonListener();
+    IButtonActionListener getButtonListener();
 
-	boolean isActive();
+    boolean isActive();
 
 }
