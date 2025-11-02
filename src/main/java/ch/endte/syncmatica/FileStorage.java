@@ -53,7 +53,6 @@ public class FileStorage implements IFileStorage {
         }
     }
 
-    
     @Override
     public File createLocalLitematic(final ServerPlacement placement) {
         if (getLocalState(placement).isLocalFileReady()) {
@@ -61,10 +60,10 @@ public class FileStorage implements IFileStorage {
         }
         final File file = getSchematicPath(placement);
         if (file.exists()) {
-            file.delete(); // NOSONAR
+            file.delete();
         }
         try {
-            file.createNewFile(); // NOSONAR
+            file.createNewFile();
         } catch (final IOException e) {
             e.printStackTrace();
         }
@@ -76,9 +75,9 @@ public class FileStorage implements IFileStorage {
         try {
             hash = SyncmaticaUtil.createChecksum(new FileInputStream(localFile));
         } catch (final Exception e) {
-            // can be safely ignored since we established that file has been found
+
             e.printStackTrace();
-        }// wtf just exception?
+        }
 
         if (hash == null) {
             return false;

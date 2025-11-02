@@ -7,9 +7,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Client-facing material table for a placement.
- */
 public class SyncmaticaMaterialList {
     private final List<SyncmaticaMaterialEntry> list = new ArrayList<>();
     private ServerPosition deliveryPoint;
@@ -24,6 +21,12 @@ public class SyncmaticaMaterialList {
             snapshot.setKey(entry.getKey());
             snapshot.setAmountRequired(entry.getRequiredAmount());
             snapshot.setStockingSupplied(entry.getStockingSupplied());
+
+            final java.util.List<String> names = new java.util.ArrayList<>();
+            for (final ch.endte.syncmatica.extended_core.PlayerIdentifier p : entry.getClaimants()) {
+                names.add(p.getName());
+            }
+            snapshot.setClaimers(names);
             list.add(snapshot);
         }
     }

@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 
-
 public class WidgetSyncmaticaServerPlacementEntry extends WidgetListEntryBase<ServerPlacement> {
 
     private final ServerPlacement placement;
@@ -81,16 +80,15 @@ public class WidgetSyncmaticaServerPlacementEntry extends WidgetListEntryBase<Se
 
     @Override
     public void render(final int mouseX, final int mouseY, final boolean selected, final MatrixStack matrixStack) {
-        // Source: WidgetSchematicEntry
+
         RenderUtils.color(1f, 1f, 1f, 1f);
 
-        
         if (selected || isMouseOver(mouseX, mouseY)) {
             RenderUtils.drawRect(x, y, width, height, 0x70FFFFFF);
         } else if (isOdd) {
             RenderUtils.drawRect(x, y, width, height, 0x20FFFFFF);
         }
-        
+
         else {
             RenderUtils.drawRect(x, y, width, height, 0x50FFFFFF);
         }

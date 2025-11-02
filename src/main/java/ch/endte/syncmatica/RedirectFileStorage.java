@@ -8,16 +8,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-// pretty sure this is some kind of pattern 
-// dont remember the name though
 public class RedirectFileStorage implements IFileStorage {
 
     private final IFileStorage fs;
 
-
-    // stores the redirects
-    // will associate a hash with a specific file on the disk
-    
     private final Map<UUID, RedirectData> redirect = new HashMap<>();
 
     public RedirectFileStorage() {

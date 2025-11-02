@@ -1,6 +1,5 @@
 package ch.endte.syncmatica.litematica.gui;
 
-
 import ch.endte.syncmatica.ServerPlacement;
 import ch.endte.syncmatica.ServerPosition;
 import ch.endte.syncmatica.litematica.LitematicManager;
@@ -21,7 +20,6 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
-
 
 public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPlacement, WidgetSyncmaticaServerPlacementEntry> {
 
@@ -50,15 +48,13 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
         browserEntryWidth = browserWidth - 14;
     }
 
-
     protected int getBrowserWidthForTotalWidth(final int width) {
         return width - 6 - infoWidth;
     }
 
-    // source: WidgetFileBrowserBase
     @Override
     public void drawContents(final MatrixStack matrixStack, final int mouseX, final int mouseY, final float partialTicks) {
-        // Draw an outline around the entire widget
+
         RenderUtils.drawOutlinedBox(posX, posY, browserWidth, browserHeight, 0xB0000000, GuiBase.COLOR_HORIZONTAL_BAR);
 
         super.drawContents(matrixStack, mouseX, mouseY, partialTicks);
@@ -135,7 +131,6 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
     }
 
     public static class PlayerDistanceComparator implements Comparator<ServerPlacement> {
-        // should have probably turned this into multiple comparators rather than one big thing
 
         private final String playerDimension;
         private final BlockPos playerPosition;

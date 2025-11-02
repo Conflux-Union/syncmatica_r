@@ -4,9 +4,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import net.minecraft.util.math.BlockPos;
 
-/**
- * Axis aligned stocking area tied to a dimension.
- */
 public final class StockingAreaDefinition {
     private static final String FIELD_DIMENSION = "dimension";
     private static final String FIELD_MIN_X = "minX";

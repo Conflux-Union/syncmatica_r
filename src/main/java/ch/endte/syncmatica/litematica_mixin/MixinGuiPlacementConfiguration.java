@@ -35,7 +35,7 @@ public abstract class MixinGuiPlacementConfiguration extends GuiBase {
             return;
         }
         final List<ButtonBase> buttons = ((MixinGuiBase) (Object) this).getButtons();
-        final ButtonBase button = buttons.get(6); // unlock button
+        final ButtonBase button = buttons.get(6);
         button.setActionListener((b, k) -> {
             if (placement.isLocked()) {
                 requestModification();

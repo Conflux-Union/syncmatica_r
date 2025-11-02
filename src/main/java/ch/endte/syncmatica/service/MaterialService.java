@@ -27,24 +27,20 @@ import net.minecraft.world.World;
 import java.io.File;
 import java.util.*;
 
-/**
- * Aggregates material requirements and stocking scans per placement.
- */
 public class MaterialService extends AbstractService {
     private static final Logger LOGGER = LogManager.getLogger(MaterialService.class);
-    
+
     public static final boolean ENABLED_DEFAULT = true;
     public static final int SCAN_INTERVAL_DEFAULT = 200;
 
-    // Tracks every placement currently managed on the server.
     private final Map<UUID, ServerPlacement> placements = new HashMap<>();
-    // Required material counts derived from schematics.
+
     private final Map<UUID, Map<MaterialKey, Integer>> requiredTotals = new HashMap<>();
-    // Stocking area scans folded into material counts.
+
     private final Map<UUID, Map<MaterialKey, Integer>> stockingTotals = new HashMap<>();
-    
+
     private final Map<UUID, StockingAreaDefinition> stockingAreas = new HashMap<>();
-    // Global default area used when a placement has none.
+
     private StockingAreaDefinition defaultStockingArea;
 
     private boolean enabled = ENABLED_DEFAULT;
@@ -105,7 +101,7 @@ public class MaterialService extends AbstractService {
     }
 
     public void setDefaultStockingArea(final StockingAreaDefinition area) {
-        // Set or replace the server-wide default area (non-persistent).
+
         defaultStockingArea = area;
     }
 
@@ -122,7 +118,7 @@ public class MaterialService extends AbstractService {
             return;
         }
         tickCounter = 0;
-        // If a default area exists, pre-scan it once and distribute totals.
+
         final Map<String, Map<MaterialKey, Integer>> defaultTotals =
                 (defaultStockingArea != null) ? scanDefaultArea(server, defaultStockingArea) : Collections.emptyMap();
 
@@ -216,11 +212,22 @@ public class MaterialService extends AbstractService {
         keys.addAll(stock.keySet());
 
         final MaterialProgressState snapshot = placement.getMaterialProgress();
+
+        final java.util.Map<MaterialKey, java.util.Collection<ch.endte.syncmatica.extended_core.PlayerIdentifier>> previousClaimants = new java.util.HashMap<>();
+        for (final MaterialProgressEntry e : snapshot.getEntries()) {
+            previousClaimants.put(e.getKey(), new java.util.ArrayList<>(e.getClaimants()));
+        }
         snapshot.clear();
         for (final MaterialKey key : keys) {
             final int requiredAmount = required.getOrDefault(key, 0);
             final MaterialProgressEntry entry = snapshot.getOrCreate(key, requiredAmount);
             entry.setStockingSupplied(stock.getOrDefault(key, 0));
+            final java.util.Collection<ch.endte.syncmatica.extended_core.PlayerIdentifier> claim = previousClaimants.get(key);
+            if (claim != null) {
+                for (final ch.endte.syncmatica.extended_core.PlayerIdentifier p : claim) {
+                    entry.addClaimer(p);
+                }
+            }
         }
         if (notify) {
             context.getSyncmaticManager().updateServerPlacement(placement);
@@ -246,7 +253,7 @@ public class MaterialService extends AbstractService {
     private Map<MaterialKey, Integer> loadRequirementsFromSchematic(final ServerPlacement placement) {
         final File file = context.getFileStorage().getLocalLitematic(placement);
         if (file == null) {
-            LOGGER.warn("Cannot load material requirements for placement '{}' (hash: {}): file not found", 
+            LOGGER.warn("Cannot load material requirements for placement '{}' (hash: {}): file not found",
                 placement.getName(), placement.getHash());
             return Collections.emptyMap();
         }
@@ -293,20 +300,19 @@ public class MaterialService extends AbstractService {
         final Map<MaterialKey, Integer> totals = new HashMap<>();
         final BlockPos min = area.getMin();
         final BlockPos max = area.getMax();
-        // Iterate all positions inside the axis-aligned box
+
         for (final BlockPos pos : BlockPos.iterate(min, max)) {
             final BlockEntity blockEntity = world.getBlockEntity(pos);
-            // Count any block entity that implements Inventory (chest, barrel, shulker, etc.)
+
             if (blockEntity instanceof Inventory) {
                 final Inventory inventory = (Inventory) blockEntity;
                 scanInventory(inventory, totals);
             }
         }
-        
+
         setStockingContributions(placement.getId(), totals);
     }
 
-    // Build per-project totals by reading signs in the default area and mapping nearby chests.
     private Map<String, Map<MaterialKey, Integer>> scanDefaultArea(final MinecraftServer server, final StockingAreaDefinition area) {
         final ServerWorld world = resolveWorld(server, area.getDimensionId());
         if (world == null) {
@@ -336,7 +342,7 @@ public class MaterialService extends AbstractService {
                         }
                     }
                 } catch (final Throwable ignored) {
-                    
+
                 }
             }
             if (names.isEmpty()) {
@@ -354,7 +360,6 @@ public class MaterialService extends AbstractService {
         return result;
     }
 
-    
     private Inventory resolveInventoryForSign(final ServerWorld world, final BlockPos signPos) {
         final net.minecraft.block.BlockState state = world.getBlockState(signPos);
         BlockPos candidate = null;
@@ -367,24 +372,23 @@ public class MaterialService extends AbstractService {
             candidate = signPos.down();
         }
         if (candidate == null) {
-            
+
             return null;
         }
         return getInventoryAt(world, candidate);
     }
 
-    
     private Inventory getInventoryAt(final ServerWorld world, final BlockPos pos) {
         final net.minecraft.block.BlockState state = world.getBlockState(pos);
         final BlockEntity be = world.getBlockEntity(pos);
         if (!(be instanceof Inventory)) {
             return null;
         }
-        
+
         if (state.getBlock() instanceof net.minecraft.block.ChestBlock) {
             final net.minecraft.block.entity.BlockEntityType<?> type = be.getType();
             final Inventory primary = (Inventory) be;
-            
+
             for (final net.minecraft.util.math.Direction dir : new net.minecraft.util.math.Direction[]{
                     net.minecraft.util.math.Direction.NORTH,
                     net.minecraft.util.math.Direction.SOUTH,
@@ -399,21 +403,18 @@ public class MaterialService extends AbstractService {
         }
         return (Inventory) be;
     }
-    
-    /**
-     * Scan all items in an inventory, including nested shulker boxes.
-     */
+
     private void scanInventory(final Inventory inventory, final Map<MaterialKey, Integer> totals) {
         for (int slot = 0; slot < inventory.size(); slot++) {
             final ItemStack stack = inventory.getStack(slot);
             if (stack == null || stack.isEmpty()) {
                 continue;
             }
-            // Count the current stack
+
             final Identifier itemId = Registry.ITEM.getId(stack.getItem());
             final MaterialKey key = new MaterialKey(itemId, "");
             totals.merge(key, stack.getCount(), Integer::sum);
-            // Handle possible shulker box nesting via NBT
+
             if (stack.getItem() instanceof BlockItem) {
                 final NbtCompound nbt = stack.getNbt();
                 if (nbt != null && nbt.contains("BlockEntityTag")) {
@@ -425,24 +426,21 @@ public class MaterialService extends AbstractService {
             }
         }
     }
-    
-    /**
-     * Recursively scan items contained in a shulker box NBT payload.
-     */
+
     private void scanShulkerBoxContents(final NbtList itemsNbt, final Map<MaterialKey, Integer> totals) {
         for (int i = 0; i < itemsNbt.size(); i++) {
             final NbtCompound itemNbt = itemsNbt.getCompound(i);
             if (!itemNbt.contains("id") || !itemNbt.contains("Count")) {
                 continue;
             }
-            
+
             try {
                 final Identifier itemId = new Identifier(itemNbt.getString("id"));
                 final int count = itemNbt.getByte("Count");
-                // Count items inside shulker box
+
                 final MaterialKey key = new MaterialKey(itemId, "");
                 totals.merge(key, count, Integer::sum);
-                // Recurse nested shulker boxes
+
                 if (itemNbt.contains("tag")) {
                     final NbtCompound tag = itemNbt.getCompound("tag");
                     if (tag.contains("BlockEntityTag")) {
@@ -453,7 +451,7 @@ public class MaterialService extends AbstractService {
                     }
                 }
             } catch (final Exception e) {
-                // Ignore malformed entries
+
             }
         }
     }

@@ -31,7 +31,7 @@ public class PlayerIdentifierProvider {
     public PlayerIdentifier createOrGet(final UUID uuid, final String playerName) {
         final PlayerIdentifier playerIdentifier = identifiers.computeIfAbsent(uuid, id -> new PlayerIdentifier(uuid, playerName));
         if (!context.isServer()) {
-            playerIdentifier.updatePlayerName(playerName); // trust that the latest value is up-to-date on the client
+            playerIdentifier.updatePlayerName(playerName);
         }
         return playerIdentifier;
     }

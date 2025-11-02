@@ -15,7 +15,6 @@ import net.minecraft.util.Identifier;
 
 public class ModifyExchangeClient extends AbstractExchange {
 
-    
     private boolean expectRemove = false;
 
     private final ServerPlacement placement;
@@ -56,7 +55,7 @@ public class ModifyExchangeClient extends AbstractExchange {
             packetBuf.readUuid();
             final ShareLitematicExchange legacyModify = new ShareLitematicExchange(litematic, getPartner(), getContext(), placement);
             getContext().getCommunicationManager().startExchange(legacyModify);
-            succeed(); // the adding portion of this is handled by the ShareLitematicExchange
+            succeed();
         }
     }
 

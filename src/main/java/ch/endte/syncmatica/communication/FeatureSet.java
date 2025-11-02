@@ -4,9 +4,6 @@ import ch.endte.syncmatica.Feature;
 
 import java.util.*;
 
-
-// or has enabled/disabled
-
 public class FeatureSet {
 
     private static final Map<String, FeatureSet> versionFeatures;

@@ -48,10 +48,10 @@ public class QuotaService extends AbstractService {
     }
 
     @Override
-    public void startup() { // NOSONAR
+    public void startup() {
     }
 
     @Override
-    public void shutdown() { // NOSONAR
+    public void shutdown() {
     }
 }

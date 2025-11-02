@@ -6,9 +6,6 @@ import fi.dy.masa.malilib.gui.GuiListBase;
 import fi.dy.masa.malilib.gui.button.ButtonGeneric;
 import fi.dy.masa.malilib.util.StringUtils;
 
-/**
- * Displays aggregated material requirements for a placement.
- */
 public class GuiSyncmaticaMaterialProgress extends GuiListBase<SyncmaticaMaterialEntry, WidgetMaterialProgressEntry, WidgetListMaterialProgress> {
 
     private final ServerPlacement placement;
@@ -24,7 +21,7 @@ public class GuiSyncmaticaMaterialProgress extends GuiListBase<SyncmaticaMateria
         super.initGui();
         final String closeLabel = StringUtils.translate("syncmatica.gui.button.back");
         final int buttonWidth = getStringWidth(closeLabel) + 20;
-        // Simple close button mirrors other Syncmatica GUI layouts.
+
         final ButtonGeneric button = new ButtonGeneric(width - buttonWidth - 10, height - 26, buttonWidth, 20, closeLabel);
         addButton(button, (b, i) -> closeGui(true));
     }

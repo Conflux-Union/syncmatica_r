@@ -23,11 +23,10 @@ public class ServerPlacement {
     private final UUID id;
 
     private final String fileName;
-    private final UUID hashValue; 
-    // UUID since easier to transmit compare etc.
+    private final UUID hashValue;
 
-    private PlayerIdentifier owner; // player that shared it
-    private PlayerIdentifier lastModifiedBy; // player that last modified it
+    private PlayerIdentifier owner;
+    private PlayerIdentifier lastModifiedBy;
 
     private ServerPosition origin;
     private BlockRotation rotation;
@@ -143,11 +142,15 @@ public class ServerPlacement {
         snapshot.getEntries().forEach(entry -> {
             final MaterialProgressEntry target = materialProgress.getOrCreate(entry.getKey(), entry.getRequiredAmount());
             target.setStockingSupplied(entry.getStockingSupplied());
+            target.clearClaimants();
+            for (final ch.endte.syncmatica.extended_core.PlayerIdentifier p : entry.getClaimants()) {
+                target.addClaimer(p);
+            }
         });
     }
 
     private static String removeExtension(final File file) {
-        // source stackoverflow
+
         final String fileName = file.getName();
         final int pos = fileName.lastIndexOf(".");
         return fileName.substring(0, pos);
@@ -232,7 +235,11 @@ public class ServerPlacement {
             }
 
             if (obj.has("materials")) {
-                MaterialProgressSerializer.fromJson(obj.get("materials").getAsJsonObject(), newPlacement.materialProgress);
+                MaterialProgressSerializer.fromJson(
+                        obj.get("materials").getAsJsonObject(),
+                        newPlacement.materialProgress,
+                        context.getPlayerIdentifierProvider()
+                );
             }
 
             if (obj.has("stockingArea")) {

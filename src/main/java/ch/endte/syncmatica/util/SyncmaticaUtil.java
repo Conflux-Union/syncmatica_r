@@ -17,12 +17,12 @@ public class SyncmaticaUtil {
     static final String ILLEGAL_PATTERNS = "(^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\\..*)?$)|(^\\.\\.*$)";
 
     private SyncmaticaUtil() {
-        // NOT USED
+
     }
 
     public static UUID createChecksum(final InputStream fis) throws NoSuchAlgorithmException, IOException {
-        // source StackOverflow
-        final byte[] buffer = new byte[4096]; // 4096 is the most common cluster size
+
+        final byte[] buffer = new byte[4096];
         final MessageDigest messageDigest = MessageDigest.getInstance("MD5");
         int numRead;
 
@@ -36,7 +36,6 @@ public class SyncmaticaUtil {
         fis.close();
         return UUID.nameUUIDFromBytes(messageDigest.digest());
     }
-    // taken from stackoverflow
 
     static {
         Arrays.sort(ILLEGAL_CHARS);
@@ -50,13 +49,12 @@ public class SyncmaticaUtil {
             final int c = badFileName.codePointAt(i);
             if (Arrays.binarySearch(ILLEGAL_CHARS, c) < 0) {
                 sanitized.appendCodePoint(c);
-                if (sanitized.length() == 255) { //make sure .length stays below 255
+                if (sanitized.length() == 255) {
                     break;
                 }
             }
         }
-        // ^ sanitizes unique characters
-        // v sanitizes entire patterns
+
         return sanitized.toString().replaceAll(ILLEGAL_PATTERNS, "_");
     }
 
@@ -67,7 +65,7 @@ public class SyncmaticaUtil {
         }
 
         if (overwrite(backup, current, 2) && !overwrite(current, incoming, 4)) {
-            overwrite(current, backup, 8); // NOSONAR restore backup
+            overwrite(current, backup, 8);
         }
     }
 
@@ -90,6 +88,5 @@ public class SyncmaticaUtil {
 
         return true;
     }
-
 
 }

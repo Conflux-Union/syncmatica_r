@@ -32,7 +32,7 @@ public class VersionHandshakeClient extends FeatureExchange {
         if (id.equals(PacketType.REGISTER_VERSION.identifier)) {
             final String version = packetBuf.readString(32767);
             if (!getContext().checkPartnerVersion(version)) {
-                // any further packets are risky so no further packets should get send
+
                 LogManager.getLogger(VersionHandshakeClient.class).info("Denying syncmatica join due to outdated server with local version {} and server version {}", Syncmatica.VERSION, version);
                 close(false);
             } else {
@@ -69,7 +69,7 @@ public class VersionHandshakeClient extends FeatureExchange {
 
     @Override
     public void init() {
-        // Not required - just await message from the server
+
     }
 
 }

@@ -4,9 +4,6 @@ import net.minecraft.util.Identifier;
 
 import java.util.Objects;
 
-/**
- * Identifies a material requirement by namespaced block or item id plus optional variant key.
- */
 public final class MaterialKey {
     private final Identifier itemId;
     private final String variant;

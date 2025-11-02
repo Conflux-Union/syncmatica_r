@@ -1,19 +1,18 @@
 package ch.endte.syncmatica.material;
 
+import ch.endte.syncmatica.extended_core.PlayerIdentifier;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import net.minecraft.util.Identifier;
 
-/**
- * Converts material progress state to JSON snapshots for persistence and sync.
- */
 public final class MaterialProgressSerializer {
     private static final String FIELD_ITEM = "item";
     private static final String FIELD_VARIANT = "variant";
     private static final String FIELD_REQUIRED = "required";
     private static final String FIELD_STOCK = "stockSupplied";
+    private static final String FIELD_CLAIMERS = "claimers";
 
     private MaterialProgressSerializer() {
     }
@@ -29,13 +28,21 @@ public final class MaterialProgressSerializer {
             }
             node.add(FIELD_REQUIRED, new JsonPrimitive(entry.getRequiredAmount()));
             node.add(FIELD_STOCK, new JsonPrimitive(entry.getStockingSupplied()));
+            if (!entry.getClaimants().isEmpty()) {
+                final JsonArray claimers = new JsonArray();
+                for (final PlayerIdentifier p : entry.getClaimants()) {
+                    claimers.add(p.toJson());
+                }
+                node.add(FIELD_CLAIMERS, claimers);
+            }
             entries.add(node);
         }
         root.add("entries", entries);
         return root;
     }
 
-    public static void fromJson(final JsonObject root, final MaterialProgressState state) {
+    public static void fromJson(final JsonObject root, final MaterialProgressState state,
+                                final ch.endte.syncmatica.extended_core.PlayerIdentifierProvider provider) {
         state.clear();
         if (root == null || !root.has("entries")) {
             return;
@@ -53,6 +60,14 @@ public final class MaterialProgressSerializer {
             final MaterialProgressEntry entry = state.getOrCreate(new MaterialKey(itemId, variant), node.get(FIELD_REQUIRED).getAsInt());
             if (node.has(FIELD_STOCK)) {
                 entry.setStockingSupplied(node.get(FIELD_STOCK).getAsInt());
+            }
+            if (node.has(FIELD_CLAIMERS)) {
+                entry.clearClaimants();
+                for (final JsonElement e : node.getAsJsonArray(FIELD_CLAIMERS)) {
+                    if (e != null && e.isJsonObject()) {
+                        entry.addClaimer(provider.fromJson(e.getAsJsonObject()));
+                    }
+                }
             }
         }
     }
