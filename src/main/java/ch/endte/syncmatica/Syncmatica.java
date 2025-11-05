@@ -18,7 +18,7 @@ public class Syncmatica {
     public static final UUID syncmaticaId = UUID.fromString("4c1b738f-56fa-4011-8273-498c972424ea");
     private static final String SERVER_PATH = "." + File.separator + "syncmatics";
     private static final String CLIENT_PATH = "." + File.separator + "schematics" + File.separator + "sync";
-    private static Map<Identifier, Context> contexts = null;
+    private static final Map<Identifier, Context> contexts = new HashMap<>();
 
     protected Syncmatica() {
 
@@ -67,27 +67,22 @@ public class Syncmatica {
     }
 
     private static void init(final Context con, final Identifier contextId) {
-        if (contexts == null) {
-            contexts = new HashMap<>();
-        }
         if (!contexts.containsKey(contextId)) {
             contexts.put(contextId, con);
         }
     }
 
     public static void shutdown() {
-        if (contexts != null) {
-            for (final Context con : contexts.values()) {
-                if (con.isStarted()) {
-                    con.shutdown();
-                }
+        for (final Context con : contexts.values()) {
+            if (con.isStarted()) {
+                con.shutdown();
             }
         }
         deinit();
     }
 
     private static void deinit() {
-        contexts = null;
+        contexts.clear();
     }
 
 }

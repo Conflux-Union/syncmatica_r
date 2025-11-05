@@ -1,6 +1,7 @@
 package ch.endte.syncmatica.litematica.gui;
 
 import ch.endte.syncmatica.ServerPlacement;
+import ch.endte.syncmatica.litematica.ScreenHelper;
 import ch.endte.syncmatica.material.SyncmaticaMaterialEntry;
 import fi.dy.masa.malilib.gui.GuiListBase;
 import fi.dy.masa.malilib.gui.button.ButtonGeneric;
@@ -14,6 +15,7 @@ public class GuiSyncmaticaMaterialProgress extends GuiListBase<SyncmaticaMateria
         super(12, 20);
         this.placement = placement;
         title = StringUtils.translate("syncmatica.gui.title.material_progress") + ": " + placement.getName();
+        ScreenHelper.ifPresent(helper -> helper.setCurrentGui(this));
     }
 
     @Override
