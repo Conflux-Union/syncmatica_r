@@ -17,6 +17,10 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.util.registry.RegistryKey;
 import net.minecraft.world.World;
+//#if MC >= 12001
+//$$ import net.minecraft.registry.RegistryKeys;
+//$$ import net.minecraft.block.entity.SignText;
+//#endif
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -323,7 +327,7 @@ public class MaterialService extends AbstractService {
             final java.util.List<String> names = new java.util.ArrayList<>(4);
             for (int i = 0; i < 4; i++) {
                 try {
-                    final net.minecraft.text.Text t = sign.getTextOnRow(i, false);
+                    final net.minecraft.text.Text t = getSignLine(sign, i);
                     if (t != null) {
                         final String s = t.getString();
                         if (s != null) {
@@ -350,6 +354,19 @@ public class MaterialService extends AbstractService {
             }
         }
         return result;
+    }
+
+    private net.minecraft.text.Text getSignLine(final net.minecraft.block.entity.SignBlockEntity sign, final int row) {
+//#if MC < 12001
+        return sign.getTextOnRow(row, false);
+//#else
+//$$         final SignText front = sign.getFrontText();
+//$$         final net.minecraft.text.Text frontLine = front.getMessage(row, false);
+//$$         if (!frontLine.getString().isEmpty()) {
+//$$             return frontLine;
+//$$         }
+//$$         return sign.getBackText().getMessage(row, false);
+//#endif
     }
 
     private Inventory resolveInventoryForSign(final ServerWorld world, final BlockPos signPos) {
@@ -457,7 +474,13 @@ public class MaterialService extends AbstractService {
         if ("minecraft:the_end".equals(dimensionId)) {
             return server.getWorld(World.END);
         }
-        final RegistryKey<World> key = RegistryKey.of(Registry.WORLD_KEY, new Identifier(dimensionId));
+        final RegistryKey<World> key = RegistryKey.of(
+//#if MC < 12001
+                Registry.WORLD_KEY,
+//#else
+//$$                 RegistryKeys.WORLD,
+//#endif
+                new Identifier(dimensionId));
         return server.getWorld(key);
     }
 }

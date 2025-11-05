@@ -14,6 +14,9 @@ import net.minecraft.command.argument.BlockPosArgumentType;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.LiteralText;
+//#if MC >= 12001
+//$$ import net.minecraft.text.Text;
+//#endif
 import net.minecraft.util.math.BlockPos;
 
 import java.util.Optional;
@@ -52,12 +55,12 @@ public final class SyncmaticaCommand {
     private static int handleSetStockingArea(final CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
         final Context syncmaticaContext = Syncmatica.getContext(Syncmatica.SERVER_CONTEXT);
         if (syncmaticaContext == null || syncmaticaContext.getMaterialService() == null) {
-            context.getSource().sendError(new LiteralText("Syncmatica materials service unavailable"));
+            context.getSource().sendError(literal("Syncmatica materials service unavailable"));
             return 0;
         }
         final MaterialService materialService = syncmaticaContext.getMaterialService();
         if (!materialService.isEnabled()) {
-            context.getSource().sendError(new LiteralText("Material sharing is disabled"));
+            context.getSource().sendError(literal("Material sharing is disabled"));
             return 0;
         }
         final String projectName = context.getArgument("project_name", String.class);
@@ -65,7 +68,7 @@ public final class SyncmaticaCommand {
                 .filter(candidate -> candidate.getName().equals(projectName))
                 .findFirst();
         if (!placement.isPresent()) {
-            context.getSource().sendError(new LiteralText("Unknown Syncmatica project: " + projectName));
+            context.getSource().sendError(literal("Unknown Syncmatica project: " + projectName));
             return 0;
         }
         final BlockPos first = BlockPosArgumentType.getBlockPos(context, "pos1");
@@ -75,7 +78,11 @@ public final class SyncmaticaCommand {
         materialService.setStockingArea(placement.get(), definition);
 
         materialService.scanNow(context.getSource().getServer(), placement.get());
-        context.getSource().sendFeedback(new LiteralText("Stocking area updated for " + projectName), false);
+//#if MC < 12001
+        context.getSource().sendFeedback(literal("Stocking area updated for " + projectName), false);
+//#else
+//$$         context.getSource().sendFeedback(() -> literal("Stocking area updated for " + projectName), false);
+//#endif
         return 1;
     }
 
@@ -91,12 +98,12 @@ public final class SyncmaticaCommand {
     private static int handleSetDefaultStockingArea(final CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
         final Context syncmaticaContext = Syncmatica.getContext(Syncmatica.SERVER_CONTEXT);
         if (syncmaticaContext == null || syncmaticaContext.getMaterialService() == null) {
-            context.getSource().sendError(new LiteralText("Syncmatica materials service unavailable"));
+            context.getSource().sendError(literal("Syncmatica materials service unavailable"));
             return 0;
         }
         final MaterialService materialService = syncmaticaContext.getMaterialService();
         if (!materialService.isEnabled()) {
-            context.getSource().sendError(new LiteralText("Material sharing is disabled"));
+            context.getSource().sendError(literal("Material sharing is disabled"));
             return 0;
         }
         final BlockPos first = BlockPosArgumentType.getBlockPos(context, "pos1");
@@ -107,7 +114,19 @@ public final class SyncmaticaCommand {
 
         materialService.scanDefaultNow(context.getSource().getServer());
         syncmaticaContext.getSyncmaticManager().saveServerState();
-        context.getSource().sendFeedback(new LiteralText("Default stocking area updated"), false);
+//#if MC < 12001
+        context.getSource().sendFeedback(literal("Default stocking area updated"), false);
+//#else
+//$$         context.getSource().sendFeedback(() -> literal("Default stocking area updated"), false);
+//#endif
         return 1;
+}
+
+    private static net.minecraft.text.Text literal(final String message) {
+//#if MC < 12001
+        return new LiteralText(message);
+//#else
+//$$         return Text.literal(message);
+//#endif
     }
 }

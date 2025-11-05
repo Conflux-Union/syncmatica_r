@@ -17,6 +17,9 @@ import fi.dy.masa.malilib.render.RenderUtils;
 import fi.dy.masa.malilib.util.StringUtils;
 import io.netty.buffer.Unpooled;
 import net.minecraft.client.util.math.MatrixStack;
+//#if MC >= 12001
+//$$ import net.minecraft.client.gui.DrawContext;
+//#endif
 import net.minecraft.network.PacketByteBuf;
 
 import java.io.IOException;
@@ -79,7 +82,13 @@ public class WidgetSyncmaticaServerPlacementEntry extends WidgetListEntryBase<Se
     }
 
     @Override
-    public void render(final int mouseX, final int mouseY, final boolean selected, final MatrixStack matrixStack) {
+    public void render(final int mouseX, final int mouseY, final boolean selected,
+//#if MC < 12001
+            final MatrixStack matrixStack
+//#else
+//$$             final DrawContext drawContext
+//#endif
+    ) {
 
         RenderUtils.color(1f, 1f, 1f, 1f);
 
@@ -92,8 +101,13 @@ public class WidgetSyncmaticaServerPlacementEntry extends WidgetListEntryBase<Se
         }
 
         final String schematicName = placement.getName();
+//#if MC < 12001
         drawString(x + 20, y + 7, 0xFFFFFFFF, schematicName, matrixStack);
         drawSubWidgets(mouseX, mouseY, matrixStack);
+//#else
+//$$         drawString(x + 20, y + 7, 0xFFFFFFFF, schematicName, drawContext);
+//$$         drawSubWidgets(mouseX, mouseY, drawContext);
+//#endif
     }
 
     private static class ButtonListener implements IButtonActionListener {

@@ -14,6 +14,9 @@ import fi.dy.masa.malilib.gui.widgets.WidgetSearchBar;
 import fi.dy.masa.malilib.render.RenderUtils;
 import fi.dy.masa.malilib.util.StringUtils;
 import net.minecraft.client.util.math.MatrixStack;
+//#if MC >= 12001
+//$$ import net.minecraft.client.gui.DrawContext;
+//#endif
 import net.minecraft.util.math.BlockPos;
 
 import java.util.Collection;
@@ -52,17 +55,25 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
         return width - 6 - infoWidth;
     }
 
+//#if MC < 12001
     @Override
     public void drawContents(final MatrixStack matrixStack, final int mouseX, final int mouseY, final float partialTicks) {
-
         RenderUtils.drawOutlinedBox(posX, posY, browserWidth, browserHeight, 0xB0000000, GuiBase.COLOR_HORIZONTAL_BAR);
-
         super.drawContents(matrixStack, mouseX, mouseY, partialTicks);
-
         drawPlacementInfo(getLastSelectedEntry(), matrixStack);
     }
 
     private void drawPlacementInfo(final ServerPlacement placement, final MatrixStack matrixStack) {
+//#else
+//$$     @Override
+//$$     public void drawContents(final DrawContext drawContext, final int mouseX, final int mouseY, final float partialTicks) {
+//$$         RenderUtils.drawOutlinedBox(posX, posY, browserWidth, browserHeight, 0xB0000000, GuiBase.COLOR_HORIZONTAL_BAR);
+//$$         super.drawContents(drawContext, mouseX, mouseY, partialTicks);
+//$$         drawPlacementInfo(getLastSelectedEntry(), drawContext);
+//$$     }
+
+//$$     private void drawPlacementInfo(final ServerPlacement placement, final DrawContext drawContext) {
+//#endif
         int x = posX + totalWidth - infoWidth;
         int y = posY;
         final int height = Math.min(infoHeight, parent.getMaxInfoHeight());
@@ -81,35 +92,75 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
         final int valueColor = 0xFFFFFFFF;
 
         String str = StringUtils.translate("syncmatica.gui.label.placement_info.file_name");
+//#if MC < 12001
         drawString(matrixStack, str, x, y, textColor);
+//#else
+//$$         drawString(drawContext, str, x, y, textColor);
+//#endif
         y += 12;
+//#if MC < 12001
         drawString(matrixStack, placement.getName(), x + 4, y, valueColor);
+//#else
+//$$         drawString(drawContext, placement.getName(), x + 4, y, valueColor);
+//#endif
         y += 12;
 
         str = StringUtils.translate("syncmatica.gui.label.placement_info.dimension_id");
+//#if MC < 12001
         drawString(matrixStack, str, x, y, textColor);
+//#else
+//$$         drawString(drawContext, str, x, y, textColor);
+//#endif
         y += 12;
+//#if MC < 12001
         drawString(matrixStack, placement.getDimension(), x + 4, y, valueColor);
+//#else
+//$$         drawString(drawContext, placement.getDimension(), x + 4, y, valueColor);
+//#endif
         y += 12;
 
         str = StringUtils.translate("syncmatica.gui.label.placement_info.position");
+//#if MC < 12001
         drawString(matrixStack, str, x, y, textColor);
+//#else
+//$$         drawString(drawContext, str, x, y, textColor);
+//#endif
         y += 12;
         final BlockPos origin = placement.getPosition();
         final String tmp = String.format("%d %d %d", origin.getX(), origin.getY(), origin.getZ());
+//#if MC < 12001
         drawString(matrixStack, tmp, x + 4, y, valueColor);
+//#else
+//$$         drawString(drawContext, tmp, x + 4, y, valueColor);
+//#endif
         y += 12;
 
         str = StringUtils.translate("syncmatica.gui.label.placement_info.owner");
+//#if MC < 12001
         drawString(matrixStack, str, x, y, textColor);
+//#else
+//$$         drawString(drawContext, str, x, y, textColor);
+//#endif
         y += 12;
+//#if MC < 12001
         drawString(matrixStack, placement.getOwner().getName(), x + 4, y, valueColor);
+//#else
+//$$         drawString(drawContext, placement.getOwner().getName(), x + 4, y, valueColor);
+//#endif
         y += 12;
 
         str = StringUtils.translate("syncmatica.gui.label.placement_info.last_modified");
+//#if MC < 12001
         drawString(matrixStack, str, x, y, textColor);
+//#else
+//$$         drawString(drawContext, str, x, y, textColor);
+//#endif
         y += 12;
+//#if MC < 12001
         drawString(matrixStack, placement.getLastModifiedBy().getName(), x + 4, y, valueColor);
+//#else
+//$$         drawString(drawContext, placement.getLastModifiedBy().getName(), x + 4, y, valueColor);
+//#endif
     }
 
     @Override
@@ -188,26 +239,26 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
 
         private double getDimensionDistanceSquared(final ServerPosition position) {
             if (position.getDimensionId().equals(ServerPosition.OVERWORLD_DIMENSION_ID)) {
-                return position.getBlockPosition().getSquaredDistance(
+                return distanceSquared(
+                        position.getBlockPosition(),
                         playerPositionOverworld.getX(),
                         playerPositionOverworld.getY(),
-                        playerPositionOverworld.getZ(),
-                        false
+                        playerPositionOverworld.getZ()
                 );
             }
             if (position.getDimensionId().equals(ServerPosition.NETHER_DIMENSION_ID)) {
-                return position.getBlockPosition().getSquaredDistance(
+                return distanceSquared(
+                        position.getBlockPosition(),
                         playerPositionNether.getX(),
                         playerPositionNether.getY(),
-                        playerPositionNether.getZ(),
-                        false
+                        playerPositionNether.getZ()
                 );
             }
-            return position.getBlockPosition().getSquaredDistance(
+            return distanceSquared(
+                    position.getBlockPosition(),
                     playerPosition.getX(),
                     playerPosition.getY(),
-                    playerPosition.getZ(),
-                    false
+                    playerPosition.getZ()
             );
         }
 
@@ -226,6 +277,14 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
 
         private boolean isOverworld(final String dimensionId) {
             return dimensionId.equals(ServerPosition.OVERWORLD_DIMENSION_ID);
+        }
+
+        private double distanceSquared(final BlockPos pos, final double x, final double y, final double z) {
+//#if MC < 12001
+            return pos.getSquaredDistance(x, y, z, false);
+//#else
+//$$             return pos.getSquaredDistance(x, y, z);
+//#endif
         }
     }
 }

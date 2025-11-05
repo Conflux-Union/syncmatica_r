@@ -188,9 +188,14 @@ public abstract class CommunicationManager {
     }
 
     private void putMaterialProgress(final ServerPlacement placement, final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
-        if (!exchangeTarget.getFeatureSet().hasFeature(Feature.MATERIAL_PROGRESS)) {
+        final FeatureSet partnerFeatures = exchangeTarget.getFeatureSet();
+        if (partnerFeatures == null || !partnerFeatures.hasFeature(Feature.MATERIAL_PROGRESS)) {
             return;
         }
+        final FeatureSet localFeatures = context.getFeatureSet();
+        final boolean sendClaims = partnerFeatures.hasFeature(Feature.MATERIAL_CLAIMS)
+                && localFeatures != null
+                && localFeatures.hasFeature(Feature.MATERIAL_CLAIMS);
         final boolean canSend = context.isServer()
                 && context.getMaterialService() != null
                 && context.getMaterialService().isEnabled();
@@ -204,7 +209,7 @@ public abstract class CommunicationManager {
             buf.writeString(entry.getKey().variant());
             buf.writeInt(entry.getRequiredAmount());
             buf.writeInt(entry.getStockingSupplied());
-            if (exchangeTarget.getFeatureSet().hasFeature(Feature.MATERIAL_CLAIMS)) {
+            if (sendClaims) {
                 final java.util.Collection<ch.endte.syncmatica.extended_core.PlayerIdentifier> claimers = entry.getClaimants();
                 buf.writeInt(claimers.size());
                 for (final ch.endte.syncmatica.extended_core.PlayerIdentifier p : claimers) {
@@ -215,10 +220,29 @@ public abstract class CommunicationManager {
         }
     }
 
+    private void skipMaterialEntry(final PacketByteBuf buf, final boolean readClaims) {
+        buf.readString(32767);
+        buf.readString(32767);
+        buf.readInt();
+        buf.readInt();
+        if (readClaims) {
+            final int claimantCount = buf.readInt();
+            for (int i = 0; i < claimantCount; i++) {
+                buf.readUuid();
+                buf.readString(32767);
+            }
+        }
+    }
+
     private void receiveMaterialProgress(final ServerPlacement placement, final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
-        if (!exchangeTarget.getFeatureSet().hasFeature(Feature.MATERIAL_PROGRESS)) {
+        final FeatureSet partnerFeatures = exchangeTarget.getFeatureSet();
+        if (partnerFeatures == null || !partnerFeatures.hasFeature(Feature.MATERIAL_PROGRESS)) {
             return;
         }
+        final FeatureSet localFeatures = context.getFeatureSet();
+        final boolean readClaims = partnerFeatures.hasFeature(Feature.MATERIAL_CLAIMS)
+                && localFeatures != null
+                && localFeatures.hasFeature(Feature.MATERIAL_CLAIMS);
         if (buf.readableBytes() < Integer.BYTES) {
             if (!context.isServer() && placement != null) {
                 placement.getMaterialProgress().clear();
@@ -234,10 +258,7 @@ public abstract class CommunicationManager {
         }
         if (context.isServer() && context.getMaterialService() != null) {
             for (int i = 0; i < total; i++) {
-                buf.readString(32767);
-                buf.readString(32767);
-                buf.readInt();
-                buf.readInt();
+                skipMaterialEntry(buf, readClaims);
             }
             return;
         }
@@ -245,10 +266,7 @@ public abstract class CommunicationManager {
         if (placement == null) {
 
             for (int i = 0; i < total; i++) {
-                buf.readString(32767);
-                buf.readString(32767);
-                buf.readInt();
-                buf.readInt();
+                skipMaterialEntry(buf, readClaims);
             }
             return;
         }
@@ -258,7 +276,7 @@ public abstract class CommunicationManager {
             final int required = buf.readInt();
             final MaterialProgressEntry entry = snapshot.getOrCreate(key, required);
             entry.setStockingSupplied(buf.readInt());
-            if (exchangeTarget.getFeatureSet().hasFeature(Feature.MATERIAL_CLAIMS)) {
+            if (readClaims) {
                 entry.clearClaimants();
                 final int cc = buf.readInt();
                 final ch.endte.syncmatica.extended_core.PlayerIdentifierProvider provider = context.getPlayerIdentifierProvider();
