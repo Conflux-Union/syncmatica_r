@@ -6,6 +6,9 @@ import fi.dy.masa.malilib.gui.widgets.WidgetListBase;
 import fi.dy.masa.malilib.render.RenderUtils;
 import fi.dy.masa.malilib.util.StringUtils;
 import net.minecraft.client.util.math.MatrixStack;
+//#if MC >= 12001
+//$$ import net.minecraft.client.gui.DrawContext;
+//#endif
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -25,6 +28,7 @@ public class WidgetListMaterialProgress extends WidgetListBase<SyncmaticaMateria
         browserEntriesOffsetY = 18;
     }
 
+//#if MC < 12001
     @Override
     public void drawContents(final MatrixStack matrixStack, final int mouseX, final int mouseY, final float partialTicks) {
         RenderUtils.drawRect(posX, posY, browserWidth, browserEntriesOffsetY, 0x30000000);
@@ -51,6 +55,34 @@ public class WidgetListMaterialProgress extends WidgetListBase<SyncmaticaMateria
 
         super.drawContents(matrixStack, mouseX, mouseY, partialTicks);
     }
+//#else
+//$$     @Override
+//$$     public void drawContents(final DrawContext drawContext, final int mouseX, final int mouseY, final float partialTicks) {
+//$$         RenderUtils.drawRect(posX, posY, browserWidth, browserEntriesOffsetY, 0x30000000);
+//$$         final int baseX = posX + 6;
+//$$         final int textColor = 0xFFFFFFFF;
+//$$ 
+//$$         final int requiredColumnRight = baseX + WidgetMaterialProgressEntry.REQUIRED_COLUMN_RIGHT_OFFSET;
+//$$ 
+//$$         final int missingColumnRight = posX + browserEntryWidth - 8;
+//$$ 
+//$$         final int stockColumnRight = missingColumnRight - 100;
+//$$ 
+//$$         drawString(drawContext, StringUtils.translate("syncmatica.gui.label.material.column.material"),
+//$$                 baseX + WidgetMaterialProgressEntry.NAME_COLUMN_LEFT_OFFSET, posY + 6, textColor);
+//$$ 
+//$$         final String requiredLabel = StringUtils.translate("syncmatica.gui.label.material.column.required");
+//$$         drawString(drawContext, requiredLabel, requiredColumnRight - getStringWidth(requiredLabel), posY + 6, textColor);
+//$$ 
+//$$         final String stockLabel = StringUtils.translate("syncmatica.gui.label.material.column.stock");
+//$$         drawString(drawContext, stockLabel, stockColumnRight - getStringWidth(stockLabel), posY + 6, textColor);
+//$$ 
+//$$         final String missingLabel = StringUtils.translate("syncmatica.gui.label.material.column.missing");
+//$$         drawString(drawContext, missingLabel, missingColumnRight - getStringWidth(missingLabel), posY + 6, textColor);
+//$$ 
+//$$         super.drawContents(drawContext, mouseX, mouseY, partialTicks);
+//$$     }
+//#endif
 
     @Override
     protected Collection<SyncmaticaMaterialEntry> getAllEntries() {

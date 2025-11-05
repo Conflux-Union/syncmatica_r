@@ -10,6 +10,9 @@ import io.netty.buffer.Unpooled;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.LiteralText;
+//#if MC >= 12001
+//$$ import net.minecraft.text.Text;
+//#endif
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
 
@@ -38,7 +41,7 @@ public class ServerCommunicationManager extends CommunicationManager {
             client.sendPacket(PacketType.MESSAGE.identifier, newPacketBuf, context);
         } else if (playerMap.containsKey(client)) {
             final ServerPlayerEntity player = playerMap.get(client);
-            player.sendSystemMessage(new LiteralText("Syncmatica " + type.toString() + " " + identifier), Util.NIL_UUID);
+            sendPlayerNotification(player, "Syncmatica " + type.toString() + " " + identifier);
         }
     }
 
@@ -244,5 +247,13 @@ public class ServerCommunicationManager extends CommunicationManager {
         final PacketByteBuf packetByteBuf = new PacketByteBuf(Unpooled.buffer());
         packetByteBuf.writeUuid(placement.getId());
         source.sendPacket(PacketType.CANCEL_SHARE.identifier, packetByteBuf, context);
+    }
+
+    private void sendPlayerNotification(final ServerPlayerEntity player, final String message) {
+//#if MC < 12001
+        player.sendSystemMessage(new LiteralText(message), Util.NIL_UUID);
+//#else
+//$$         player.sendMessageToClient(Text.literal(message), false);
+//#endif
     }
 }

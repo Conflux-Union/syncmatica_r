@@ -1,0 +1,7 @@
+# Mapping file for version 1.17.1 to 1.20.1
+# Format: old_version_class new_version_class
+# This file will be used when adding support for newer versions
+
+# Registry renames due to Mojang namespace migration
+net.minecraft.util.registry.Registry net.minecraft.registry.Registries
+net.minecraft.util.registry.RegistryKey net.minecraft.registry.RegistryKey
