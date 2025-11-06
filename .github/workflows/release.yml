@@ -72,7 +72,7 @@ jobs:
       - name: Extract version info
         id: Version_Info
         run: |
-          MOD_VERSION=$(grep '^version=' gradle.properties | cut -d'=' -f2)
+          MOD_VERSION=$(grep '^mod_version=' gradle.properties | cut -d'=' -f2)
           MOD_ID=$(grep '^id=' gradle.properties | cut -d'=' -f2)
           echo "mod_version=$MOD_VERSION" >> $GITHUB_OUTPUT
           echo "mod_id=$MOD_ID" >> $GITHUB_OUTPUT
