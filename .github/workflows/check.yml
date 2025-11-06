@@ -1,0 +1,54 @@
+name: Check
+on:
+  pull_request:
+  push:
+permissions:
+  contents: read
+jobs:
+  Get-Versions:
+    runs-on: ubuntu-24.04
+    outputs:
+      versions: ${{ steps.Get_Versions.outputs.versions }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Get Minecraft versions
+        id: Get_Versions
+        run: |
+          VERSIONS=$(find versions -maxdepth 1 -type d -name "[0-9]*.[0-9]*" | xargs -I {} basename {} | sort -V | jq -R . | jq -s -c .)
+          echo "versions=$VERSIONS" >> $GITHUB_OUTPUT
+  Build-Matrix:
+    runs-on: ubuntu-24.04
+    needs: Get-Versions
+    strategy:
+      matrix:
+        minecraft_version: ${{ fromJson(needs.Get-Versions.outputs.versions) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '22'
+          distribution: 'temurin'
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ matrix.minecraft_version }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-${{ matrix.minecraft_version }}-
+            ${{ runner.os }}-gradle-
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+      - name: Build for ${{ matrix.minecraft_version }}
+        run: ./gradlew :${{ matrix.minecraft_version }}:build
+      - name: Stop Gradle daemon
+        run: ./gradlew --stop
+

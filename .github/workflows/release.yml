@@ -1,0 +1,167 @@
+name: Release
+on:
+  release:
+    types: [ published ]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  Get-Versions:
+    runs-on: ubuntu-24.04
+    outputs:
+      versions: ${{ steps.Get_Versions.outputs.versions }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Get Minecraft versions
+        id: Get_Versions
+        run: |
+          VERSIONS=$(find versions -maxdepth 1 -type d -name "[0-9]*.[0-9]*" | xargs -I {} basename {} | sort -V | jq -R . | jq -s -c .)
+          echo "versions=$VERSIONS" >> $GITHUB_OUTPUT
+  Build-Matrix:
+    runs-on: ubuntu-24.04
+    needs: Get-Versions
+    strategy:
+      matrix:
+        minecraft_version: ${{ fromJson(needs.Get-Versions.outputs.versions) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '22'
+          distribution: 'temurin'
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ matrix.minecraft_version }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-${{ matrix.minecraft_version }}-
+            ${{ runner.os }}-gradle-
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+      - name: Build for ${{ matrix.minecraft_version }}
+        run: ./gradlew :${{ matrix.minecraft_version }}:build
+      - name: Stop Gradle daemon
+        run: ./gradlew --stop
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.minecraft_version }}
+          path: versions/${{ matrix.minecraft_version }}/build/libs/*.jar
+          if-no-files-found: error
+  Publish-Modrinth-Matrix:
+    runs-on: ubuntu-24.04
+    needs: [ Build-Matrix, Get-Versions ]
+    strategy:
+      matrix:
+        minecraft_version: ${{ fromJson(needs.Get-Versions.outputs.versions) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Extract version info
+        id: Version_Info
+        run: |
+          MOD_VERSION=$(grep '^version=' gradle.properties | cut -d'=' -f2)
+          MOD_ID=$(grep '^id=' gradle.properties | cut -d'=' -f2)
+          echo "mod_version=$MOD_VERSION" >> $GITHUB_OUTPUT
+          echo "mod_id=$MOD_ID" >> $GITHUB_OUTPUT
+          echo "mod_name=Carpet RMS Addition" >> $GITHUB_OUTPUT
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-${{ matrix.minecraft_version }}
+          path: versions/${{ matrix.minecraft_version }}/build/libs/
+      - name: Publish to Modrinth
+        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ vars.MODRINTH_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          files: |
+            versions/${{ matrix.minecraft_version }}/build/libs/*.jar
+          name: ${{ format('{0} v{1} for MC {2}',
+            steps.Version_Info.outputs.mod_name,
+            steps.Version_Info.outputs.mod_version,
+            matrix.minecraft_version) }}
+          version: ${{ format('v{0}-mc{1}',
+            steps.Version_Info.outputs.mod_version,
+            matrix.minecraft_version) }}
+          version-type: release
+          loaders: fabric
+          game-versions: |
+            ${{ matrix.minecraft_version }}
+          dependencies: |-
+            carpet(required)
+  Github-Release:
+    runs-on: ubuntu-24.04
+    needs: [ Build-Matrix, Get-Versions ]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Extract version info
+        id: Version_Info
+        run: |
+          MOD_VERSION=$(grep '^version=' gradle.properties | cut -d'=' -f2)
+          MOD_ID=$(grep '^id=' gradle.properties | cut -d'=' -f2)
+          echo "mod_version=$MOD_VERSION" >> $GITHUB_OUTPUT
+          echo "mod_id=$MOD_ID" >> $GITHUB_OUTPUT
+          echo "mod_name=Carpet RMS Addition" >> $GITHUB_OUTPUT
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+      - name: Reorganize artifacts
+        run: |
+          mkdir -p release_files
+          for version_dir in artifacts/build-*/; do
+            version=$(basename "$version_dir" | sed 's/build-//')
+            cp "$version_dir"*.jar release_files/
+          done
+          find release_files -name "*.jar" -type f
+      - name: Delete existing release and tag
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          VERSION=${{ steps.Version_Info.outputs.mod_version }}
+          TAG="v$VERSION"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release delete "$TAG" --yes
+          fi
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            git push --delete origin "$TAG" || true
+            git tag -d "$TAG" || true
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload to existing GitHub release
+        if: github.event_name == 'release'
+        run: |
+          VERSION=${{ steps.Version_Info.outputs.mod_version }}
+          TAG="v$VERSION"
+          for jar_file in release_files/*.jar; do
+            gh release upload "$TAG" "$jar_file" --clobber
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish to GitHub release
+        if: github.event_name == 'workflow_dispatch'
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            release_files/*.jar
+          version: ${{ format('v{0}', steps.Version_Info.outputs.mod_version) }}
+          github-tag: ${{ format('v{0}', steps.Version_Info.outputs.mod_version) }}
+          github-generate-changelog: true
