@@ -30,6 +30,10 @@ public final class MaterialRequirementExtractor {
     }
 
     public static Map<MaterialKey, Integer> extract(final File litematicFile) {
+        return extract(litematicFile, false);
+    }
+
+    public static Map<MaterialKey, Integer> extract(final File litematicFile, final boolean includeContainerContents) {
         final Map<MaterialKey, Integer> requirements = new HashMap<>();
         if (litematicFile == null || !litematicFile.isFile()) {
             return requirements;
@@ -42,7 +46,7 @@ public final class MaterialRequirementExtractor {
             final NbtCompound regions = root.getCompound("Regions");
             for (final String regionName : regions.getKeys()) {
                 final NbtCompound region = regions.getCompound(regionName);
-                accumulateRegion(region, requirements);
+                accumulateRegion(region, requirements, includeContainerContents);
             }
         } catch (final IOException exception) {
             LOGGER.warn("Failed to read material requirements from {}", litematicFile, exception);
@@ -52,7 +56,8 @@ public final class MaterialRequirementExtractor {
         return requirements;
     }
 
-    private static void accumulateRegion(final NbtCompound region, final Map<MaterialKey, Integer> totals) {
+    private static void accumulateRegion(final NbtCompound region, final Map<MaterialKey, Integer> totals,
+                                         final boolean includeContainerContents) {
         if (region == null) {
             return;
         }
@@ -78,31 +83,34 @@ public final class MaterialRequirementExtractor {
             if (key != null) {
                 totals.merge(key, volume, Integer::sum);
             }
-            return;
+        } else if (blockStates.length != 0) {
+            final int bits = bitsForPalette(palette.size());
+            final long mask = bits >= Long.SIZE ? -1L : (1L << bits) - 1L;
+            for (int index = 0; index < volume; index++) {
+                final int bitIndex = index * bits;
+                final int arrayIndex = bitIndex >>> 6;
+                final int bitOffset = bitIndex & 63;
+                long value = 0L;
+                if (arrayIndex < blockStates.length) {
+                    value = blockStates[arrayIndex] >>> bitOffset;
+                }
+                if (bitOffset + bits > Long.SIZE && arrayIndex + 1 < blockStates.length) {
+                    value |= blockStates[arrayIndex + 1] << (Long.SIZE - bitOffset);
+                }
+                final int paletteIndex = (int) (value & mask);
+                if (paletteIndex < 0 || paletteIndex >= palette.size()) {
+                    continue;
+                }
+                final MaterialKey key = palette.get(paletteIndex);
+                if (key != null) {
+                    totals.merge(key, 1, Integer::sum);
+                }
+            }
         }
-        if (blockStates.length == 0) {
-            return;
-        }
-        final int bits = bitsForPalette(palette.size());
-        final long mask = bits >= Long.SIZE ? -1L : (1L << bits) - 1L;
-        for (int index = 0; index < volume; index++) {
-            final int bitIndex = index * bits;
-            final int arrayIndex = bitIndex >>> 6;
-            final int bitOffset = bitIndex & 63;
-            long value = 0L;
-            if (arrayIndex < blockStates.length) {
-                value = blockStates[arrayIndex] >>> bitOffset;
-            }
-            if (bitOffset + bits > Long.SIZE && arrayIndex + 1 < blockStates.length) {
-                value |= blockStates[arrayIndex + 1] << (Long.SIZE - bitOffset);
-            }
-            final int paletteIndex = (int) (value & mask);
-            if (paletteIndex < 0 || paletteIndex >= palette.size()) {
-                continue;
-            }
-            final MaterialKey key = palette.get(paletteIndex);
-            if (key != null) {
-                totals.merge(key, 1, Integer::sum);
+        if (includeContainerContents && region.contains("TileEntities", NbtElement.LIST_TYPE)) {
+            final NbtList tileEntities = region.getList("TileEntities", NbtElement.COMPOUND_TYPE);
+            if (!tileEntities.isEmpty()) {
+                accumulateTileEntityContents(tileEntities, totals);
             }
         }
     }
@@ -185,5 +193,60 @@ public final class MaterialRequirementExtractor {
             return longs;
         }
         return new long[0];
+    }
+
+    private static void accumulateTileEntityContents(final NbtList entities, final Map<MaterialKey, Integer> totals) {
+        for (int i = 0; i < entities.size(); i++) {
+            final NbtCompound entity = entities.getCompound(i);
+            if (entity == null || !entity.contains("Items", NbtElement.LIST_TYPE)) {
+                continue;
+            }
+            final NbtList items = entity.getList("Items", NbtElement.COMPOUND_TYPE);
+            accumulateItemList(items, totals);
+        }
+    }
+
+    private static void accumulateItemList(final NbtList items, final Map<MaterialKey, Integer> totals) {
+        for (int i = 0; i < items.size(); i++) {
+            final NbtCompound item = items.getCompound(i);
+            accumulateItemEntry(item, totals);
+        }
+    }
+
+    private static void accumulateItemEntry(final NbtCompound item, final Map<MaterialKey, Integer> totals) {
+        if (item == null || !item.contains("id", NbtElement.STRING_TYPE) || !item.contains("Count", NbtElement.NUMBER_TYPE)) {
+            return;
+        }
+        final String id = item.getString("id");
+        if (id.isEmpty()) {
+            return;
+        }
+        final Identifier identifier;
+        try {
+            identifier = new Identifier(id);
+        } catch (final Exception ignored) {
+            return;
+        }
+        final int count = Byte.toUnsignedInt(item.getByte("Count"));
+        if (count <= 0) {
+            return;
+        }
+        totals.merge(new MaterialKey(identifier, ""), count, Integer::sum);
+        if (item.contains("tag", NbtElement.COMPOUND_TYPE)) {
+            final NbtCompound tag = item.getCompound("tag");
+            accumulateNestedBlockEntity(tag, totals);
+        }
+    }
+
+    private static void accumulateNestedBlockEntity(final NbtCompound tag, final Map<MaterialKey, Integer> totals) {
+        if (tag == null || !tag.contains("BlockEntityTag", NbtElement.COMPOUND_TYPE)) {
+            return;
+        }
+        final NbtCompound blockEntityTag = tag.getCompound("BlockEntityTag");
+        if (!blockEntityTag.contains("Items", NbtElement.LIST_TYPE)) {
+            return;
+        }
+        final NbtList nestedItems = blockEntityTag.getList("Items", NbtElement.COMPOUND_TYPE);
+        accumulateItemList(nestedItems, totals);
     }
 }

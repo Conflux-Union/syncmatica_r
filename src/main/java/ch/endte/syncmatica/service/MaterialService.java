@@ -30,6 +30,7 @@ import java.util.*;
 public class MaterialService extends AbstractService {
     public static final boolean ENABLED_DEFAULT = true;
     public static final int SCAN_INTERVAL_DEFAULT = 200;
+    public static final boolean INCLUDE_CONTAINER_CONTENTS_DEFAULT = false;
     private static final Logger LOGGER = LogManager.getLogger(MaterialService.class);
     private final Map<UUID, ServerPlacement> placements = new HashMap<>();
 
@@ -43,6 +44,7 @@ public class MaterialService extends AbstractService {
 
     private boolean enabled = ENABLED_DEFAULT;
     private int scanInterval = SCAN_INTERVAL_DEFAULT;
+    private boolean includeContainerContents = INCLUDE_CONTAINER_CONTENTS_DEFAULT;
     private int tickCounter = 0;
 
     public boolean isEnabled() {
@@ -166,6 +168,7 @@ public class MaterialService extends AbstractService {
     public void getDefaultConfiguration(final IServiceConfiguration configuration) {
         configuration.saveBoolean("enabled", ENABLED_DEFAULT);
         configuration.saveInteger("scan_interval", SCAN_INTERVAL_DEFAULT);
+        configuration.saveBoolean("include_container_contents", INCLUDE_CONTAINER_CONTENTS_DEFAULT);
     }
 
     @Override
@@ -177,6 +180,7 @@ public class MaterialService extends AbstractService {
     public void configure(final IServiceConfiguration configuration) {
         configuration.loadBoolean("enabled", value -> enabled = value);
         configuration.loadInteger("scan_interval", value -> scanInterval = Math.max(20, value));
+        configuration.loadBoolean("include_container_contents", value -> includeContainerContents = value);
     }
 
     @Override
@@ -256,7 +260,7 @@ public class MaterialService extends AbstractService {
             return Collections.emptyMap();
         }
         LOGGER.debug("Loading material requirements from: {} (exists={})", file.getAbsolutePath(), file.exists());
-        final Map<MaterialKey, Integer> result = MaterialRequirementExtractor.extract(file);
+        final Map<MaterialKey, Integer> result = MaterialRequirementExtractor.extract(file, includeContainerContents);
         LOGGER.debug("Extracted {} material types from placement '{}'", result.size(), placement.getName());
         return result;
     }

@@ -4,7 +4,6 @@ import ch.endte.syncmatica.Context;
 import ch.endte.syncmatica.FileStorage;
 import ch.endte.syncmatica.SyncmaticManager;
 import ch.endte.syncmatica.Syncmatica;
-import ch.endte.syncmatica.command.SyncmaticaCommand;
 import ch.endte.syncmatica.communication.ServerCommunicationManager;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.WorldSavePath;
@@ -28,7 +27,6 @@ public class MixinMinecraftServer {
                 !returnValue.isDedicated(),
                 returnValue.getSavePath(WorldSavePath.ROOT).toFile()
         ).startup();
-        SyncmaticaCommand.register(returnValue.getCommandManager().getDispatcher());
     }
 
     @Inject(method = "shutdown", at = @At("TAIL"))

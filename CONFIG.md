@@ -65,5 +65,8 @@ The key "materials" governs the shared material progress tracking on the server.
   transmit material progress.
 * `scan_interval` defines how often (in server ticks) the stocking area is re-scanned for block counts. The minimum
   accepted value is 20 ticks (1 second).
+* `include_container_contents` decides whether schematic parsing also counts the contents of containers (chests,
+  shulkers, etc.) inside the projection. Defaults to `false` to preserve the historical "only count placed blocks"
+  behavior.
 * The service is enabled by default; set `enabled` to `false` to hide the Material Gatherings UI and stop contribution
   syncing.
