@@ -78,10 +78,10 @@ public final class SyncmaticaCommand {
         materialService.setStockingArea(placement.get(), definition);
 
         materialService.scanNow(context.getSource().getServer(), placement.get());
-//#if MC < 12001
-        context.getSource().sendFeedback(literal("Stocking area updated for " + projectName), false);
-//#else
+//#if MC >= 12001
 //$$         context.getSource().sendFeedback(() -> literal("Stocking area updated for " + projectName), false);
+//#else
+        context.getSource().sendFeedback(literal("Stocking area updated for " + projectName), false);
 //#endif
         return 1;
     }
@@ -114,19 +114,19 @@ public final class SyncmaticaCommand {
 
         materialService.scanDefaultNow(context.getSource().getServer());
         syncmaticaContext.getSyncmaticManager().saveServerState();
-//#if MC < 12001
-        context.getSource().sendFeedback(literal("Default stocking area updated"), false);
-//#else
+//#if MC >= 12001
 //$$         context.getSource().sendFeedback(() -> literal("Default stocking area updated"), false);
+//#else
+        context.getSource().sendFeedback(literal("Default stocking area updated"), false);
 //#endif
         return 1;
 }
 
     private static net.minecraft.text.Text literal(final String message) {
-//#if MC < 12001
-        return new LiteralText(message);
-//#else
+//#if MC >= 12001
 //$$         return Text.literal(message);
+//#else
+        return new LiteralText(message);
 //#endif
     }
 }

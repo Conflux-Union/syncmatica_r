@@ -250,10 +250,10 @@ public class ServerCommunicationManager extends CommunicationManager {
     }
 
     private void sendPlayerNotification(final ServerPlayerEntity player, final String message) {
-//#if MC < 12001
-        player.sendSystemMessage(new LiteralText(message), Util.NIL_UUID);
-//#else
+//#if MC >= 12001
 //$$         player.sendMessageToClient(Text.literal(message), false);
+//#else
+        player.sendSystemMessage(new LiteralText(message), Util.NIL_UUID);
 //#endif
     }
 }

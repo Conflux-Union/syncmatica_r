@@ -180,16 +180,16 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         return true;
     }
 
-//#if MC < 12001
-    @Override
-    public void onHudRender(final MatrixStack matrices, final float tickDelta) {
-        render(matrices, null);
-    }
-//#else
+//#if MC >= 12001
 //$$     @Override
 //$$     public void onHudRender(final DrawContext drawContext, final float tickDelta) {
 //$$         render(null, drawContext);
 //$$     }
+//#else
+    @Override
+    public void onHudRender(final MatrixStack matrices, final float tickDelta) {
+        render(matrices, null);
+    }
 //#endif
 
     private void render(final MatrixStack matrices, final Object drawContext) {
@@ -244,10 +244,10 @@ public final class MaterialHudOverlay implements HudRenderCallback {
                          final int x, final int y, final int contentWidth, final Row row,
                          final int iconSize, final int textGap) {
         renderItemStack(row.stack, x, y - Math.max(1, scale(2)),
-//#if MC < 12001
-                matrices
-//#else
+//#if MC >= 12001
 //$$                 (DrawContext) drawContext
+//#else
+                matrices
 //#endif
         );
         final int textX = x + iconSize + textGap;
@@ -263,10 +263,10 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         if (text == null || text.isEmpty()) {
             return;
         }
-//#if MC < 12001
-        renderer.drawWithShadow(Objects.requireNonNull(matrices), text, x, y, color);
-//#else
+//#if MC >= 12001
 //$$         ((DrawContext) Objects.requireNonNull(drawContext)).drawText(renderer, text, x, y, color, true);
+//#else
+        renderer.drawWithShadow(Objects.requireNonNull(matrices), text, x, y, color);
 //#endif
     }
 
@@ -310,10 +310,10 @@ public final class MaterialHudOverlay implements HudRenderCallback {
     }
 
     private void renderItemStack(final ItemStack stack, final int iconX, final int iconY,
-//#if MC < 12001
-            final MatrixStack matrices
-//#else
+//#if MC >= 12001
 //$$             final DrawContext drawContext
+//#else
+            final MatrixStack matrices
 //#endif
     ) {
         if (stack.isEmpty()) {
@@ -323,14 +323,14 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         final ItemRenderer renderer = client.getItemRenderer();
         final TextRenderer textRenderer = client.textRenderer;
 
-//#if MC < 12001
+//#if MC >= 12001
+//$$         drawContext.drawItem(stack, iconX, iconY);
+//$$         drawContext.drawItemInSlot(textRenderer, stack, iconX, iconY);
+//#else
         RenderSystem.enableDepthTest();
         renderer.renderInGui(stack, iconX, iconY);
         renderer.renderGuiItemOverlay(textRenderer, stack, iconX, iconY);
         RenderSystem.disableDepthTest();
-//#else
-//$$         drawContext.drawItem(stack, iconX, iconY);
-//$$         drawContext.drawItemInSlot(textRenderer, stack, iconX, iconY);
 //#endif
     }
 
