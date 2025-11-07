@@ -201,7 +201,8 @@ public class Context {
         final String configKey = service.getConfigKey();
         JsonObject serviceJson = null;
         JsonConfiguration serviceConfiguration = null;
-        boolean started = false;
+        boolean configured = false;
+        boolean needsRewrite = false;
 
         if (attemptToLoad && configuration.has(configKey)) {
             try {
@@ -209,27 +210,32 @@ public class Context {
                 if (serviceJson != null) {
                     serviceConfiguration = new JsonConfiguration(serviceJson);
                     service.configure(serviceConfiguration);
-                    started = true;
-                    if (!serviceConfiguration.hadError()) {
-                        return false;
+                    configured = true;
+                    if (serviceConfiguration.hadError()) {
+                        needsRewrite = true;
                     }
                 }
             } catch (final Exception e) {
                 e.printStackTrace();
+                needsRewrite = true;
             }
         }
         if (serviceJson == null) {
             serviceJson = new JsonObject();
             configuration.add(configKey, serviceJson);
+            needsRewrite = true;
         }
         if (serviceConfiguration == null) {
             serviceConfiguration = new JsonConfiguration(serviceJson);
         }
         service.getDefaultConfiguration(serviceConfiguration);
-        if (!started) {
+        if (serviceConfiguration.didWriteDefaults()) {
+            needsRewrite = true;
+        }
+        if (!configured) {
             service.configure(serviceConfiguration);
         }
-        return true;
+        return needsRewrite;
     }
 
     private void startupServices() {

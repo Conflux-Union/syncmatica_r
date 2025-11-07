@@ -10,10 +10,12 @@ public class JsonConfiguration implements IServiceConfiguration {
 
     public final JsonObject configuration;
     private Boolean wasError;
+    private boolean changed;
 
     public JsonConfiguration(final JsonObject configuration) {
         this.configuration = configuration;
         wasError = false;
+        changed = false;
     }
 
     @Override
@@ -30,7 +32,10 @@ public class JsonConfiguration implements IServiceConfiguration {
 
     @Override
     public void saveBoolean(final String key, final Boolean value) {
-        configuration.addProperty(key, value);
+        if (!configuration.has(key)) {
+            configuration.addProperty(key, value);
+            changed = true;
+        }
     }
 
     @Override
@@ -47,10 +52,17 @@ public class JsonConfiguration implements IServiceConfiguration {
 
     @Override
     public void saveInteger(final String key, final Integer value) {
-        configuration.addProperty(key, value);
+        if (!configuration.has(key)) {
+            configuration.addProperty(key, value);
+            changed = true;
+        }
     }
 
     public Boolean hadError() {
         return wasError;
+    }
+
+    public boolean didWriteDefaults() {
+        return changed;
     }
 }
