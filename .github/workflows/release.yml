@@ -58,51 +58,51 @@ jobs:
           name: build-${{ matrix.minecraft_version }}
           path: versions/${{ matrix.minecraft_version }}/build/libs/*.jar
           if-no-files-found: error
-  Publish-Modrinth-Matrix:
-    runs-on: ubuntu-24.04
-    needs: [ Build-Matrix, Get-Versions ]
-    strategy:
-      matrix:
-        minecraft_version: ${{ fromJson(needs.Get-Versions.outputs.versions) }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Extract version info
-        id: Version_Info
-        run: |
-          MOD_VERSION=$(grep '^mod_version=' gradle.properties | cut -d'=' -f2)
-          MOD_ID=$(grep '^id=' gradle.properties | cut -d'=' -f2)
-          echo "mod_version=$MOD_VERSION" >> $GITHUB_OUTPUT
-          echo "mod_id=$MOD_ID" >> $GITHUB_OUTPUT
-          echo "mod_name=Carpet RMS Addition" >> $GITHUB_OUTPUT
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: build-${{ matrix.minecraft_version }}
-          path: versions/${{ matrix.minecraft_version }}/build/libs/
-      - name: Publish to Modrinth
-        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
-        uses: Kir-Antipov/mc-publish@v3.3
-        with:
-          modrinth-id: ${{ vars.MODRINTH_ID }}
-          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-          files: |
-            versions/${{ matrix.minecraft_version }}/build/libs/*.jar
-          name: ${{ format('{0} v{1} for MC {2}',
-            steps.Version_Info.outputs.mod_name,
-            steps.Version_Info.outputs.mod_version,
-            matrix.minecraft_version) }}
-          version: ${{ format('v{0}-mc{1}',
-            steps.Version_Info.outputs.mod_version,
-            matrix.minecraft_version) }}
-          version-type: release
-          loaders: fabric
-          game-versions: |
-            ${{ matrix.minecraft_version }}
-          dependencies: |-
-            carpet(required)
+#  Publish-Modrinth-Matrix:
+#    runs-on: ubuntu-24.04
+#    needs: [ Build-Matrix, Get-Versions ]
+#    strategy:
+#      matrix:
+#        minecraft_version: ${{ fromJson(needs.Get-Versions.outputs.versions) }}
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v4
+#        with:
+#          fetch-depth: 0
+#      - name: Extract version info
+#        id: Version_Info
+#        run: |
+#          MOD_VERSION=$(grep '^mod_version=' gradle.properties | cut -d'=' -f2)
+#          MOD_ID=$(grep '^id=' gradle.properties | cut -d'=' -f2)
+#          echo "mod_version=$MOD_VERSION" >> $GITHUB_OUTPUT
+#          echo "mod_id=$MOD_ID" >> $GITHUB_OUTPUT
+#          echo "mod_name=Carpet RMS Addition" >> $GITHUB_OUTPUT
+#      - name: Download build artifact
+#        uses: actions/download-artifact@v4
+#        with:
+#          name: build-${{ matrix.minecraft_version }}
+#          path: versions/${{ matrix.minecraft_version }}/build/libs/
+#      - name: Publish to Modrinth
+#        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+#        uses: Kir-Antipov/mc-publish@v3.3
+#        with:
+#          modrinth-id: ${{ vars.MODRINTH_ID }}
+#          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+#          files: |
+#            versions/${{ matrix.minecraft_version }}/build/libs/*.jar
+#          name: ${{ format('{0} v{1} for MC {2}',
+#            steps.Version_Info.outputs.mod_name,
+#            steps.Version_Info.outputs.mod_version,
+#            matrix.minecraft_version) }}
+#          version: ${{ format('v{0}-mc{1}',
+#            steps.Version_Info.outputs.mod_version,
+#            matrix.minecraft_version) }}
+#          version-type: release
+#          loaders: fabric
+#          game-versions: |
+#            ${{ matrix.minecraft_version }}
+#          dependencies: |-
+#            carpet(required)
   Github-Release:
     runs-on: ubuntu-24.04
     needs: [ Build-Matrix, Get-Versions ]
