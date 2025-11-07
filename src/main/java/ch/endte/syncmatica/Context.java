@@ -65,7 +65,9 @@ public class Context {
         playerIdentifierProvider = new PlayerIdentifierProvider(this);
         debugService = new DebugService();
         this.litematicFolder = litematicFolder;
-        litematicFolder.mkdirs();
+        if (!litematicFolder.exists() && !litematicFolder.mkdirs()) {
+            throw new IllegalStateException("Failed to create litematica folder " + litematicFolder.getAbsolutePath());
+        }
         integratedServer = integrated;
         this.worldFolder = worldFolder;
         loadConfiguration();
@@ -161,9 +163,14 @@ public class Context {
     }
 
     public File getAndCreateConfigFile() throws IOException {
-        getConfigFolder().mkdirs();
+        final File configFolder = getConfigFolder();
+        if (!configFolder.exists() && !configFolder.mkdirs()) {
+            throw new IOException("Failed to create config folder " + configFolder.getAbsolutePath());
+        }
         final File configFile = getConfigFile();
-        configFile.createNewFile();
+        if (!configFile.exists() && !configFile.createNewFile()) {
+            throw new IOException("Failed to create config file " + configFile.getAbsolutePath());
+        }
         return configFile;
     }
 

@@ -93,6 +93,10 @@ public class SyncmaticManager {
     }
 
     public void shutdown() {
+        if (context == null || !context.isServer()) {
+            return;
+        }
+        saveServerState();
     }
 
     public void saveServerState() {
