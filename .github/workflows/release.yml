@@ -111,14 +111,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Extract version info
-        id: Version_Info
-        run: |
-          MOD_VERSION=$(grep '^version=' gradle.properties | cut -d'=' -f2)
-          MOD_ID=$(grep '^id=' gradle.properties | cut -d'=' -f2)
-          echo "mod_version=$MOD_VERSION" >> $GITHUB_OUTPUT
-          echo "mod_id=$MOD_ID" >> $GITHUB_OUTPUT
-          echo "mod_name=Carpet RMS Addition" >> $GITHUB_OUTPUT
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -127,15 +119,22 @@ jobs:
         run: |
           mkdir -p release_files
           for version_dir in artifacts/build-*/; do
-            version=$(basename "$version_dir" | sed 's/build-//')
             cp "$version_dir"*.jar release_files/
           done
-          find release_files -name "*.jar" -type f
-      - name: Delete existing release and tag
+      - name: Upload to GitHub release
+        if: github.event_name == 'release'
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          for jar_file in release_files/*.jar; do
+            gh release upload "$TAG" "$jar_file" --clobber
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub release
         if: github.event_name == 'workflow_dispatch'
         run: |
-          VERSION=${{ steps.Version_Info.outputs.mod_version }}
-          TAG="v$VERSION"
+          MOD_VERSION=$(grep '^version=' gradle.properties | cut -d'=' -f2)
+          TAG="v$MOD_VERSION"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release delete "$TAG" --yes
           fi
@@ -143,25 +142,6 @@ jobs:
             git push --delete origin "$TAG" || true
             git tag -d "$TAG" || true
           fi
+          gh release create "$TAG" release_files/*.jar --title "$TAG" --generate-notes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Upload to existing GitHub release
-        if: github.event_name == 'release'
-        run: |
-          VERSION=${{ steps.Version_Info.outputs.mod_version }}
-          TAG="v$VERSION"
-          for jar_file in release_files/*.jar; do
-            gh release upload "$TAG" "$jar_file" --clobber
-          done
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Publish to GitHub release
-        if: github.event_name == 'workflow_dispatch'
-        uses: Kir-Antipov/mc-publish@v3.3
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          files: |
-            release_files/*.jar
-          version: ${{ format('v{0}', steps.Version_Info.outputs.mod_version) }}
-          github-tag: ${{ format('v{0}', steps.Version_Info.outputs.mod_version) }}
-          github-generate-changelog: true
