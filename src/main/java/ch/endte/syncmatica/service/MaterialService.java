@@ -31,6 +31,9 @@ public class MaterialService extends AbstractService {
     public static final boolean ENABLED_DEFAULT = true;
     public static final int SCAN_INTERVAL_DEFAULT = 200;
     public static final boolean INCLUDE_CONTAINER_CONTENTS_DEFAULT = false;
+    public static final int SCAN_BLOCKS_PER_TICK_DEFAULT = 2048;
+    public static final int MAX_SCHEMATIC_MEGABYTES_DEFAULT = 64;
+    public static final int MAX_SCHEMATIC_BLOCKS_DEFAULT = 8_000_000;
     private static final Logger LOGGER = LogManager.getLogger(MaterialService.class);
     private final Map<UUID, ServerPlacement> placements = new HashMap<>();
 
@@ -45,7 +48,14 @@ public class MaterialService extends AbstractService {
     private boolean enabled = ENABLED_DEFAULT;
     private int scanInterval = SCAN_INTERVAL_DEFAULT;
     private boolean includeContainerContents = INCLUDE_CONTAINER_CONTENTS_DEFAULT;
+    private int scanBlocksPerTick = SCAN_BLOCKS_PER_TICK_DEFAULT;
+    private int maxSchematicMegabytes = MAX_SCHEMATIC_MEGABYTES_DEFAULT;
+    private int maxSchematicBlocks = MAX_SCHEMATIC_BLOCKS_DEFAULT;
     private int tickCounter = 0;
+
+    private final Map<UUID, PlacementScanState> activePlacementScans = new HashMap<>();
+    private final ArrayDeque<UUID> placementScanQueue = new ArrayDeque<>();
+    private DefaultStockingScanState defaultScanState;
 
     public boolean isEnabled() {
         return enabled;
@@ -54,6 +64,7 @@ public class MaterialService extends AbstractService {
     public void attachPlacement(final ServerPlacement placement) {
         placements.put(placement.getId(), placement);
         stockingAreas.put(placement.getId(), placement.getStockingArea());
+        cancelPlacementScan(placement.getId());
         seedFromExistingSnapshot(placement);
         if (enabled && placement.getMaterialProgress().isEmpty()) {
             final Map<MaterialKey, Integer> required = loadRequirementsFromSchematic(placement);
@@ -72,6 +83,7 @@ public class MaterialService extends AbstractService {
         requiredTotals.remove(placement.getId());
         stockingTotals.remove(placement.getId());
         stockingAreas.remove(placement.getId());
+        cancelPlacementScan(placement.getId());
     }
 
     public void replaceRequirements(final UUID placementId, final Map<MaterialKey, Integer> required) {
@@ -93,6 +105,7 @@ public class MaterialService extends AbstractService {
     public void setStockingArea(final ServerPlacement placement, final StockingAreaDefinition area) {
         stockingAreas.put(placement.getId(), area);
         placement.setStockingArea(area);
+        cancelPlacementScan(placement.getId());
         rebuildSnapshot(placement, true);
     }
 
@@ -105,33 +118,82 @@ public class MaterialService extends AbstractService {
     }
 
     public void setDefaultStockingArea(final StockingAreaDefinition area) {
+        applyDefaultStockingArea(area, true);
+    }
 
+    public void loadDefaultStockingArea(final StockingAreaDefinition area) {
+        applyDefaultStockingArea(area, false);
+    }
+
+    private void applyDefaultStockingArea(final StockingAreaDefinition area, final boolean notifyManager) {
         defaultStockingArea = area;
+        defaultScanState = null;
+        if (notifyManager && context != null && context.isServer()) {
+            context.getSyncmaticManager().markDefaultStockingAreaDirty();
+        }
     }
 
     public void tick(final MinecraftServer server) {
         if (!enabled) {
             return;
         }
+        processPlacementScans();
+        processDefaultScan();
         tickCounter++;
         if (tickCounter < scanInterval) {
             return;
         }
         tickCounter = 0;
+        schedulePlacementScans(server);
+    }
 
-        final Map<String, Map<MaterialKey, Integer>> defaultTotals =
-                (defaultStockingArea != null) ? scanDefaultArea(server, defaultStockingArea) : Collections.emptyMap();
+    private void processPlacementScans() {
+        if (placementScanQueue.isEmpty()) {
+            return;
+        }
+        final UUID placementId = placementScanQueue.pollFirst();
+        final PlacementScanState state = activePlacementScans.get(placementId);
+        if (state == null) {
+            return;
+        }
+        state.process(Math.max(1, scanBlocksPerTick));
+        if (state.isFinished()) {
+            finalizePlacementScan(placementId, state);
+            activePlacementScans.remove(placementId);
+        } else {
+            placementScanQueue.addLast(placementId);
+        }
+    }
 
+    private void processDefaultScan() {
+        if (defaultScanState == null) {
+            return;
+        }
+        defaultScanState.process(Math.max(1, scanBlocksPerTick));
+        if (defaultScanState.isFinished()) {
+            applyDefaultScanResults(defaultScanState.getTotals());
+            defaultScanState = null;
+        }
+    }
+
+    private void schedulePlacementScans(final MinecraftServer server) {
         for (final ServerPlacement placement : placements.values()) {
             final StockingAreaDefinition area = stockingAreas.get(placement.getId());
-            if (area != null) {
-                scanPlacement(server, placement, area);
+            if (area == null) {
                 continue;
             }
-            if (defaultStockingArea != null) {
-                final Map<MaterialKey, Integer> totals = defaultTotals.getOrDefault(placement.getName(), Collections.emptyMap());
-                setStockingContributions(placement.getId(), totals);
+            if (activePlacementScans.containsKey(placement.getId())) {
+                continue;
             }
+            queuePlacementScan(server, placement, area);
+        }
+        if (defaultStockingArea != null) {
+            if (defaultScanState == null || defaultScanState.isFinished()) {
+                final ServerWorld world = resolveWorld(server, defaultStockingArea.getDimensionId());
+                defaultScanState = new DefaultStockingScanState(world, defaultStockingArea);
+            }
+        } else {
+            defaultScanState = null;
         }
     }
 
@@ -141,11 +203,13 @@ public class MaterialService extends AbstractService {
         }
         final StockingAreaDefinition area = stockingAreas.get(placement.getId());
         if (area != null) {
-            scanPlacement(server, placement, area);
+            cancelPlacementScan(placement.getId());
+            runPlacementScanNow(server, placement, area);
             return;
         }
         if (defaultStockingArea != null) {
-            final Map<String, Map<MaterialKey, Integer>> map = scanDefaultArea(server, defaultStockingArea);
+            defaultScanState = null;
+            final Map<String, Map<MaterialKey, Integer>> map = runDefaultScanNow(server);
             final Map<MaterialKey, Integer> totals = map.getOrDefault(placement.getName(), Collections.emptyMap());
             setStockingContributions(placement.getId(), totals);
         }
@@ -155,7 +219,8 @@ public class MaterialService extends AbstractService {
         if (!enabled || defaultStockingArea == null) {
             return;
         }
-        final Map<String, Map<MaterialKey, Integer>> map = scanDefaultArea(server, defaultStockingArea);
+        defaultScanState = null;
+        final Map<String, Map<MaterialKey, Integer>> map = runDefaultScanNow(server);
         for (final ServerPlacement placement : placements.values()) {
             if (stockingAreas.get(placement.getId()) == null) {
                 final Map<MaterialKey, Integer> totals = map.getOrDefault(placement.getName(), Collections.emptyMap());
@@ -164,11 +229,68 @@ public class MaterialService extends AbstractService {
         }
     }
 
+    private void queuePlacementScan(final MinecraftServer server, final ServerPlacement placement,
+                                    final StockingAreaDefinition area) {
+        cancelPlacementScan(placement.getId());
+        final ServerWorld world = resolveWorld(server, area.getDimensionId());
+        final PlacementScanState state = new PlacementScanState(world, area);
+        if (state.isFinished()) {
+            finalizePlacementScan(placement.getId(), state);
+            return;
+        }
+        activePlacementScans.put(placement.getId(), state);
+        placementScanQueue.addLast(placement.getId());
+    }
+
+    private void runPlacementScanNow(final MinecraftServer server, final ServerPlacement placement,
+                                     final StockingAreaDefinition area) {
+        final ServerWorld world = resolveWorld(server, area.getDimensionId());
+        final PlacementScanState state = new PlacementScanState(world, area);
+        while (!state.isFinished()) {
+            state.process(Math.max(1, scanBlocksPerTick));
+        }
+        finalizePlacementScan(placement.getId(), state);
+    }
+
+    private Map<String, Map<MaterialKey, Integer>> runDefaultScanNow(final MinecraftServer server) {
+        if (defaultStockingArea == null) {
+            return Collections.emptyMap();
+        }
+        final ServerWorld world = resolveWorld(server, defaultStockingArea.getDimensionId());
+        final DefaultStockingScanState state = new DefaultStockingScanState(world, defaultStockingArea);
+        while (!state.isFinished()) {
+            state.process(Math.max(1, scanBlocksPerTick));
+        }
+        return state.getTotals();
+    }
+
+    private void finalizePlacementScan(final UUID placementId, final PlacementScanState state) {
+        setStockingContributions(placementId, state.getTotals());
+    }
+
+    private void applyDefaultScanResults(final Map<String, Map<MaterialKey, Integer>> totals) {
+        for (final ServerPlacement placement : placements.values()) {
+            if (stockingAreas.get(placement.getId()) != null) {
+                continue;
+            }
+            final Map<MaterialKey, Integer> contribution = totals.getOrDefault(placement.getName(), Collections.emptyMap());
+            setStockingContributions(placement.getId(), contribution);
+        }
+    }
+
+    private void cancelPlacementScan(final UUID placementId) {
+        activePlacementScans.remove(placementId);
+        placementScanQueue.removeIf(id -> id.equals(placementId));
+    }
+
     @Override
     public void getDefaultConfiguration(final IServiceConfiguration configuration) {
         configuration.saveBoolean("enabled", ENABLED_DEFAULT);
         configuration.saveInteger("scan_interval", SCAN_INTERVAL_DEFAULT);
         configuration.saveBoolean("include_container_contents", INCLUDE_CONTAINER_CONTENTS_DEFAULT);
+        configuration.saveInteger("scan_blocks_per_tick", SCAN_BLOCKS_PER_TICK_DEFAULT);
+        configuration.saveInteger("max_schematic_megabytes", MAX_SCHEMATIC_MEGABYTES_DEFAULT);
+        configuration.saveInteger("max_schematic_blocks", MAX_SCHEMATIC_BLOCKS_DEFAULT);
     }
 
     @Override
@@ -181,6 +303,9 @@ public class MaterialService extends AbstractService {
         configuration.loadBoolean("enabled", value -> enabled = value);
         configuration.loadInteger("scan_interval", value -> scanInterval = Math.max(20, value));
         configuration.loadBoolean("include_container_contents", value -> includeContainerContents = value);
+        configuration.loadInteger("scan_blocks_per_tick", value -> scanBlocksPerTick = Math.max(64, value));
+        configuration.loadInteger("max_schematic_megabytes", value -> maxSchematicMegabytes = Math.max(1, value));
+        configuration.loadInteger("max_schematic_blocks", value -> maxSchematicBlocks = Math.max(1_000_000, value));
     }
 
     @Override
@@ -259,8 +384,18 @@ public class MaterialService extends AbstractService {
                     placement.getName(), placement.getHash());
             return Collections.emptyMap();
         }
+        final long byteLimit = getMaxSchematicBytes();
+        if (file.length() > byteLimit) {
+            LOGGER.warn("Skipping material extraction for '{}' ({} bytes exceeds limit {} bytes)",
+                    placement.getName(), file.length(), byteLimit);
+            return Collections.emptyMap();
+        }
         LOGGER.debug("Loading material requirements from: {} (exists={})", file.getAbsolutePath(), file.exists());
-        final Map<MaterialKey, Integer> result = MaterialRequirementExtractor.extract(file, includeContainerContents);
+        final Map<MaterialKey, Integer> result = MaterialRequirementExtractor.extract(
+                file,
+                includeContainerContents,
+                Math.max(1, maxSchematicBlocks)
+        );
         LOGGER.debug("Extracted {} material types from placement '{}'", result.size(), placement.getName());
         return result;
     }
@@ -294,71 +429,6 @@ public class MaterialService extends AbstractService {
         rebuildSnapshot(placement, true);
     }
 
-    private void scanPlacement(final MinecraftServer server, final ServerPlacement placement, final StockingAreaDefinition area) {
-        final ServerWorld world = resolveWorld(server, area.getDimensionId());
-        if (world == null) {
-            return;
-        }
-        final Map<MaterialKey, Integer> totals = new HashMap<>();
-        final BlockPos min = area.getMin();
-        final BlockPos max = area.getMax();
-
-        for (final BlockPos pos : BlockPos.iterate(min, max)) {
-            final BlockEntity blockEntity = world.getBlockEntity(pos);
-
-            if (blockEntity instanceof Inventory inventory) {
-                scanInventory(inventory, totals);
-            }
-        }
-
-        setStockingContributions(placement.getId(), totals);
-    }
-
-    private Map<String, Map<MaterialKey, Integer>> scanDefaultArea(final MinecraftServer server, final StockingAreaDefinition area) {
-        final ServerWorld world = resolveWorld(server, area.getDimensionId());
-        if (world == null) {
-            return Collections.emptyMap();
-        }
-        final Map<String, Map<MaterialKey, Integer>> result = new HashMap<>();
-        final BlockPos min = area.getMin();
-        final BlockPos max = area.getMax();
-
-        for (final BlockPos pos : BlockPos.iterate(min, max)) {
-            final BlockEntity be = world.getBlockEntity(pos);
-            if (!(be instanceof net.minecraft.block.entity.SignBlockEntity sign)) {
-                continue;
-            }
-            final java.util.List<String> names = new java.util.ArrayList<>(4);
-            for (int i = 0; i < 4; i++) {
-                try {
-                    final net.minecraft.text.Text t = getSignLine(sign, i);
-                    if (t != null) {
-                        final String s = t.getString();
-                        if (s != null) {
-                            final String trimmed = s.trim();
-                            if (!trimmed.isEmpty()) {
-                                names.add(trimmed);
-                            }
-                        }
-                    }
-                } catch (final Throwable ignored) {
-
-                }
-            }
-            if (names.isEmpty()) {
-                continue;
-            }
-            final Inventory inv = resolveInventoryForSign(world, pos);
-            if (inv == null) {
-                continue;
-            }
-            for (final String projectName : names) {
-                final Map<MaterialKey, Integer> totals = result.computeIfAbsent(projectName, k -> new HashMap<>());
-                scanInventory(inv, totals);
-            }
-        }
-        return result;
-    }
 
     private net.minecraft.text.Text getSignLine(final net.minecraft.block.entity.SignBlockEntity sign, final int row) {
 //#if MC < 12001
@@ -371,6 +441,29 @@ public class MaterialService extends AbstractService {
 //$$         }
 //$$         return sign.getBackText().getMessage(row, false);
 //#endif
+    }
+
+    private java.util.List<String> readSignNames(final net.minecraft.block.entity.SignBlockEntity sign) {
+        final java.util.List<String> names = new java.util.ArrayList<>(4);
+        for (int i = 0; i < 4; i++) {
+            try {
+                final net.minecraft.text.Text line = getSignLine(sign, i);
+                if (line == null) {
+                    continue;
+                }
+                final String value = line.getString();
+                if (value == null) {
+                    continue;
+                }
+                final String trimmed = value.trim();
+                if (!trimmed.isEmpty()) {
+                    names.add(trimmed);
+                }
+            } catch (final Throwable ignored) {
+
+            }
+        }
+        return names;
     }
 
     private Inventory resolveInventoryForSign(final ServerWorld world, final BlockPos signPos) {
@@ -414,6 +507,118 @@ public class MaterialService extends AbstractService {
             }
         }
         return (Inventory) be;
+    }
+
+    private final class PlacementScanState {
+        private final ServerWorld world;
+        private final Iterator<BlockPos> iterator;
+        private final Map<MaterialKey, Integer> totals = new HashMap<>();
+        private boolean finished;
+
+        PlacementScanState(final ServerWorld world, final StockingAreaDefinition area) {
+            this.world = world;
+            if (world == null || area == null) {
+                iterator = Collections.emptyIterator();
+                finished = true;
+            } else {
+                iterator = BlockPos.iterate(area.getMin(), area.getMax()).iterator();
+            }
+        }
+
+        void process(final int budget) {
+            if (finished) {
+                return;
+            }
+            if (world == null) {
+                finished = true;
+                return;
+            }
+            int remaining = Math.max(1, budget);
+            while (remaining > 0 && iterator.hasNext()) {
+                remaining--;
+                final BlockPos pos = iterator.next();
+                if (!world.isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)) {
+                    continue;
+                }
+                final BlockEntity blockEntity = world.getBlockEntity(pos);
+                if (blockEntity instanceof Inventory inventory) {
+                    scanInventory(inventory, totals);
+                }
+            }
+            if (!iterator.hasNext()) {
+                finished = true;
+            }
+        }
+
+        boolean isFinished() {
+            return finished;
+        }
+
+        Map<MaterialKey, Integer> getTotals() {
+            return totals;
+        }
+    }
+
+    private final class DefaultStockingScanState {
+        private final ServerWorld world;
+        private final Iterator<BlockPos> iterator;
+        private final Map<String, Map<MaterialKey, Integer>> totals = new HashMap<>();
+        private boolean finished;
+
+        DefaultStockingScanState(final ServerWorld world, final StockingAreaDefinition area) {
+            this.world = world;
+            if (world == null || area == null) {
+                iterator = Collections.emptyIterator();
+                finished = true;
+            } else {
+                iterator = BlockPos.iterate(area.getMin(), area.getMax()).iterator();
+            }
+        }
+
+        void process(final int budget) {
+            if (finished) {
+                return;
+            }
+            if (world == null) {
+                finished = true;
+                return;
+            }
+            int remaining = Math.max(1, budget);
+            while (remaining > 0 && iterator.hasNext()) {
+                remaining--;
+                final BlockPos pos = iterator.next();
+                if (!world.isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)) {
+                    continue;
+                }
+                final BlockEntity blockEntity = world.getBlockEntity(pos);
+                if (!(blockEntity instanceof net.minecraft.block.entity.SignBlockEntity sign)) {
+                    continue;
+                }
+                final java.util.List<String> names = readSignNames(sign);
+                if (names.isEmpty()) {
+                    continue;
+                }
+                final Inventory inventory = resolveInventoryForSign(world, pos);
+                if (inventory == null) {
+                    continue;
+                }
+                for (final String projectName : names) {
+                    final Map<MaterialKey, Integer> projectTotals = totals.computeIfAbsent(projectName, key -> new HashMap<>());
+                    scanInventory(inventory, projectTotals);
+                }
+            }
+            if (!iterator.hasNext()) {
+                finished = true;
+            }
+        }
+
+        boolean isFinished() {
+            return finished;
+        }
+
+        Map<String, Map<MaterialKey, Integer>> getTotals() {
+            return totals;
+        }
     }
 
     private void scanInventory(final Inventory inventory, final Map<MaterialKey, Integer> totals) {
@@ -466,6 +671,10 @@ public class MaterialService extends AbstractService {
 
             }
         }
+    }
+
+    private long getMaxSchematicBytes() {
+        return Math.max(1L, maxSchematicMegabytes) * 1024L * 1024L;
     }
 
     private ServerWorld resolveWorld(final MinecraftServer server, final String dimensionId) {

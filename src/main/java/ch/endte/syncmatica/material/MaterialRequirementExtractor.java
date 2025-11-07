@@ -34,6 +34,12 @@ public final class MaterialRequirementExtractor {
     }
 
     public static Map<MaterialKey, Integer> extract(final File litematicFile, final boolean includeContainerContents) {
+        return extract(litematicFile, includeContainerContents, Long.MAX_VALUE);
+    }
+
+    public static Map<MaterialKey, Integer> extract(final File litematicFile,
+                                                    final boolean includeContainerContents,
+                                                    final long maxBlocks) {
         final Map<MaterialKey, Integer> requirements = new HashMap<>();
         if (litematicFile == null || !litematicFile.isFile()) {
             return requirements;
@@ -44,50 +50,64 @@ public final class MaterialRequirementExtractor {
                 return requirements;
             }
             final NbtCompound regions = root.getCompound("Regions");
+            long processedBlocks = 0L;
+            final long effectiveLimit = (maxBlocks <= 0L) ? Long.MAX_VALUE : maxBlocks;
             for (final String regionName : regions.getKeys()) {
                 final NbtCompound region = regions.getCompound(regionName);
-                accumulateRegion(region, requirements, includeContainerContents);
+                processedBlocks = accumulateRegion(region, requirements, includeContainerContents,
+                        processedBlocks, effectiveLimit);
             }
         } catch (final IOException exception) {
             LOGGER.warn("Failed to read material requirements from {}", litematicFile, exception);
+        } catch (final ExtractionLimitExceededException limitExceededException) {
+            LOGGER.warn("Aborted material extraction for {} after {} blocks exceeded limit {}",
+                    litematicFile,
+                    limitExceededException.getSeenBlocks(),
+                    maxBlocks);
         } catch (final Exception exception) {
             LOGGER.warn("Failed to parse material requirements from {}", litematicFile, exception);
         }
         return requirements;
     }
 
-    private static void accumulateRegion(final NbtCompound region, final Map<MaterialKey, Integer> totals,
-                                         final boolean includeContainerContents) {
+    private static long accumulateRegion(final NbtCompound region, final Map<MaterialKey, Integer> totals,
+                                         final boolean includeContainerContents,
+                                         final long processedBlocks,
+                                         final long maxBlocks) {
         if (region == null) {
-            return;
+            return processedBlocks;
         }
         final int[] dimensions = resolveSize(region);
         if (dimensions == null) {
-            return;
+            return processedBlocks;
         }
-        final int volume = dimensions[0] * dimensions[1] * dimensions[2];
+        final long volume = (long) dimensions[0] * dimensions[1] * dimensions[2];
         if (volume <= 0) {
-            return;
+            return processedBlocks;
+        }
+        final long updatedBlocks = processedBlocks + volume;
+        if (updatedBlocks > maxBlocks) {
+            throw new ExtractionLimitExceededException(updatedBlocks);
         }
         final NbtList paletteData = region.getList("BlockStatePalette", NbtElement.COMPOUND_TYPE);
         if (paletteData.isEmpty()) {
-            return;
+            return updatedBlocks;
         }
         final List<MaterialKey> palette = buildPalette(paletteData);
         if (palette.isEmpty()) {
-            return;
+            return updatedBlocks;
         }
         final long[] blockStates = resolveBlockStates(region);
         if (palette.size() == 1) {
             final MaterialKey key = palette.get(0);
             if (key != null) {
-                totals.merge(key, volume, Integer::sum);
+                totals.merge(key, (int) volume, Integer::sum);
             }
         } else if (blockStates.length != 0) {
             final int bits = bitsForPalette(palette.size());
             final long mask = bits >= Long.SIZE ? -1L : (1L << bits) - 1L;
-            for (int index = 0; index < volume; index++) {
-                final int bitIndex = index * bits;
+            for (long index = 0; index < volume; index++) {
+                final int bitIndex = (int) (index * bits);
                 final int arrayIndex = bitIndex >>> 6;
                 final int bitOffset = bitIndex & 63;
                 long value = 0L;
@@ -113,6 +133,7 @@ public final class MaterialRequirementExtractor {
                 accumulateTileEntityContents(tileEntities, totals);
             }
         }
+        return updatedBlocks;
     }
 
     private static List<MaterialKey> buildPalette(final NbtList paletteData) {
@@ -248,5 +269,18 @@ public final class MaterialRequirementExtractor {
         }
         final NbtList nestedItems = blockEntityTag.getList("Items", NbtElement.COMPOUND_TYPE);
         accumulateItemList(nestedItems, totals);
+    }
+
+    private static final class ExtractionLimitExceededException extends RuntimeException {
+        private final long seenBlocks;
+
+        ExtractionLimitExceededException(final long seenBlocks) {
+            super("Block limit exceeded");
+            this.seenBlocks = seenBlocks;
+        }
+
+        long getSeenBlocks() {
+            return seenBlocks;
+        }
     }
 }

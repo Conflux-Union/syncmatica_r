@@ -40,5 +40,8 @@ public class MixinMinecraftServer {
         if (context != null && context.getMaterialService() != null) {
             context.getMaterialService().tick((MinecraftServer) (Object) this);
         }
+        if (context != null && context.getSyncmaticManager() != null) {
+            context.getSyncmaticManager().tickServer();
+        }
     }
 }
