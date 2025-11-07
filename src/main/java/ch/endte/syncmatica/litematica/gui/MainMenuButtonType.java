@@ -10,7 +10,8 @@ import java.util.List;
 public enum MainMenuButtonType implements IButtonType {
 
     VIEW_SYNCMATICS("syncmatica.gui.button.view_syncmatics"),
-    MATERIAL_GATHERINGS("syncmatica.gui.button.material_gatherings");
+    MATERIAL_GATHERINGS("syncmatica.gui.button.material_gatherings"),
+    SHARED_SETTINGS("syncmatica.gui.button.shared_settings");
 
     private final String labelKey;
 

@@ -1,6 +1,7 @@
 package ch.endte.syncmatica.mixin;
 
 import ch.endte.syncmatica.Syncmatica;
+import ch.endte.syncmatica.client.hud.MaterialHudOverlay;
 import ch.endte.syncmatica.litematica.LitematicManager;
 import ch.endte.syncmatica.litematica.ScreenHelper;
 import ch.endte.syncmatica.mixin_actor.ActorClientPlayNetworkHandler;
@@ -16,6 +17,7 @@ public class MixinMinecraftClient {
     @Inject(method = "disconnect()V", at = @At("HEAD"))
     private void shutdownSyncmatica(final CallbackInfo ci) {
         ScreenHelper.close();
+        MaterialHudOverlay.getInstance().reset();
         Syncmatica.shutdown();
         LitematicManager.clear();
         ActorClientPlayNetworkHandler.getInstance().reset();

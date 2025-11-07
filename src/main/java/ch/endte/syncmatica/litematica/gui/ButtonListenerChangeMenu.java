@@ -25,6 +25,9 @@ public class ButtonListenerChangeMenu implements IButtonActionListener {
             case VIEW_SYNCMATICS:
                 gui = new GuiSyncmaticaServerPlacementList();
                 break;
+            case SHARED_SETTINGS:
+                gui = new GuiSyncmaticaSharedSettings();
+                break;
             default:
                 break;
         }
