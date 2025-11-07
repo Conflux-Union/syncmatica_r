@@ -4,6 +4,7 @@ import ch.endte.syncmatica.IFileStorage;
 import ch.endte.syncmatica.RedirectFileStorage;
 import ch.endte.syncmatica.SyncmaticManager;
 import ch.endte.syncmatica.Syncmatica;
+import ch.endte.syncmatica.client.hud.MaterialHudOverlay;
 import ch.endte.syncmatica.communication.ClientCommunicationManager;
 import ch.endte.syncmatica.communication.CommunicationManager;
 import ch.endte.syncmatica.communication.ExchangeTarget;
@@ -52,6 +53,8 @@ public class ActorClientPlayNetworkHandler {
         clientCommunication = comms;
         ScreenHelper.init();
         LitematicManager.getInstance().setActiveContext(Syncmatica.getContext(Syncmatica.CLIENT_CONTEXT));
+        MaterialHudOverlay.getInstance().bindToClientContext(Syncmatica.getContext(Syncmatica.CLIENT_CONTEXT));
+        MaterialHudOverlay.getInstance().scheduleRefresh();
     }
 
     public void packetEvent(final ClientPlayNetworkHandler clientPlayNetworkHandler, final CustomPayloadS2CPacket packet, final CallbackInfo ci) {
