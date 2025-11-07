@@ -431,15 +431,15 @@ public class MaterialService extends AbstractService {
 
 
     private net.minecraft.text.Text getSignLine(final net.minecraft.block.entity.SignBlockEntity sign, final int row) {
-//#if MC < 12001
-        return sign.getTextOnRow(row, false);
-//#else
+//#if MC >= 12001
 //$$         final SignText front = sign.getFrontText();
 //$$         final net.minecraft.text.Text frontLine = front.getMessage(row, false);
 //$$         if (!frontLine.getString().isEmpty()) {
 //$$             return frontLine;
 //$$         }
 //$$         return sign.getBackText().getMessage(row, false);
+//#else
+        return sign.getTextOnRow(row, false);
 //#endif
     }
 
@@ -688,10 +688,10 @@ public class MaterialService extends AbstractService {
             return server.getWorld(World.END);
         }
         final RegistryKey<World> key = RegistryKey.of(
-//#if MC < 12001
-                Registry.WORLD_KEY,
-//#else
+//#if MC >= 12001
 //$$                 RegistryKeys.WORLD,
+//#else
+                Registry.WORLD_KEY,
 //#endif
                 new Identifier(dimensionId));
         return server.getWorld(key);

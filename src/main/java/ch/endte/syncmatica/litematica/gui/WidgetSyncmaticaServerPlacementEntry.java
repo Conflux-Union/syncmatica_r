@@ -83,10 +83,10 @@ public class WidgetSyncmaticaServerPlacementEntry extends WidgetListEntryBase<Se
 
     @Override
     public void render(final int mouseX, final int mouseY, final boolean selected,
-//#if MC < 12001
-            final MatrixStack matrixStack
-//#else
+//#if MC >= 12001
 //$$             final DrawContext drawContext
+//#else
+            final MatrixStack matrixStack
 //#endif
     ) {
 
@@ -101,12 +101,12 @@ public class WidgetSyncmaticaServerPlacementEntry extends WidgetListEntryBase<Se
         }
 
         final String schematicName = placement.getName();
-//#if MC < 12001
-        drawString(x + 20, y + 7, 0xFFFFFFFF, schematicName, matrixStack);
-        drawSubWidgets(mouseX, mouseY, matrixStack);
-//#else
+//#if MC >= 12001
 //$$         drawString(x + 20, y + 7, 0xFFFFFFFF, schematicName, drawContext);
 //$$         drawSubWidgets(mouseX, mouseY, drawContext);
+//#else
+        drawString(x + 20, y + 7, 0xFFFFFFFF, schematicName, matrixStack);
+        drawSubWidgets(mouseX, mouseY, matrixStack);
 //#endif
     }
 

@@ -44,10 +44,10 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
 
     @Override
     public void render(final int mouseX, final int mouseY, final boolean selected,
-//#if MC < 12001
-            final MatrixStack matrixStack
-//#else
+//#if MC >= 12001
 //$$             final DrawContext drawContext
+//#else
+            final MatrixStack matrixStack
 //#endif
     ) {
 
@@ -75,43 +75,43 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         final ItemStack stack = resolveDisplayStack(material == null ? null : material.getKey());
         if (!stack.isEmpty()) {
             renderItemStack(stack, baseX, y + 2,
-//#if MC < 12001
-                    matrixStack
-//#else
+//#if MC >= 12001
 //$$                     drawContext
+//#else
+                    matrixStack
 //#endif
             );
         }
 
         final String displayName = resolveDisplayName(material, stack);
         final int nameX = baseX + NAME_COLUMN_LEFT_OFFSET;
-//#if MC < 12001
-        drawString(nameX, y + 6, textColor, displayName, matrixStack);
-//#else
+//#if MC >= 12001
 //$$         drawString(nameX, y + 6, textColor, displayName, drawContext);
+//#else
+        drawString(nameX, y + 6, textColor, displayName, matrixStack);
 //#endif
 
         final String requiredText = String.valueOf(material.getAmountRequired());
-//#if MC < 12001
-        drawString(requiredColumnRight - getStringWidth(requiredText), y + 6, secondaryColor, requiredText, matrixStack);
-//#else
+//#if MC >= 12001
 //$$         drawString(requiredColumnRight - getStringWidth(requiredText), y + 6, secondaryColor, requiredText, drawContext);
+//#else
+        drawString(requiredColumnRight - getStringWidth(requiredText), y + 6, secondaryColor, requiredText, matrixStack);
 //#endif
 
         final String stockText = String.valueOf(material.getStockingSupplied());
-//#if MC < 12001
-        drawString(stockColumnRight - getStringWidth(stockText), y + 6, secondaryColor, stockText, matrixStack);
-//#else
+//#if MC >= 12001
 //$$         drawString(stockColumnRight - getStringWidth(stockText), y + 6, secondaryColor, stockText, drawContext);
+//#else
+        drawString(stockColumnRight - getStringWidth(stockText), y + 6, secondaryColor, stockText, matrixStack);
 //#endif
 
         final String missingText = formatMissingShortText(material);
         final int missingColor = material.isFinished() ? 0x80FF80 : 0xFFFF80;
         final int missingTextX = missingColumnRight - getStringWidth(missingText);
-//#if MC < 12001
-        drawString(missingTextX, y + 6, missingColor, missingText, matrixStack);
-//#else
+//#if MC >= 12001
 //$$         drawString(missingTextX, y + 6, missingColor, missingText, drawContext);
+//#else
+        drawString(missingTextX, y + 6, missingColor, missingText, matrixStack);
 //#endif
 
         final int missingLeftBound = stockColumnRight + 4;
@@ -123,12 +123,12 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
                 final java.util.List<net.minecraft.text.Text> lines = java.util.Collections.singletonList(
                         literal(formatMissingVerboseText(material))
                 );
-//#if MC < 12001
-                screen.renderTooltip(matrixStack, lines, mouseX, mouseY);
-//#else
+//#if MC >= 12001
 //$$                 final MinecraftClient client = MinecraftClient.getInstance();
 //$$                 final TextRenderer renderer = client.textRenderer;
 //$$                 drawContext.drawTooltip(renderer, lines, mouseX, mouseY);
+//#else
+                screen.renderTooltip(matrixStack, lines, mouseX, mouseY);
 //#endif
             }
         }
@@ -155,12 +155,12 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
                         ? "syncmatica.gui.tooltip.material.claim.action"
                         : "syncmatica.gui.tooltip.material.claim.locked";
                 lines.add(literal(fi.dy.masa.malilib.util.StringUtils.translate(key)));
-//#if MC < 12001
-                screen.renderTooltip(matrixStack, lines, mouseX, mouseY);
-//#else
+//#if MC >= 12001
 //$$                 final MinecraftClient client2 = MinecraftClient.getInstance();
 //$$                 final TextRenderer textRenderer = client2.textRenderer;
 //$$                 drawContext.drawTooltip(textRenderer, lines, mouseX, mouseY);
+//#else
+                screen.renderTooltip(matrixStack, lines, mouseX, mouseY);
 //#endif
             }
         }
@@ -241,24 +241,24 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
     }
 
     private void renderItemStack(final ItemStack stack, final int iconX, final int iconY,
-//#if MC < 12001
-            final MatrixStack matrixStack
-//#else
+//#if MC >= 12001
 //$$             final DrawContext drawContext
+//#else
+            final MatrixStack matrixStack
 //#endif
     ) {
         final MinecraftClient client = MinecraftClient.getInstance();
         final ItemRenderer itemRenderer = client.getItemRenderer();
         final TextRenderer textRenderer = client.textRenderer;
 
-//#if MC < 12001
+//#if MC >= 12001
+//$$         drawContext.drawItem(stack, iconX, iconY);
+//$$         drawContext.drawItemInSlot(textRenderer, stack, iconX, iconY);
+//#else
         RenderSystem.enableDepthTest();
         itemRenderer.renderInGui(stack, iconX, iconY);
         itemRenderer.renderGuiItemOverlay(textRenderer, stack, iconX, iconY);
         RenderSystem.disableDepthTest();
-//#else
-//$$         drawContext.drawItem(stack, iconX, iconY);
-//$$         drawContext.drawItemInSlot(textRenderer, stack, iconX, iconY);
 //#endif
     }
 
@@ -304,10 +304,10 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
     }
 
     private net.minecraft.text.Text literal(final String text) {
-//#if MC < 12001
-        return new net.minecraft.text.LiteralText(text);
-//#else
+//#if MC >= 12001
 //$$         return Text.literal(text);
+//#else
+        return new net.minecraft.text.LiteralText(text);
 //#endif
     }
 }

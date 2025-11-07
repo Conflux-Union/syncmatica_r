@@ -28,34 +28,7 @@ public class WidgetListMaterialProgress extends WidgetListBase<SyncmaticaMateria
         browserEntriesOffsetY = 18;
     }
 
-//#if MC < 12001
-    @Override
-    public void drawContents(final MatrixStack matrixStack, final int mouseX, final int mouseY, final float partialTicks) {
-        RenderUtils.drawRect(posX, posY, browserWidth, browserEntriesOffsetY, 0x30000000);
-        final int baseX = posX + 6;
-        final int textColor = 0xFFFFFFFF;
-
-        final int requiredColumnRight = baseX + WidgetMaterialProgressEntry.REQUIRED_COLUMN_RIGHT_OFFSET;
-
-        final int missingColumnRight = posX + browserEntryWidth - 8;
-
-        final int stockColumnRight = missingColumnRight - 100;
-
-        drawString(matrixStack, StringUtils.translate("syncmatica.gui.label.material.column.material"),
-                baseX + WidgetMaterialProgressEntry.NAME_COLUMN_LEFT_OFFSET, posY + 6, textColor);
-
-        final String requiredLabel = StringUtils.translate("syncmatica.gui.label.material.column.required");
-        drawString(matrixStack, requiredLabel, requiredColumnRight - getStringWidth(requiredLabel), posY + 6, textColor);
-
-        final String stockLabel = StringUtils.translate("syncmatica.gui.label.material.column.stock");
-        drawString(matrixStack, stockLabel, stockColumnRight - getStringWidth(stockLabel), posY + 6, textColor);
-
-        final String missingLabel = StringUtils.translate("syncmatica.gui.label.material.column.missing");
-        drawString(matrixStack, missingLabel, missingColumnRight - getStringWidth(missingLabel), posY + 6, textColor);
-
-        super.drawContents(matrixStack, mouseX, mouseY, partialTicks);
-    }
-//#else
+//#if MC >= 12001
 //$$     @Override
 //$$     public void drawContents(final DrawContext drawContext, final int mouseX, final int mouseY, final float partialTicks) {
 //$$         RenderUtils.drawRect(posX, posY, browserWidth, browserEntriesOffsetY, 0x30000000);
@@ -82,6 +55,33 @@ public class WidgetListMaterialProgress extends WidgetListBase<SyncmaticaMateria
 //$$ 
 //$$         super.drawContents(drawContext, mouseX, mouseY, partialTicks);
 //$$     }
+//#else
+    @Override
+    public void drawContents(final MatrixStack matrixStack, final int mouseX, final int mouseY, final float partialTicks) {
+        RenderUtils.drawRect(posX, posY, browserWidth, browserEntriesOffsetY, 0x30000000);
+        final int baseX = posX + 6;
+        final int textColor = 0xFFFFFFFF;
+
+        final int requiredColumnRight = baseX + WidgetMaterialProgressEntry.REQUIRED_COLUMN_RIGHT_OFFSET;
+
+        final int missingColumnRight = posX + browserEntryWidth - 8;
+
+        final int stockColumnRight = missingColumnRight - 100;
+
+        drawString(matrixStack, StringUtils.translate("syncmatica.gui.label.material.column.material"),
+                baseX + WidgetMaterialProgressEntry.NAME_COLUMN_LEFT_OFFSET, posY + 6, textColor);
+
+        final String requiredLabel = StringUtils.translate("syncmatica.gui.label.material.column.required");
+        drawString(matrixStack, requiredLabel, requiredColumnRight - getStringWidth(requiredLabel), posY + 6, textColor);
+
+        final String stockLabel = StringUtils.translate("syncmatica.gui.label.material.column.stock");
+        drawString(matrixStack, stockLabel, stockColumnRight - getStringWidth(stockLabel), posY + 6, textColor);
+
+        final String missingLabel = StringUtils.translate("syncmatica.gui.label.material.column.missing");
+        drawString(matrixStack, missingLabel, missingColumnRight - getStringWidth(missingLabel), posY + 6, textColor);
+
+        super.drawContents(matrixStack, mouseX, mouseY, partialTicks);
+    }
 //#endif
 
     @Override
