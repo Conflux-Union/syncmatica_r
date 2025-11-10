@@ -63,6 +63,9 @@ public class ServerCommunicationManager extends CommunicationManager {
         }
         broadcastTargets.remove(oldPlayer);
         playerMap.remove(oldPlayer);
+        if (context != null && context.getQuotaService() != null) {
+            context.getQuotaService().clearProgressFor(oldPlayer);
+        }
     }
 
     @Override
