@@ -30,6 +30,13 @@ public class QuotaService extends AbstractService {
         }
     }
 
+    public void clearProgressFor(final ExchangeTarget sender) {
+        if (sender == null) {
+            return;
+        }
+        progress.remove(sender.getPersistentName());
+    }
+
     @Override
     public void getDefaultConfiguration(final IServiceConfiguration configuration) {
         configuration.saveBoolean("enabled", IS_ENABLED_DEFAULT);
@@ -53,5 +60,6 @@ public class QuotaService extends AbstractService {
 
     @Override
     public void shutdown() {
+        progress.clear();
     }
 }

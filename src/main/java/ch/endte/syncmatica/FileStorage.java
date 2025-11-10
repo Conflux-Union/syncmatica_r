@@ -5,12 +5,13 @@ import ch.endte.syncmatica.util.SyncmaticaUtil;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
+import java.util.WeakHashMap;
 
 public class FileStorage implements IFileStorage {
 
-    private final HashMap<ServerPlacement, Long> buffer = new HashMap<>();
+    private final Map<ServerPlacement, Long> buffer = new WeakHashMap<>();
     private Context context = null;
 
     @Override
