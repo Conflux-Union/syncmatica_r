@@ -247,6 +247,7 @@ public class ServerCommunicationManager extends CommunicationManager {
         for (final ExchangeTarget target : broadcastTargets) {
             sendMetaData(placement, target);
         }
+        broadcastPlacementUpdate(placement);
     }
 
     private void cancelShare(final ExchangeTarget source, final ServerPlacement placement) {
