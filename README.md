@@ -19,9 +19,8 @@ Access the material tracker via the `MaterialGatherings` button to coordinate te
 
 Syncmatica_r is a mod which aims to mod into litematica so that schematics and their placements can be easily shared.
 
-### Notice Please use with caution
-
-Syncmatica_r is a mod that gives its users a lot of power and can have consequences for the server. Only use this mod if
+> [!CAUTION]
+> Syncmatica_r is a mod that gives its users a lot of power and can have consequences for the server. Only use this mod if
 you feel confident that your users won't abuse it too heavily.
 
 ### Client
