@@ -20,6 +20,7 @@ import net.minecraft.client.util.math.MatrixStack;
 public class WidgetStockingAreaMaterialEntry extends WidgetListEntryBase<WidgetStockingAreaMaterialEntry.RowData> {
 
     private final ButtonGeneric viewButton;
+    private final ButtonGeneric summaryButton;
 
     public WidgetStockingAreaMaterialEntry(final int x, final int y, final int width, final int height,
                                            final RowData data, final int listIndex) {
@@ -31,8 +32,17 @@ public class WidgetStockingAreaMaterialEntry extends WidgetListEntryBase<WidgetS
             viewButton = new ButtonGeneric(x + width - buttonWidth - 6, y + 2, buttonWidth, height - 4, buttonLabel);
             viewButton.setEnabled(isMaterialFeatureEnabled());
             addButton(viewButton, (button, mouseButton) -> openMaterialGui(data.getPlacement()));
+            summaryButton = null;
+        } else if (data.getType() == RowType.HEADER && data.getSummary() != null) {
+            final String buttonLabel = StringUtils.translate("syncmatica_r.gui.button.material_gathering_stocking_area");
+            final int buttonWidth = Math.max(90, measure(buttonLabel) + 12);
+            summaryButton = new ButtonGeneric(x + width - buttonWidth - 6, y + 2, buttonWidth, height - 4, buttonLabel);
+            summaryButton.setEnabled(isMaterialFeatureEnabled());
+            addButton(summaryButton, (button, mouseButton) -> openStockingAreaOverview(data));
+            viewButton = null;
         } else {
             viewButton = null;
+            summaryButton = null;
         }
     }
 
@@ -59,6 +69,11 @@ public class WidgetStockingAreaMaterialEntry extends WidgetListEntryBase<WidgetS
                         matrixStack,
 //#endif
                         data.getHeaderText());
+//#if MC >= 12001
+//$$                 drawSubWidgets(mouseX, mouseY, drawContext);
+//#else
+                drawSubWidgets(mouseX, mouseY, matrixStack);
+//#endif
                 break;
             case PLACEMENT:
                 drawPlacementRow(mouseX, mouseY, data,
@@ -155,6 +170,14 @@ public class WidgetStockingAreaMaterialEntry extends WidgetListEntryBase<WidgetS
         GuiBase.openGui(new GuiSyncmaticaMaterialProgress(placement));
     }
 
+    private void openStockingAreaOverview(final RowData data) {
+        final StockingAreaSummary summary = data.getSummary();
+        if (summary == null || summary.getPlacements().isEmpty()) {
+            return;
+        }
+        GuiBase.openGui(new GuiStockingAreaMaterialTotals(summary));
+    }
+
     public enum RowType {
         HEADER,
         PLACEMENT,
@@ -167,24 +190,28 @@ public class WidgetStockingAreaMaterialEntry extends WidgetListEntryBase<WidgetS
         private final String headerText;
         private final ServerPlacement placement;
         private final boolean highlight;
+        private final StockingAreaSummary summary;
 
-        private RowData(final RowType type, final String headerText, final ServerPlacement placement, final boolean highlight) {
+        private RowData(final RowType type, final String headerText, final ServerPlacement placement,
+                        final boolean highlight, final StockingAreaSummary summary) {
             this.type = type;
             this.headerText = headerText;
             this.placement = placement;
             this.highlight = highlight;
+            this.summary = summary;
         }
 
-        public static RowData header(final String text) {
-            return new RowData(RowType.HEADER, text, null, false);
+        public static RowData header(final StockingAreaSummary summary) {
+            final String header = summary == null ? "" : summary.getDisplayName();
+            return new RowData(RowType.HEADER, header, null, false, summary);
         }
 
         public static RowData placement(final ServerPlacement placement, final boolean highlight) {
-            return new RowData(RowType.PLACEMENT, null, placement, highlight);
+            return new RowData(RowType.PLACEMENT, null, placement, highlight, null);
         }
 
         public static RowData empty(final String text) {
-            return new RowData(RowType.EMPTY, text, null, false);
+            return new RowData(RowType.EMPTY, text, null, false, null);
         }
 
         public RowType getType() {
@@ -201,6 +228,28 @@ public class WidgetStockingAreaMaterialEntry extends WidgetListEntryBase<WidgetS
 
         public boolean isHighlighted() {
             return highlight;
+        }
+
+        public StockingAreaSummary getSummary() {
+            return summary;
+        }
+    }
+
+    public static final class StockingAreaSummary {
+        private final String displayName;
+        private final java.util.List<ServerPlacement> placements;
+
+        public StockingAreaSummary(final String displayName, final java.util.List<ServerPlacement> placements) {
+            this.displayName = displayName;
+            this.placements = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(placements));
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+
+        public java.util.List<ServerPlacement> getPlacements() {
+            return placements;
         }
     }
 
