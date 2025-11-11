@@ -1,4 +1,4 @@
-# Syncmatica_r
+# 共享原理图增强版
 
 [English](README.md) | **[中文]**
 

@@ -1,4 +1,4 @@
-# Syncmatica_r
+# Syncmatica Revolution
 
 **[English]** | [中文](README_CN.md)
 
