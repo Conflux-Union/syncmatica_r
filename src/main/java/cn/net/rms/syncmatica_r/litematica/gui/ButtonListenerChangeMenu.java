@@ -20,7 +20,7 @@ public class ButtonListenerChangeMenu implements IButtonActionListener {
         GuiBase gui = null;
         switch (type) {
             case MATERIAL_GATHERINGS:
-                gui = new GuiSyncmaticaServerPlacementList();
+                gui = new GuiStockingAreaMaterialOverview(null);
                 break;
             case VIEW_SYNCMATICS:
                 gui = new GuiSyncmaticaServerPlacementList();

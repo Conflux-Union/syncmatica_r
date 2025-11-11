@@ -14,6 +14,7 @@
   "syncmatica_r.gui.button.material.claimed": "Claimed",
   "syncmatica_r.gui.button.material.contribute": "Contribute",
   "syncmatica_r.gui.button.back": "Back",
+  "syncmatica_r.gui.title.stocking_area_overview": "Stocking Areas",
   "syncmatica_r.gui.title.manage_server_placements": "Manage Server Placements",
   "syncmatica_r.gui.title.material_progress": "Materials",
   "syncmatica_r.gui.title.shared_settings": "Shared Schematic Settings",
@@ -46,5 +47,9 @@
   "syncmatica_r.gui.tooltip.material.claimers": "Claimed by: %s",
   "syncmatica_r.gui.tooltip.material.claim.none": "No one claimed",
   "syncmatica_r.gui.tooltip.material.claim.action": "Shift-Click blank area to claim/unclaim",
-  "syncmatica_r.gui.tooltip.material.claim.locked": "Already claimed by others"
+  "syncmatica_r.gui.tooltip.material.claim.locked": "Already claimed by others",
+  "syncmatica_r.gui.label.stocking_area.default": "Default Stocking Area",
+  "syncmatica_r.gui.label.stocking_area.bounds": "Stocking Area (%s) %d,%d,%d -> %d,%d,%d",
+  "syncmatica_r.gui.label.stocking_area.empty": "No placements assigned",
+  "syncmatica_r.gui.label.stocking_area.unavailable": "Materials unavailable – no active context"
 }
