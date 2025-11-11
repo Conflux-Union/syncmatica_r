@@ -36,6 +36,7 @@
   "syncmatica_r.gui.label.material.column.player": "Player",
   "syncmatica_r.gui.label.material.column.stock": "Stock",
   "syncmatica_r.gui.label.material.column.missing": "Missing",
+  "syncmatica_r.gui.label.material.total": "Total",
   "syncmatica_r.gui.label.material.missing.format": "%1$d Shulkers %2$d Stacks %3$d Items (%4$d Items)",
   "syncmatica_r.gui.label.material.missing.compact": "%1$d Shulkers %2$d Stacks %3$d Items",
   "syncmatica_r.gui.label.material.missing.short.total": "%1$d",

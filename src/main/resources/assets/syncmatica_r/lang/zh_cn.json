@@ -27,6 +27,7 @@
   "syncmatica_r.gui.label.material.column.player": "玩家",
   "syncmatica_r.gui.label.material.column.stock": "库存",
   "syncmatica_r.gui.label.material.column.missing": "缺失",
+  "syncmatica_r.gui.label.material.total": "总计",
   "syncmatica_r.gui.label.material.missing.format": "%1$d盒%2$d组%3$d个(%4$d个)",
   "syncmatica_r.gui.label.material.missing.compact": "%1$d盒%2$d组%3$d个",
   "syncmatica_r.gui.label.material.missing.short.total": "%1$d个",
