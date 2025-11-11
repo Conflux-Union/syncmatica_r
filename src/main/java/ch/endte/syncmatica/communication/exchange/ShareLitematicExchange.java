@@ -1,12 +1,14 @@
 package ch.endte.syncmatica.communication.exchange;
 
-import ch.endte.syncmatica.Context;
-import ch.endte.syncmatica.RedirectFileStorage;
-import ch.endte.syncmatica.ServerPlacement;
-import ch.endte.syncmatica.communication.ClientCommunicationManager;
-import ch.endte.syncmatica.communication.ExchangeTarget;
-import ch.endte.syncmatica.communication.PacketType;
-import ch.endte.syncmatica.litematica.LitematicManager;
+import cn.net.rms.syncmatica_r.Context;
+import cn.net.rms.syncmatica_r.RedirectFileStorage;
+import cn.net.rms.syncmatica_r.ServerPlacement;
+import cn.net.rms.syncmatica_r.communication.ClientCommunicationManager;
+import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
+import cn.net.rms.syncmatica_r.communication.PacketType;
+import cn.net.rms.syncmatica_r.communication.exchange.AbstractExchange;
+import cn.net.rms.syncmatica_r.communication.exchange.UploadExchange;
+import cn.net.rms.syncmatica_r.litematica.LitematicManager;
 import fi.dy.masa.litematica.schematic.placement.SchematicPlacement;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.Identifier;

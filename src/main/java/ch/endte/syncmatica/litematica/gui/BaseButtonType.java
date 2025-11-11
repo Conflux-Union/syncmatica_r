@@ -1,5 +1,6 @@
 package ch.endte.syncmatica.litematica.gui;
 
+import cn.net.rms.syncmatica_r.litematica.gui.IButtonType;
 import fi.dy.masa.malilib.gui.button.IButtonActionListener;
 import fi.dy.masa.malilib.gui.interfaces.IGuiIcon;
 import fi.dy.masa.malilib.util.StringUtils;

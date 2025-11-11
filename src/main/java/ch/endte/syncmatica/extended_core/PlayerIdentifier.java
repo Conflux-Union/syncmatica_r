@@ -12,7 +12,7 @@ public class PlayerIdentifier {
     public final UUID uuid;
     private String bufferedPlayerName;
 
-    PlayerIdentifier(final UUID uuid, final String bufferedPlayerName) {
+    public PlayerIdentifier(final UUID uuid, final String bufferedPlayerName) {
         this.uuid = uuid;
         this.bufferedPlayerName = bufferedPlayerName;
     }
