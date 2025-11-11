@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "syncmatica",
+  "id": "syncmatica_r",
   "version": "${version}",
   "name": "Syncmatica",
   "description": "Server-wide shared litematics.",
@@ -9,21 +9,21 @@
     "samipourquoi"
   ],
   "contact": {
-    "sources": "https://github.com/endtech/syncmatica"
+    "sources": "https://github.com/endtech/syncmatica_r"
   },
   "license": "CC0-1.0",
   "environment": "*",
   "entrypoints": {
     "main": [
-      "ch.endte.syncmatica.SyncmaticaFabric"
+      "cn.net.rms.syncmatica_r.SyncmaticaFabric"
     ],
     "client": [
-      "ch.endte.syncmatica.client.SyncmaticaClient"
+      "cn.net.rms.syncmatica_r.client.SyncmaticaClient"
     ]
   },
   "mixins": [
-    "syncmatica.mixin.json",
-    "syncmatica.litematica_mixin.json"
+    "syncmatica_r.mixin.json",
+    "syncmatica_r.litematica_mixin.json"
   ],
   "depends": {
   },
@@ -31,5 +31,5 @@
     "litematica": "*",
     "malilib": "*"
   },
-  "icon": "assets/syncmatica/icon/logo.png"
+  "icon": "assets/syncmatica_r/icon/logo.png"
 }

@@ -1,9 +1,10 @@
 package ch.endte.syncmatica.communication.exchange;
 
-import ch.endte.syncmatica.Context;
-import ch.endte.syncmatica.communication.ExchangeTarget;
-import ch.endte.syncmatica.communication.FeatureSet;
-import ch.endte.syncmatica.communication.PacketType;
+import cn.net.rms.syncmatica_r.Context;
+import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
+import cn.net.rms.syncmatica_r.communication.FeatureSet;
+import cn.net.rms.syncmatica_r.communication.PacketType;
+import cn.net.rms.syncmatica_r.communication.exchange.AbstractExchange;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.Identifier;

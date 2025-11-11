@@ -1,11 +1,12 @@
-# Syncmatica Configuration Manual
+# Syncmatica_r Configuration Manual
 
-This document explains what the possibilities, options and restrictions of configuring syncmatica are.
+This document explains what the possibilities, options and restrictions of configuring Syncmatica_r are.
 
 ## Configuration
 
-syncmatica is configured by a `config.json` which can be found in `config/syncmatica/config.json`. The json inside
-configures several settings on the Server/Client which are grouped together into categories. Here is an example of the
+Syncmatica_r is configured by a `config.json` which can be found in `config/syncmatica_r/config.json`. The legacy
+`config/syncmatica/config.json` location is still supported for existing installations. The json inside configures
+several settings on the Server/Client which are grouped together into categories. Here is an example of the
 current (As of this files last update time current) `config.json`:
 
 ### Server config.json
