@@ -2,8 +2,8 @@ package cn.net.rms.syncmatica_r.litematica_mixin;
 
 import cn.net.rms.syncmatica_r.Context;
 import cn.net.rms.syncmatica_r.litematica.LitematicManager;
-import ch.endte.syncmatica.litematica.gui.ButtonListenerShare;
-import ch.endte.syncmatica.litematica_mixin.MixinButtonBase;
+import cn.net.rms.syncmatica_r.litematica.gui.ButtonListenerShare;
+import cn.net.rms.syncmatica_r.litematica_mixin.MixinButtonBase;
 import fi.dy.masa.litematica.gui.widgets.WidgetListSchematicPlacements;
 import fi.dy.masa.litematica.gui.widgets.WidgetSchematicPlacement;
 import fi.dy.masa.litematica.schematic.placement.SchematicPlacement;

@@ -1,6 +1,6 @@
 package cn.net.rms.syncmatica_r.material;
 
-import ch.endte.syncmatica.extended_core.PlayerIdentifier;
+import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
 
 import java.util.*;
 

@@ -4,10 +4,10 @@ import cn.net.rms.syncmatica_r.Feature;
 import cn.net.rms.syncmatica_r.LocalLitematicState;
 import cn.net.rms.syncmatica_r.ServerPlacement;
 import cn.net.rms.syncmatica_r.communication.exchange.*;
-import ch.endte.syncmatica.communication.MessageType;
-import ch.endte.syncmatica.communication.exchange.FeatureExchange;
-import ch.endte.syncmatica.communication.exchange.ShareLitematicExchange;
-import ch.endte.syncmatica.extended_core.PlayerIdentifier;
+import cn.net.rms.syncmatica_r.communication.MessageType;
+import cn.net.rms.syncmatica_r.communication.exchange.FeatureExchange;
+import cn.net.rms.syncmatica_r.communication.exchange.ShareLitematicExchange;
+import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
 import com.mojang.authlib.GameProfile;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.PacketByteBuf;
@@ -161,14 +161,14 @@ public class ServerCommunicationManager extends CommunicationManager {
             if (player == null) {
                 return;
             }
-            final ch.endte.syncmatica.extended_core.PlayerIdentifier pid = context.getPlayerIdentifierProvider().createOrGet(player.getGameProfile());
-            final java.util.Collection<ch.endte.syncmatica.extended_core.PlayerIdentifier> current = entry.getClaimants();
+            final cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier pid = context.getPlayerIdentifierProvider().createOrGet(player.getGameProfile());
+            final java.util.Collection<cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier> current = entry.getClaimants();
             if (entry.hasClaimer(pid)) {
 
                 entry.removeClaimer(pid);
             } else if (!current.isEmpty()) {
 
-                final ch.endte.syncmatica.extended_core.PlayerIdentifier owner = current.iterator().next();
+                final cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier owner = current.iterator().next();
                 sendMessage(source, MessageType.WARNING,
                         "Already claimed by " + owner.getName());
                 return;

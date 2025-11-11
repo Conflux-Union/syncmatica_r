@@ -4,7 +4,7 @@ import cn.net.rms.syncmatica_r.ServerPlacement;
 import cn.net.rms.syncmatica_r.ServerPosition;
 import cn.net.rms.syncmatica_r.communication.ServerCommunicationManager;
 import cn.net.rms.syncmatica_r.material.*;
-import ch.endte.syncmatica.service.IServiceConfiguration;
+import cn.net.rms.syncmatica_r.service.IServiceConfiguration;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.item.BlockItem;
@@ -341,7 +341,7 @@ public class MaterialService extends AbstractService {
 
         final MaterialProgressState snapshot = placement.getMaterialProgress();
 
-        final java.util.Map<MaterialKey, java.util.Collection<ch.endte.syncmatica.extended_core.PlayerIdentifier>> previousClaimants = new java.util.HashMap<>();
+        final java.util.Map<MaterialKey, java.util.Collection<cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier>> previousClaimants = new java.util.HashMap<>();
         for (final MaterialProgressEntry e : snapshot.getEntries()) {
             previousClaimants.put(e.getKey(), new java.util.ArrayList<>(e.getClaimants()));
         }
@@ -350,9 +350,9 @@ public class MaterialService extends AbstractService {
             final int requiredAmount = required.getOrDefault(key, 0);
             final MaterialProgressEntry entry = snapshot.getOrCreate(key, requiredAmount);
             entry.setStockingSupplied(stock.getOrDefault(key, 0));
-            final java.util.Collection<ch.endte.syncmatica.extended_core.PlayerIdentifier> claim = previousClaimants.get(key);
+            final java.util.Collection<cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier> claim = previousClaimants.get(key);
             if (claim != null) {
-                for (final ch.endte.syncmatica.extended_core.PlayerIdentifier p : claim) {
+                for (final cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier p : claim) {
                     entry.addClaimer(p);
                 }
             }

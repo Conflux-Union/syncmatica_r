@@ -1,6 +1,6 @@
 package cn.net.rms.syncmatica_r.service;
 
-import ch.endte.syncmatica.service.IServiceConfiguration;
+import cn.net.rms.syncmatica_r.service.IServiceConfiguration;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 

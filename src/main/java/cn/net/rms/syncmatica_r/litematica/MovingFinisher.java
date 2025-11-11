@@ -1,4 +1,4 @@
-package ch.endte.syncmatica.litematica;
+package cn.net.rms.syncmatica_r.litematica;
 
 import fi.dy.masa.litematica.schematic.placement.SchematicPlacementManager;
 

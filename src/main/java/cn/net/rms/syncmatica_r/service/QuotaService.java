@@ -1,7 +1,7 @@
 package cn.net.rms.syncmatica_r.service;
 
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
-import ch.endte.syncmatica.service.IServiceConfiguration;
+import cn.net.rms.syncmatica_r.service.IServiceConfiguration;
 
 import java.util.HashMap;
 import java.util.Map;

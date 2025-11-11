@@ -1,4 +1,4 @@
-package ch.endte.syncmatica.litematica_mixin;
+package cn.net.rms.syncmatica_r.litematica_mixin;
 
 import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.gui.button.ButtonBase;

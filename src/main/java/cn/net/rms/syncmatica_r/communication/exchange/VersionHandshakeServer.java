@@ -6,7 +6,7 @@ import cn.net.rms.syncmatica_r.Syncmatica;
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
 import cn.net.rms.syncmatica_r.communication.FeatureSet;
 import cn.net.rms.syncmatica_r.communication.PacketType;
-import ch.endte.syncmatica.communication.exchange.FeatureExchange;
+import cn.net.rms.syncmatica_r.communication.exchange.FeatureExchange;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.Identifier;

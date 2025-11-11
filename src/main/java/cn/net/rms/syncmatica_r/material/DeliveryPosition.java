@@ -1,4 +1,4 @@
-package ch.endte.syncmatica.material;
+package cn.net.rms.syncmatica_r.material;
 
 import cn.net.rms.syncmatica_r.ServerPosition;
 import net.minecraft.util.math.BlockPos;

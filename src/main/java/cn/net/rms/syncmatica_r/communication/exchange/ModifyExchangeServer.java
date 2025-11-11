@@ -4,7 +4,7 @@ import cn.net.rms.syncmatica_r.Context;
 import cn.net.rms.syncmatica_r.ServerPlacement;
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
 import cn.net.rms.syncmatica_r.communication.PacketType;
-import ch.endte.syncmatica.extended_core.PlayerIdentifier;
+import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.Identifier;

@@ -4,7 +4,7 @@ import cn.net.rms.syncmatica_r.communication.CommunicationManager;
 import cn.net.rms.syncmatica_r.communication.FeatureSet;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifierProvider;
 import cn.net.rms.syncmatica_r.service.*;
-import ch.endte.syncmatica.service.IServiceConfiguration;
+import cn.net.rms.syncmatica_r.service.IServiceConfiguration;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;

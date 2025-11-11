@@ -1,10 +1,10 @@
-package ch.endte.syncmatica.litematica.gui;
+package cn.net.rms.syncmatica_r.litematica.gui;
 
 import cn.net.rms.syncmatica_r.Context;
 import cn.net.rms.syncmatica_r.Feature;
 import cn.net.rms.syncmatica_r.communication.ClientCommunicationManager;
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
-import ch.endte.syncmatica.communication.exchange.ShareLitematicExchange;
+import cn.net.rms.syncmatica_r.communication.exchange.ShareLitematicExchange;
 import cn.net.rms.syncmatica_r.litematica.LitematicManager;
 import fi.dy.masa.litematica.schematic.placement.SchematicPlacement;
 import fi.dy.masa.malilib.gui.GuiBase;
