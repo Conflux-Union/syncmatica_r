@@ -1,0 +1,83 @@
+package cn.net.rms.syncmatica_r.communication.exchange;
+
+import cn.net.rms.syncmatica_r.Context;
+import cn.net.rms.syncmatica_r.ServerPlacement;
+import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
+import cn.net.rms.syncmatica_r.communication.PacketType;
+import ch.endte.syncmatica.extended_core.PlayerIdentifier;
+import io.netty.buffer.Unpooled;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.util.Identifier;
+
+import java.util.UUID;
+
+public class ModifyExchangeServer extends AbstractExchange {
+
+    private final ServerPlacement placement;
+    UUID placementId;
+
+    public ModifyExchangeServer(final UUID placeId, final ExchangeTarget partner, final Context con) {
+        super(partner, con);
+        placementId = placeId;
+        placement = con.getSyncmaticManager().getPlacement(placementId);
+    }
+
+    @Override
+    public boolean checkPacket(final Identifier id, final PacketByteBuf packetBuf) {
+        return id.equals(PacketType.MODIFY_FINISH.identifier) && checkUUID(packetBuf, placement.getId());
+    }
+
+    @Override
+    public void handle(final Identifier id, final PacketByteBuf packetBuf) {
+        packetBuf.readUuid();
+        if (id.equals(PacketType.MODIFY_FINISH.identifier)) {
+            getContext().getCommunicationManager().receivePositionData(placement, packetBuf, getPartner());
+            getContext().getCommunicationManager().receiveMaterialData(placement, packetBuf, getPartner());
+
+            final PlayerIdentifier identifier = getContext().getPlayerIdentifierProvider().createOrGet(
+                    getPartner()
+            );
+            placement.setLastModifiedBy(identifier);
+            getContext().getSyncmaticManager().updateServerPlacement(placement);
+            if (getContext().getMaterialService() != null) {
+                getContext().getMaterialService().refreshPlacement(placement);
+            }
+            succeed();
+        }
+    }
+
+    @Override
+    public void init() {
+        if (getPlacement() == null || getContext().getCommunicationManager().getModifier(placement) != null) {
+            close(true);
+        } else {
+            accept();
+        }
+    }
+
+    private void accept() {
+        final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
+        buf.writeUuid(placement.getId());
+        getPartner().sendPacket(PacketType.MODIFY_REQUEST_ACCEPT.identifier, buf, getContext());
+        getContext().getCommunicationManager().setModifier(placement, this);
+    }
+
+    @Override
+    protected void sendCancelPacket() {
+        final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
+        buf.writeUuid(placementId);
+        getPartner().sendPacket(PacketType.MODIFY_REQUEST_DENY.identifier, buf, getContext());
+    }
+
+    public ServerPlacement getPlacement() {
+        return placement;
+    }
+
+    @Override
+    protected void onClose() {
+        if (getContext().getCommunicationManager().getModifier(placement) == this) {
+            getContext().getCommunicationManager().setModifier(placement, null);
+        }
+    }
+
+}

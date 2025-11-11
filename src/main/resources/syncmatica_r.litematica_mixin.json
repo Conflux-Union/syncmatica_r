@@ -1,0 +1,24 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "cn.net.rms.syncmatica_r.litematica_mixin",
+  "compatibilityLevel": "JAVA_8",
+  "mixins": [],
+  "client": [
+    "MixinGuiMainMenu",
+    "ch.endte.syncmatica_r.litematica_mixin.MixinWidgetListSchematicPlacement",
+    "MixinSchematicPlacement",
+    "MixinWidgetSchematicPlacement",
+    "ch.endte.syncmatica_r.litematica_mixin.MixinGuiBase",
+    "MixinSchematicHolder",
+    "ch.endte.syncmatica_r.litematica_mixin.MixinButtonBase",
+    "MixinWidgetSchematicPlacement",
+    "MixinGuiPlacementConfiguration",
+    "ch.endte.syncmatica_r.litematica_mixin.MixinSubregionPlacement",
+    "ch.endte.syncmatica_r.litematica_mixin.MixinSchematicPlacementManager"
+  ],
+  "server": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
