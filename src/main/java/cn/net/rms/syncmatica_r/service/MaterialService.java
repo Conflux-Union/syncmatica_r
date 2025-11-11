@@ -335,10 +335,6 @@ public class MaterialService extends AbstractService {
         final Map<MaterialKey, Integer> required = requiredTotals.getOrDefault(placementId, Collections.emptyMap());
         final Map<MaterialKey, Integer> stock = stockingTotals.getOrDefault(placementId, Collections.emptyMap());
 
-        final Set<MaterialKey> keys = new HashSet<>();
-        keys.addAll(required.keySet());
-        keys.addAll(stock.keySet());
-
         final MaterialProgressState snapshot = placement.getMaterialProgress();
 
         final java.util.Map<MaterialKey, java.util.Collection<cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier>> previousClaimants = new java.util.HashMap<>();
@@ -346,8 +342,12 @@ public class MaterialService extends AbstractService {
             previousClaimants.put(e.getKey(), new java.util.ArrayList<>(e.getClaimants()));
         }
         snapshot.clear();
-        for (final MaterialKey key : keys) {
-            final int requiredAmount = required.getOrDefault(key, 0);
+        for (final java.util.Map.Entry<MaterialKey, Integer> requirement : required.entrySet()) {
+            final MaterialKey key = requirement.getKey();
+            final int requiredAmount = requirement.getValue();
+            if (requiredAmount <= 0) {
+                continue;
+            }
             final MaterialProgressEntry entry = snapshot.getOrCreate(key, requiredAmount);
             entry.setStockingSupplied(stock.getOrDefault(key, 0));
             final java.util.Collection<cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier> claim = previousClaimants.get(key);
