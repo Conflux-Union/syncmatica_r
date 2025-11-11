@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "cn.net.rms.syncmatica_r.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "mixins": [
+    "MixinCustomPayloadC2SPacket",
+    "MixinMinecraftServer",
+    "MixinServerPlayNetworkHandler"
+  ],
+  "client": [
+    "MixinClientPlayNetworkHandler",
+    "MixinMinecraftClient"
+  ],
+  "server": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
