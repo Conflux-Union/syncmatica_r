@@ -23,12 +23,6 @@ Syncmatica_r 是一个旨在与 Litematica 模组集成的修改版，让原理�
 
 Syncmatica_r 赋予用户较大权限，可能对服务器产生影响。请仅在确信用户不会过度滥用的情况下使用本模组。
 
-## 安装设置
-
-Syncmatica_r 是一个同时支持 Minecraft 客户端和服务端的模组。
-本模组支持 Minecraft 1.16+。官方构建版本支持 1.17.1，新的预处理目标通过 Fabric API 0.92.5+1.20.1 支持 1.20.1。
-它专为 [Minecraft Fabric](https://fabricmc.net/) 制作，依赖 [Litematica 和 Malilib](https://masa.dy.fi/mcmods/client_mods/) 来提供所有客户端功能。在报告 Syncmatica_r 的功能问题时，请确保已更新 Litematica、Malilib 和其他可能冲突的模组（如 Multiconnect）:)
-
 ### 客户端安装
 
 首先需要安装 Fabric，并将 Litematica 和 Malilib 模组添加到客户端。然后将 Syncmatica_r 模组文件放入 mods 文件夹即可开始使用。

@@ -24,15 +24,6 @@ Syncmatica_r is a mod which aims to mod into litematica so that schematics and t
 Syncmatica_r is a mod that gives its users a lot of power and can have consequences for the server. Only use this mod if
 you feel confident that your users won't abuse it too heavily.
 
-## Setup
-
-Syncmatica_r is a mod for both Minecraft client and server.
-The mod works for Minecraft 1.16+. Official builds cover 1.17.1 and new preprocessed targets include 1.20.1 via Fabric API 0.92.5+1.20.1.
-It's made for [Minecraft Fabric](https://fabricmc.net/). It relies
-on [litematica and malilib](https://masa.dy.fi/mcmods/client_mods/) to provide all client features. Please make sure to
-update litematica, malilib and other potentially conflicting mods like Multiconnect before making a bug report about
-Syncmatica_r's functionality :)
-
 ### Client
 
 You first need to install fabric and add the litematica and malilib mods to your client. The next step is to move the
