@@ -5,7 +5,7 @@ import cn.net.rms.syncmatica_r.Feature;
 import cn.net.rms.syncmatica_r.ServerPlacement;
 import cn.net.rms.syncmatica_r.communication.exchange.DownloadExchange;
 import cn.net.rms.syncmatica_r.communication.exchange.Exchange;
-import ch.endte.syncmatica.extended_core.PlayerIdentifier;
+import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifierProvider;
 import cn.net.rms.syncmatica_r.extended_core.SubRegionData;
 import cn.net.rms.syncmatica_r.extended_core.SubRegionPlacementModification;
@@ -210,9 +210,9 @@ public abstract class CommunicationManager {
             buf.writeInt(entry.getRequiredAmount());
             buf.writeInt(entry.getStockingSupplied());
             if (sendClaims) {
-                final java.util.Collection<ch.endte.syncmatica.extended_core.PlayerIdentifier> claimers = entry.getClaimants();
+                final java.util.Collection<cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier> claimers = entry.getClaimants();
                 buf.writeInt(claimers.size());
-                for (final ch.endte.syncmatica.extended_core.PlayerIdentifier p : claimers) {
+                for (final cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier p : claimers) {
                     buf.writeUuid(p.uuid);
                     buf.writeString(p.getName());
                 }

@@ -5,7 +5,7 @@ import cn.net.rms.syncmatica_r.Feature;
 import cn.net.rms.syncmatica_r.ServerPlacement;
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
 import cn.net.rms.syncmatica_r.communication.PacketType;
-import ch.endte.syncmatica.communication.exchange.ShareLitematicExchange;
+import cn.net.rms.syncmatica_r.communication.exchange.ShareLitematicExchange;
 import cn.net.rms.syncmatica_r.litematica.LitematicManager;
 import cn.net.rms.syncmatica_r.litematica.ScreenHelper;
 import fi.dy.masa.litematica.schematic.placement.SchematicPlacement;

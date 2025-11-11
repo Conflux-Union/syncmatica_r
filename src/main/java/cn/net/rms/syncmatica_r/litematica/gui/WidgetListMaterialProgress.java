@@ -18,18 +18,32 @@ public class WidgetListMaterialProgress extends WidgetListBase<SyncmaticaMateria
 
     private static final int TOTALS_SECTION_HEIGHT = 18;
     private static final int TOTALS_PADDING_X = 6;
+
     private final ServerPlacement placement;
+    // Preserve the overall widget height so the totals bar can sit outside the scroll region.
+    private int widgetHeight;
+
 
     public WidgetListMaterialProgress(final int x, final int y, final int width, final int height, final ServerPlacement placement) {
         super(x, y, width, height, null);
         browserEntryHeight = 20;
-        browserEntryWidth = width - 8;
-        browserWidth = width;
-        browserHeight = height;
         this.placement = placement;
-        browserEntriesOffsetY = 18;
+        configureBrowserBounds(width, height);
     }
 
+    @Override
+    public void setSize(final int width, final int height) {
+        super.setSize(width, height);
+        configureBrowserBounds(width, height);
+    }
+
+    private void configureBrowserBounds(final int width, final int height) {
+        widgetHeight = height;
+        browserEntryWidth = width - 8;
+        browserWidth = width;
+        browserEntriesOffsetY = 18;
+        browserHeight = Math.max(browserEntriesOffsetY + 1, height - TOTALS_SECTION_HEIGHT);
+    }
 //#if MC >= 12001
 //$$     @Override
 //$$     public void drawContents(final DrawContext drawContext, final int mouseX, final int mouseY, final float partialTicks) {
@@ -172,9 +186,10 @@ public class WidgetListMaterialProgress extends WidgetListBase<SyncmaticaMateria
     // Clamp footer so short panes still show the summary cleanly.
     private int getTotalsSectionTop() {
         final int headerBottom = posY + browserEntriesOffsetY;
-        final int rawTop = posY + browserHeight - TOTALS_SECTION_HEIGHT;
+        final int rawTop = posY + widgetHeight - TOTALS_SECTION_HEIGHT;
         return Math.max(rawTop, headerBottom + 1);
     }
+
 
     // Shield the footer from clicks so hidden rows stay unselectable.
     private boolean isInTotalsArea(final int mouseX, final int mouseY) {

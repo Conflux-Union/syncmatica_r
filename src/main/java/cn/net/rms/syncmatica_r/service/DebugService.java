@@ -1,7 +1,7 @@
 package cn.net.rms.syncmatica_r.service;
 
 import cn.net.rms.syncmatica_r.Syncmatica;
-import ch.endte.syncmatica.service.IServiceConfiguration;
+import cn.net.rms.syncmatica_r.service.IServiceConfiguration;
 import net.minecraft.util.Identifier;
 import org.apache.logging.log4j.LogManager;
 

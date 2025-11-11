@@ -1,4 +1,4 @@
-package ch.endte.syncmatica.litematica.gui;
+package cn.net.rms.syncmatica_r.litematica.gui;
 
 import cn.net.rms.syncmatica_r.litematica.gui.IButtonType;
 import fi.dy.masa.malilib.gui.button.IButtonActionListener;

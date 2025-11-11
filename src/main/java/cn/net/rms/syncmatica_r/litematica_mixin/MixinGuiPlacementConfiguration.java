@@ -8,7 +8,7 @@ import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
 import cn.net.rms.syncmatica_r.communication.exchange.ModifyExchangeClient;
 import cn.net.rms.syncmatica_r.litematica.LitematicManager;
 import cn.net.rms.syncmatica_r.litematica.ScreenHelper;
-import ch.endte.syncmatica.litematica_mixin.MixinGuiBase;
+import cn.net.rms.syncmatica_r.litematica_mixin.MixinGuiBase;
 import fi.dy.masa.litematica.gui.GuiPlacementConfiguration;
 import fi.dy.masa.litematica.schematic.placement.SchematicPlacement;
 import fi.dy.masa.malilib.gui.GuiBase;

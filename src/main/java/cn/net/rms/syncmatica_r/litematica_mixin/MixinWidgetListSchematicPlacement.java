@@ -1,4 +1,4 @@
-package ch.endte.syncmatica.litematica_mixin;
+package cn.net.rms.syncmatica_r.litematica_mixin;
 
 import cn.net.rms.syncmatica_r.ServerPlacement;
 import cn.net.rms.syncmatica_r.litematica.ScreenHelper;

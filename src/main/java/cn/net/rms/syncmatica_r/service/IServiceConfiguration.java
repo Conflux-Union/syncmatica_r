@@ -1,4 +1,4 @@
-package ch.endte.syncmatica.service;
+package cn.net.rms.syncmatica_r.service;
 
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;

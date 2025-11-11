@@ -1,7 +1,7 @@
 package cn.net.rms.syncmatica_r.material;
 
 import cn.net.rms.syncmatica_r.ServerPosition;
-import ch.endte.syncmatica.material.DeliveryPosition;
+import cn.net.rms.syncmatica_r.material.DeliveryPosition;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -24,7 +24,7 @@ public class SyncmaticaMaterialList {
             snapshot.setStockingSupplied(entry.getStockingSupplied());
 
             final java.util.List<String> names = new java.util.ArrayList<>();
-            for (final ch.endte.syncmatica.extended_core.PlayerIdentifier p : entry.getClaimants()) {
+            for (final cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier p : entry.getClaimants()) {
                 names.add(p.getName());
             }
             snapshot.setClaimers(names);

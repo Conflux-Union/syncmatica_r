@@ -3,7 +3,7 @@ package cn.net.rms.syncmatica_r.extended_core;
 import cn.net.rms.syncmatica_r.Context;
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
 import cn.net.rms.syncmatica_r.communication.ServerCommunicationManager;
-import ch.endte.syncmatica.extended_core.PlayerIdentifier;
+import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
 import com.google.gson.JsonObject;
 import com.mojang.authlib.GameProfile;
 

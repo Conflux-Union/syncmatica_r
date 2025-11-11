@@ -1,4 +1,4 @@
-package ch.endte.syncmatica.communication.exchange;
+package cn.net.rms.syncmatica_r.communication.exchange;
 
 import cn.net.rms.syncmatica_r.Context;
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;

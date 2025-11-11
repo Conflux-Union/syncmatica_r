@@ -2,7 +2,7 @@ package cn.net.rms.syncmatica_r.litematica_mixin;
 
 import cn.net.rms.syncmatica_r.litematica.IIDContainer;
 import cn.net.rms.syncmatica_r.litematica.LitematicManager;
-import ch.endte.syncmatica.litematica.MovingFinisher;
+import cn.net.rms.syncmatica_r.litematica.MovingFinisher;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import fi.dy.masa.litematica.schematic.LitematicaSchematic;

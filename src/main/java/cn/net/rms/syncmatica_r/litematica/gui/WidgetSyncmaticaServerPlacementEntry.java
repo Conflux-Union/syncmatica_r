@@ -8,7 +8,7 @@ import cn.net.rms.syncmatica_r.communication.ClientCommunicationManager;
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
 import cn.net.rms.syncmatica_r.communication.PacketType;
 import cn.net.rms.syncmatica_r.litematica.LitematicManager;
-import ch.endte.syncmatica.litematica.gui.BaseButtonType;
+import cn.net.rms.syncmatica_r.litematica.gui.BaseButtonType;
 import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.gui.button.ButtonBase;
 import fi.dy.masa.malilib.gui.button.ButtonGeneric;

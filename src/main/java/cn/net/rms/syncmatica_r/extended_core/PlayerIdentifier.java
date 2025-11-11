@@ -1,4 +1,4 @@
-package ch.endte.syncmatica.extended_core;
+package cn.net.rms.syncmatica_r.extended_core;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;

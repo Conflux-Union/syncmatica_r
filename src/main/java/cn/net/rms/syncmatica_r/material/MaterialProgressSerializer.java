@@ -1,6 +1,6 @@
 package cn.net.rms.syncmatica_r.material;
 
-import ch.endte.syncmatica.extended_core.PlayerIdentifier;
+import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;

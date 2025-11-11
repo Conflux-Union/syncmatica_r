@@ -1,6 +1,6 @@
 package cn.net.rms.syncmatica_r;
 
-import ch.endte.syncmatica.extended_core.PlayerIdentifier;
+import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
 import cn.net.rms.syncmatica_r.extended_core.SubRegionData;
 import cn.net.rms.syncmatica_r.material.*;
 import cn.net.rms.syncmatica_r.util.SyncmaticaUtil;
@@ -207,7 +207,7 @@ public class ServerPlacement {
             final MaterialProgressEntry target = materialProgress.getOrCreate(entry.getKey(), entry.getRequiredAmount());
             target.setStockingSupplied(entry.getStockingSupplied());
             target.clearClaimants();
-            for (final ch.endte.syncmatica.extended_core.PlayerIdentifier p : entry.getClaimants()) {
+            for (final cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier p : entry.getClaimants()) {
                 target.addClaimer(p);
             }
         });

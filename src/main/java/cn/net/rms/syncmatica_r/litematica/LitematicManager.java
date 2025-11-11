@@ -1,12 +1,12 @@
 package cn.net.rms.syncmatica_r.litematica;
 
 import cn.net.rms.syncmatica_r.*;
-import ch.endte.syncmatica.extended_core.PlayerIdentifier;
+import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
 import cn.net.rms.syncmatica_r.extended_core.SubRegionData;
 import cn.net.rms.syncmatica_r.extended_core.SubRegionPlacementModification;
-import ch.endte.syncmatica.litematica.MovingFinisher;
-import ch.endte.syncmatica.litematica_mixin.MixinSchematicPlacementManager;
-import ch.endte.syncmatica.litematica_mixin.MixinSubregionPlacement;
+import cn.net.rms.syncmatica_r.litematica.MovingFinisher;
+import cn.net.rms.syncmatica_r.litematica_mixin.MixinSchematicPlacementManager;
+import cn.net.rms.syncmatica_r.litematica_mixin.MixinSubregionPlacement;
 import fi.dy.masa.litematica.data.DataManager;
 import fi.dy.masa.litematica.data.SchematicHolder;
 import fi.dy.masa.litematica.schematic.LitematicaSchematic;

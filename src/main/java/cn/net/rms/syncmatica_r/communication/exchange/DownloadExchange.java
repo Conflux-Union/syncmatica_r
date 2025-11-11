@@ -3,7 +3,7 @@ package cn.net.rms.syncmatica_r.communication.exchange;
 import cn.net.rms.syncmatica_r.Context;
 import cn.net.rms.syncmatica_r.ServerPlacement;
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
-import ch.endte.syncmatica.communication.MessageType;
+import cn.net.rms.syncmatica_r.communication.MessageType;
 import cn.net.rms.syncmatica_r.communication.PacketType;
 import cn.net.rms.syncmatica_r.communication.ServerCommunicationManager;
 import io.netty.buffer.Unpooled;

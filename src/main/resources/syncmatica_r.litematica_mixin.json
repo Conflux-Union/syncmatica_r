@@ -6,16 +6,16 @@
   "mixins": [],
   "client": [
     "MixinGuiMainMenu",
-    "ch.endte.syncmatica_r.litematica_mixin.MixinWidgetListSchematicPlacement",
+    "MixinWidgetListSchematicPlacement",
     "MixinSchematicPlacement",
     "MixinWidgetSchematicPlacement",
-    "ch.endte.syncmatica_r.litematica_mixin.MixinGuiBase",
+    "MixinGuiBase",
     "MixinSchematicHolder",
-    "ch.endte.syncmatica_r.litematica_mixin.MixinButtonBase",
+    "MixinButtonBase",
     "MixinWidgetSchematicPlacement",
     "MixinGuiPlacementConfiguration",
-    "ch.endte.syncmatica_r.litematica_mixin.MixinSubregionPlacement",
-    "ch.endte.syncmatica_r.litematica_mixin.MixinSchematicPlacementManager"
+    "MixinSubregionPlacement",
+    "MixinSchematicPlacementManager"
   ],
   "server": [],
   "injectors": {
