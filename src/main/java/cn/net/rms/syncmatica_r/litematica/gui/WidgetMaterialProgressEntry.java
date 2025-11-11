@@ -51,7 +51,7 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
 //#endif
     ) {
 
-        RenderUtils.drawRect(x, y, width, height, listIndex % 2 == 0 ? 0x20FFFFFF : 0x10FFFFFF);
+        RenderUtils.drawRect(x, y, width, height, resolveBaseBackgroundColor());
 
         final SyncmaticaMaterialEntry material = resolveCurrentEntry();
 
@@ -135,7 +135,8 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
 
         final int blankLeft = nameX + getStringWidth(displayName) + 6;
         final int blankRight = requiredColumnRight - 6;
-        if (mouseX >= blankLeft && mouseX <= blankRight && mouseY >= rowTop && mouseY <= rowBottom) {
+        if (shouldRenderClaimTooltip(material) && mouseX >= blankLeft && mouseX <= blankRight
+                && mouseY >= rowTop && mouseY <= rowBottom) {
             final net.minecraft.client.gui.screen.Screen screen = net.minecraft.client.MinecraftClient.getInstance().currentScreen;
             if (screen != null) {
                 final java.util.List<net.minecraft.text.Text> lines = new java.util.ArrayList<>();
@@ -164,6 +165,10 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
 //#endif
             }
         }
+    }
+
+    protected boolean shouldRenderClaimTooltip(final SyncmaticaMaterialEntry material) {
+        return true;
     }
 
     public boolean mouseClicked(final int mouseX, final int mouseY, final int mouseButton) {
@@ -301,6 +306,10 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         return fi.dy.masa.malilib.util.StringUtils.translate(
                 "syncmatica_r.gui.label.material.missing.short.total", totalMissing
         );
+    }
+
+    protected int resolveBaseBackgroundColor() {
+        return listIndex % 2 == 0 ? 0x20FFFFFF : 0x10FFFFFF;
     }
 
     private net.minecraft.text.Text literal(final String text) {

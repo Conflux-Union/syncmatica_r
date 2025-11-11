@@ -57,7 +57,7 @@ public class WidgetListStockingAreaMaterial extends WidgetListBase<
         final List<StockingAreaGroup> groups = groupPlacements(placements);
         for (final StockingAreaGroup group : groups) {
             // Headers separate each stocking area bucket.
-            cachedRows.add(WidgetStockingAreaMaterialEntry.RowData.header(group.displayName));
+            cachedRows.add(WidgetStockingAreaMaterialEntry.RowData.header(group.toSummary()));
             group.placements.sort(Comparator.comparing(ServerPlacement::getName, String.CASE_INSENSITIVE_ORDER));
             for (final ServerPlacement placement : group.placements) {
                 final boolean highlight = focusPlacementId != null && focusPlacementId.equals(placement.getId());
@@ -107,6 +107,10 @@ public class WidgetListStockingAreaMaterial extends WidgetListBase<
 
         private int order() {
             return key.isDefault ? 0 : 1;
+        }
+
+        private WidgetStockingAreaMaterialEntry.StockingAreaSummary toSummary() {
+            return new WidgetStockingAreaMaterialEntry.StockingAreaSummary(displayName, placements);
         }
     }
 

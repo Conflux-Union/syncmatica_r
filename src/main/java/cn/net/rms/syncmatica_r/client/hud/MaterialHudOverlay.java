@@ -26,7 +26,9 @@ import net.minecraft.util.registry.Registry;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -121,7 +123,7 @@ public final class MaterialHudOverlay implements HudRenderCallback {
     }
 
     private List<Row> buildRows(final String playerName) {
-        final List<SyncmaticaMaterialEntry> entries = new ArrayList<>();
+        final Map<MaterialKey, Aggregate> aggregates = new HashMap<>();
         for (final ServerPlacement placement : context.getSyncmaticManager().getAll()) {
             for (final SyncmaticaMaterialEntry entry : placement.getMaterialList().getEntries()) {
                 if (entry == null) {
@@ -136,20 +138,27 @@ public final class MaterialHudOverlay implements HudRenderCallback {
                 if (!entry.getClaimers().contains(playerName)) {
                     continue;
                 }
-                entries.add(entry);
+                final MaterialKey key = entry.getKey();
+                final int missing = entry.getAmountMissing();
+                if (missing <= 0) {
+                    continue;
+                }
+                final ItemStack stack = resolveDisplayStack(key);
+                final Aggregate aggregate = aggregates.computeIfAbsent(key,
+                        ignored -> new Aggregate(stack, resolveDisplayName(entry, stack)));
+                aggregate.addMissing(missing);
             }
         }
-        entries.sort(Comparator.comparingInt(SyncmaticaMaterialEntry::getAmountMissing).reversed());
-        final List<Row> snapshot = new ArrayList<>(Math.min(entries.size(), MAX_ROWS));
+        final List<Aggregate> sorted = new ArrayList<>(aggregates.values());
+        sorted.sort(Comparator.comparingInt(Aggregate::getTotalMissing).reversed());
+        final List<Row> snapshot = new ArrayList<>(Math.min(sorted.size(), MAX_ROWS));
         int index = 0;
-        for (final SyncmaticaMaterialEntry entry : entries) {
+        for (final Aggregate aggregate : sorted) {
             if (index >= MAX_ROWS) {
                 break;
             }
-            final ItemStack stack = resolveDisplayStack(entry.getKey());
-            final String name = resolveDisplayName(entry, stack);
-            final String missingText = formatMissingVerboseText(entry, stack);
-            snapshot.add(new Row(stack, name, missingText));
+            final String missingText = formatMissingVerboseText(aggregate.getTotalMissing(), aggregate.stack);
+            snapshot.add(new Row(aggregate.stack, aggregate.name, missingText));
             index++;
         }
         return snapshot;
@@ -299,7 +308,10 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         if (entry == null) {
             return "0";
         }
-        final int totalMissing = Math.max(0, entry.getAmountMissing());
+        return formatMissingVerboseText(Math.max(0, entry.getAmountMissing()), stack);
+    }
+
+    private String formatMissingVerboseText(final int totalMissing, final ItemStack stack) {
         final int stackSize = stack.isEmpty() ? 64 : Math.max(1, stack.getMaxCount());
         final int perBox = 27 * stackSize;
         final int boxes = totalMissing / perBox;
@@ -352,6 +364,25 @@ public final class MaterialHudOverlay implements HudRenderCallback {
 
         private String missingText() {
             return missingText;
+        }
+    }
+
+    private static final class Aggregate {
+        private final ItemStack stack;
+        private final String name;
+        private int totalMissing;
+
+        private Aggregate(final ItemStack stack, final String name) {
+            this.stack = stack.copy();
+            this.name = name;
+        }
+
+        private void addMissing(final int missing) {
+            totalMissing += Math.max(0, missing);
+        }
+
+        private int getTotalMissing() {
+            return totalMissing;
         }
     }
 }
