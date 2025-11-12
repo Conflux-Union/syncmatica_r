@@ -18,9 +18,11 @@ import net.minecraft.client.util.math.MatrixStack;
 //$$ import net.minecraft.client.gui.DrawContext;
 //$$ import net.minecraft.text.Text;
 //#endif
+import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.registry.Registry;
 
 import java.util.ArrayList;
@@ -50,6 +52,8 @@ public final class MaterialHudOverlay implements HudRenderCallback {
     private String header = null;
     private boolean needsRefresh;
     private double hudScale = 1.0d;
+    private int lastInventoryFingerprint;
+    private boolean inventoryFingerprintInitialized;
 
     private MaterialHudOverlay() {
     }
@@ -100,6 +104,8 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         rows = Collections.emptyList();
         header = null;
         needsRefresh = false;
+        inventoryFingerprintInitialized = false;
+        lastInventoryFingerprint = 0;
     }
 
     // Snapshot rows are rebuilt lazily to avoid per-frame churn.
@@ -124,6 +130,7 @@ public final class MaterialHudOverlay implements HudRenderCallback {
 
     private List<Row> buildRows(final String playerName) {
         final Map<MaterialKey, Aggregate> aggregates = new HashMap<>();
+        final Map<MaterialKey, Integer> playerInventoryTotals = buildPlayerInventoryTotals();
         for (final ServerPlacement placement : context.getSyncmaticManager().getAll()) {
             for (final SyncmaticaMaterialEntry entry : placement.getMaterialList().getEntries()) {
                 if (entry == null) {
@@ -145,23 +152,109 @@ public final class MaterialHudOverlay implements HudRenderCallback {
                 }
                 final ItemStack stack = resolveDisplayStack(key);
                 final Aggregate aggregate = aggregates.computeIfAbsent(key,
-                        ignored -> new Aggregate(stack, resolveDisplayName(entry, stack)));
+                        ignored -> new Aggregate(key, stack, resolveDisplayName(entry, stack)));
                 aggregate.addMissing(missing);
             }
         }
         final List<Aggregate> sorted = new ArrayList<>(aggregates.values());
-        sorted.sort(Comparator.comparingInt(Aggregate::getTotalMissing).reversed());
+        sorted.removeIf(aggregate -> aggregate.applyInventoryOffset(playerInventoryTotals
+                .getOrDefault(aggregate.getKey(), 0)) <= 0);
+        sorted.sort(Comparator.comparingInt(Aggregate::getEffectiveMissing).reversed());
         final List<Row> snapshot = new ArrayList<>(Math.min(sorted.size(), MAX_ROWS));
         int index = 0;
         for (final Aggregate aggregate : sorted) {
             if (index >= MAX_ROWS) {
                 break;
             }
-            final String missingText = formatMissingVerboseText(aggregate.getTotalMissing(), aggregate.stack);
+            final String missingText = formatMissingVerboseText(aggregate.getEffectiveMissing(), aggregate.stack);
             snapshot.add(new Row(aggregate.stack, aggregate.name, missingText));
             index++;
         }
         return snapshot;
+    }
+
+    private void observeInventoryFingerprint() {
+        final Integer fingerprint = computeInventoryFingerprint();
+        if (fingerprint == null) {
+            if (inventoryFingerprintInitialized) {
+                inventoryFingerprintInitialized = false;
+                needsRefresh = true;
+            }
+            return;
+        }
+        if (!inventoryFingerprintInitialized || fingerprint != lastInventoryFingerprint) {
+            lastInventoryFingerprint = fingerprint;
+            inventoryFingerprintInitialized = true;
+            needsRefresh = true;
+        }
+    }
+
+    private Integer computeInventoryFingerprint() {
+        final MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.player == null) {
+            return null;
+        }
+        final PlayerInventory inventory = client.player.getInventory();
+        if (inventory == null) {
+            return null;
+        }
+        int fingerprint = 1;
+        fingerprint = accumulateFingerprint(inventory.main, fingerprint);
+        fingerprint = accumulateFingerprint(inventory.offHand, fingerprint);
+        return fingerprint;
+    }
+
+    private Map<MaterialKey, Integer> buildPlayerInventoryTotals() {
+        final MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.player == null) {
+            return Collections.emptyMap();
+        }
+        final PlayerInventory inventory = client.player.getInventory();
+        if (inventory == null) {
+            return Collections.emptyMap();
+        }
+        final Map<MaterialKey, Integer> totals = new HashMap<>();
+        accumulateStacks(inventory.main, totals);
+        accumulateStacks(inventory.offHand, totals);
+        return totals;
+    }
+
+    private void accumulateStacks(final Iterable<ItemStack> stacks, final Map<MaterialKey, Integer> totals) {
+        if (stacks == null) {
+            return;
+        }
+        for (final ItemStack stack : stacks) {
+            if (stack == null || stack.isEmpty()) {
+                continue;
+            }
+            final Item item = stack.getItem();
+            if (item == Items.AIR) {
+                continue;
+            }
+            final Identifier itemId = Registry.ITEM.getId(item);
+            if (itemId == null) {
+                continue;
+            }
+            totals.merge(new MaterialKey(itemId, ""), stack.getCount(), Integer::sum);
+        }
+    }
+
+    private int accumulateFingerprint(final Iterable<ItemStack> stacks, final int seed) {
+        int fingerprint = seed;
+        if (stacks == null) {
+            return fingerprint;
+        }
+        for (final ItemStack stack : stacks) {
+            if (stack == null || stack.isEmpty()) {
+                fingerprint = 31 * fingerprint;
+                continue;
+            }
+            final Item item = stack.getItem();
+            final Identifier itemId = item == Items.AIR ? null : Registry.ITEM.getId(item);
+            fingerprint = 31 * fingerprint + (itemId == null ? 0 : itemId.hashCode());
+            fingerprint = 31 * fingerprint + stack.getCount();
+        }
+        return fingerprint;
     }
 
     private String resolvePlayerName() {
@@ -202,6 +295,7 @@ public final class MaterialHudOverlay implements HudRenderCallback {
 //#endif
 
     private void render(final MatrixStack matrices, final Object drawContext) {
+        observeInventoryFingerprint();
         if (needsRefresh) {
             refreshSnapshot();
         }
@@ -368,21 +462,34 @@ public final class MaterialHudOverlay implements HudRenderCallback {
     }
 
     private static final class Aggregate {
+        private final MaterialKey key;
         private final ItemStack stack;
         private final String name;
         private int totalMissing;
+        private int effectiveMissing;
 
-        private Aggregate(final ItemStack stack, final String name) {
+        private Aggregate(final MaterialKey key, final ItemStack stack, final String name) {
+            this.key = key;
             this.stack = stack.copy();
             this.name = name;
+            this.effectiveMissing = 0;
         }
 
         private void addMissing(final int missing) {
             totalMissing += Math.max(0, missing);
         }
 
-        private int getTotalMissing() {
-            return totalMissing;
+        private int applyInventoryOffset(final int inventoryCount) {
+            effectiveMissing = Math.max(0, totalMissing - Math.max(0, inventoryCount));
+            return effectiveMissing;
+        }
+
+        private int getEffectiveMissing() {
+            return effectiveMissing;
+        }
+
+        private MaterialKey getKey() {
+            return key;
         }
     }
 }
