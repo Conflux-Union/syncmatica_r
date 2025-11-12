@@ -19,9 +19,13 @@ import net.minecraft.client.util.math.MatrixStack;
 //$$ import net.minecraft.text.Text;
 //#endif
 import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.registry.Registry;
 
@@ -224,18 +228,76 @@ public final class MaterialHudOverlay implements HudRenderCallback {
             return;
         }
         for (final ItemStack stack : stacks) {
-            if (stack == null || stack.isEmpty()) {
+            accumulateStack(stack, totals);
+        }
+    }
+
+    private void accumulateStack(final ItemStack stack, final Map<MaterialKey, Integer> totals) {
+        if (stack == null || stack.isEmpty()) {
+            return;
+        }
+        final Item item = stack.getItem();
+        if (item == null || item == Items.AIR) {
+            return;
+        }
+        final Identifier itemId = Registry.ITEM.getId(item);
+        if (itemId == null) {
+            return;
+        }
+        totals.merge(new MaterialKey(itemId, ""), stack.getCount(), Integer::sum);
+        if (!(item instanceof BlockItem)) {
+            return;
+        }
+        final NbtCompound nbt = stack.getNbt();
+        if (nbt == null || !nbt.contains("BlockEntityTag", NbtElement.COMPOUND_TYPE)) {
+            return;
+        }
+        final NbtCompound blockEntityTag = nbt.getCompound("BlockEntityTag");
+        if (!blockEntityTag.contains("Items", NbtElement.LIST_TYPE)) {
+            return;
+        }
+        accumulateContainedItems(blockEntityTag.getList("Items", NbtElement.COMPOUND_TYPE), totals);
+    }
+
+    private void accumulateContainedItems(final NbtList itemsNbt, final Map<MaterialKey, Integer> totals) {
+        for (int i = 0; i < itemsNbt.size(); i++) {
+            final NbtCompound itemNbt = itemsNbt.getCompound(i);
+            if (!itemNbt.contains("id", NbtElement.STRING_TYPE)) {
                 continue;
             }
-            final Item item = stack.getItem();
+            final String id = itemNbt.getString("id");
+            if (id == null || id.isEmpty()) {
+                continue;
+            }
+            final Identifier itemId;
+            try {
+                itemId = new Identifier(id);
+            } catch (final Exception ex) {
+                continue;
+            }
+            final Item item = Registry.ITEM.get(itemId);
             if (item == Items.AIR) {
                 continue;
             }
-            final Identifier itemId = Registry.ITEM.getId(item);
-            if (itemId == null) {
+            final int count = itemNbt.contains("Count", NbtElement.NUMBER_TYPE)
+                    ? itemNbt.getByte("Count") & 0xFF
+                    : 0;
+            if (count <= 0) {
                 continue;
             }
-            totals.merge(new MaterialKey(itemId, ""), stack.getCount(), Integer::sum);
+            totals.merge(new MaterialKey(itemId, ""), count, Integer::sum);
+            if (!itemNbt.contains("tag", NbtElement.COMPOUND_TYPE)) {
+                continue;
+            }
+            final NbtCompound tag = itemNbt.getCompound("tag");
+            if (!tag.contains("BlockEntityTag", NbtElement.COMPOUND_TYPE)) {
+                continue;
+            }
+            final NbtCompound blockEntityTag = tag.getCompound("BlockEntityTag");
+            if (!blockEntityTag.contains("Items", NbtElement.LIST_TYPE)) {
+                continue;
+            }
+            accumulateContainedItems(blockEntityTag.getList("Items", NbtElement.COMPOUND_TYPE), totals);
         }
     }
 
@@ -245,14 +307,62 @@ public final class MaterialHudOverlay implements HudRenderCallback {
             return fingerprint;
         }
         for (final ItemStack stack : stacks) {
-            if (stack == null || stack.isEmpty()) {
-                fingerprint = 31 * fingerprint;
+            fingerprint = accumulateStackFingerprint(stack, fingerprint);
+        }
+        return fingerprint;
+    }
+
+    private int accumulateStackFingerprint(final ItemStack stack, final int seed) {
+        int fingerprint = seed;
+        if (stack == null || stack.isEmpty()) {
+            return 31 * fingerprint;
+        }
+        final Item item = stack.getItem();
+        final Identifier itemId = item == Items.AIR ? null : Registry.ITEM.getId(item);
+        fingerprint = 31 * fingerprint + (itemId == null ? 0 : itemId.hashCode());
+        fingerprint = 31 * fingerprint + stack.getCount();
+        if (!(item instanceof BlockItem)) {
+            return fingerprint;
+        }
+        final NbtCompound nbt = stack.getNbt();
+        if (nbt == null || !nbt.contains("BlockEntityTag", NbtElement.COMPOUND_TYPE)) {
+            return fingerprint;
+        }
+        final NbtCompound blockEntityTag = nbt.getCompound("BlockEntityTag");
+        if (!blockEntityTag.contains("Items", NbtElement.LIST_TYPE)) {
+            return fingerprint;
+        }
+        return accumulateFingerprintFromNbt(blockEntityTag.getList("Items", NbtElement.COMPOUND_TYPE), fingerprint);
+    }
+
+    private int accumulateFingerprintFromNbt(final NbtList itemsNbt, final int seed) {
+        int fingerprint = seed;
+        for (int i = 0; i < itemsNbt.size(); i++) {
+            final NbtCompound itemNbt = itemsNbt.getCompound(i);
+            final String id = itemNbt.contains("id", NbtElement.STRING_TYPE) ? itemNbt.getString("id") : "";
+            final Identifier itemId;
+            try {
+                itemId = id.isEmpty() ? null : new Identifier(id);
+            } catch (final Exception ex) {
                 continue;
             }
-            final Item item = stack.getItem();
-            final Identifier itemId = item == Items.AIR ? null : Registry.ITEM.getId(item);
+            final int count = itemNbt.contains("Count", NbtElement.NUMBER_TYPE)
+                    ? itemNbt.getByte("Count") & 0xFF
+                    : 0;
             fingerprint = 31 * fingerprint + (itemId == null ? 0 : itemId.hashCode());
-            fingerprint = 31 * fingerprint + stack.getCount();
+            fingerprint = 31 * fingerprint + count;
+            if (!itemNbt.contains("tag", NbtElement.COMPOUND_TYPE)) {
+                continue;
+            }
+            final NbtCompound tag = itemNbt.getCompound("tag");
+            if (!tag.contains("BlockEntityTag", NbtElement.COMPOUND_TYPE)) {
+                continue;
+            }
+            final NbtCompound blockEntityTag = tag.getCompound("BlockEntityTag");
+            if (!blockEntityTag.contains("Items", NbtElement.LIST_TYPE)) {
+                continue;
+            }
+            fingerprint = accumulateFingerprintFromNbt(blockEntityTag.getList("Items", NbtElement.COMPOUND_TYPE), fingerprint);
         }
         return fingerprint;
     }
