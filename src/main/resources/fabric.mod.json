@@ -9,7 +9,7 @@
     "samipourquoi"
   ],
   "contact": {
-    "sources": "https://github.com/endtech/syncmatica_r"
+    "sources": "https://github.com/RMS-Server/syncmatica_r"
   },
   "license": "CC0-1.0",
   "environment": "*",

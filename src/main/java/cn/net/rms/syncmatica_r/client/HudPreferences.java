@@ -18,6 +18,7 @@ public final class HudPreferences {
     private static final double DEFAULT_SCALE = 1.0d;
     private static final String FIELD_SCALE = "hud_scale";
     private static final File CONFIG_FILE = resolveConfigFile();
+    private static final File LEGACY_CONFIG_FILE = resolveLegacyConfigFile();
 
     private static double hudScale = DEFAULT_SCALE;
 
@@ -26,16 +27,26 @@ public final class HudPreferences {
 
     public static void load() {
         hudScale = DEFAULT_SCALE;
-        if (!CONFIG_FILE.exists()) {
+        File source = CONFIG_FILE;
+        boolean loadedFromLegacy = false;
+        if (!source.exists() && LEGACY_CONFIG_FILE.exists()) {
+            source = LEGACY_CONFIG_FILE;
+            loadedFromLegacy = true;
+        }
+        if (!source.exists()) {
             return;
         }
-        try (BufferedReader reader = new BufferedReader(new FileReader(CONFIG_FILE))) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(source))) {
             final JsonObject root = new Gson().fromJson(reader, JsonObject.class);
             if (root != null && root.has(FIELD_SCALE)) {
                 setHudScaleInternal(root.get(FIELD_SCALE).getAsDouble(), false);
             }
         } catch (final Exception ignored) {
             hudScale = DEFAULT_SCALE;
+            return;
+        }
+        if (loadedFromLegacy && !CONFIG_FILE.exists()) {
+            save();
         }
     }
 
@@ -93,10 +104,12 @@ public final class HudPreferences {
     private static File resolveConfigFile() {
         final File configRoot = new File("config");
         final File preferredFolder = new File(configRoot, Syncmatica.MOD_ID);
-        final File legacyFolder = new File(configRoot, Syncmatica.LEGACY_MOD_ID);
-        if (!preferredFolder.exists() && legacyFolder.exists()) {
-            return new File(legacyFolder, "hud_settings.json");
-        }
         return new File(preferredFolder, "hud_settings.json");
+    }
+
+    private static File resolveLegacyConfigFile() {
+        final File configRoot = new File("config");
+        final File legacyFolder = new File(configRoot, Syncmatica.LEGACY_MOD_ID);
+        return new File(legacyFolder, "hud_settings.json");
     }
 }
