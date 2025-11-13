@@ -218,7 +218,7 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         buf.writeUuid(placement.getId());
         buf.writeString(material.getKey().itemId().toString());
         buf.writeString(material.getKey().variant());
-        server.sendPacket(PacketType.MATERIAL_CLAIM_TOGGLE.identifier, buf, con);
+        server.sendPacket(PacketType.MATERIAL_CLAIM_TOGGLE.toIdentifier(server.getProtocolFlavor()), buf, con);
     }
 
     private SyncmaticaMaterialEntry resolveCurrentEntry() {

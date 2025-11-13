@@ -4,55 +4,81 @@ import net.minecraft.util.Identifier;
 
 public enum PacketType {
 
-    REGISTER_METADATA("syncmatica_r:register_metadata"),
+    REGISTER_METADATA("register_metadata"),
 
-    CANCEL_SHARE("syncmatica_r:cancel_share"),
+    CANCEL_SHARE("cancel_share"),
 
-    REQUEST_LITEMATIC("syncmatica_r:request_download"),
+    REQUEST_LITEMATIC("request_download"),
 
-    SEND_LITEMATIC("syncmatica_r:send_litematic"),
+    SEND_LITEMATIC("send_litematic"),
 
-    RECEIVED_LITEMATIC("syncmatica_r:received_litematic"),
+    RECEIVED_LITEMATIC("received_litematic"),
 
-    FINISHED_LITEMATIC("syncmatica_r:finished_litematic"),
+    FINISHED_LITEMATIC("finished_litematic"),
 
-    CANCEL_LITEMATIC("syncmatica_r:cancel_litematic"),
+    CANCEL_LITEMATIC("cancel_litematic"),
 
-    REMOVE_SYNCMATIC("syncmatica_r:remove_syncmatic"),
+    REMOVE_SYNCMATIC("remove_syncmatic"),
 
-    REGISTER_VERSION("syncmatica_r:register_version"),
+    REGISTER_VERSION("register_version"),
 
-    CONFIRM_USER("syncmatica_r:confirm_user"),
+    // Reforged-only capability announce from client to server
+    REVOLUTION("revolution"),
 
-    FEATURE_REQUEST("syncmatica_r:feature_request"),
+    CONFIRM_USER("confirm_user"),
 
-    FEATURE("syncmatica_r:feature"),
+    FEATURE_REQUEST("feature_request"),
 
-    MODIFY("syncmatica_r:modify"),
+    FEATURE("feature"),
 
-    MODIFY_REQUEST("syncmatica_r:modify_request"),
+    MODIFY("modify"),
 
-    MODIFY_REQUEST_DENY("syncmatica_r:modify_request_deny"),
-    MODIFY_REQUEST_ACCEPT("syncmatica_r:modify_request_accept"),
+    MODIFY_REQUEST("modify_request"),
 
-    MODIFY_FINISH("syncmatica_r:modify_finish"),
+    MODIFY_REQUEST_DENY("modify_request_deny"),
+    MODIFY_REQUEST_ACCEPT("modify_request_accept"),
 
-    MESSAGE("syncmatica_r:mesage"),
+    MODIFY_FINISH("modify_finish"),
 
-    MATERIAL_CLAIM_TOGGLE("syncmatica_r:material_claim_toggle");
+    MESSAGE("mesage"),
 
-    public final Identifier identifier;
+    MATERIAL_CLAIM_TOGGLE("material_claim_toggle");
 
-    PacketType(final String id) {
-        identifier = new Identifier(id);
+    private static final String NEW_NAMESPACE = "syncmatica_r";
+    private static final String LEGACY_NAMESPACE = "syncmatica";
+
+    private final String path;
+
+    PacketType(final String path) {
+        this.path = path;
+    }
+
+    public Identifier toIdentifier(final ProtocolFlavor flavor) {
+        final String namespace = flavor == ProtocolFlavor.LEGACY
+                ? LEGACY_NAMESPACE
+                : NEW_NAMESPACE;
+        return new Identifier(namespace, path);
+    }
+
+    public Identifier toIdentifier() {
+        return toIdentifier(ProtocolFlavor.NEW);
     }
 
     public static boolean containsIdentifier(final Identifier id) {
-        for (final PacketType p : PacketType.values()) {
-            if (id.equals(p.identifier)) {
-                return true;
+        return fromIdentifier(id) != null;
+    }
+
+    public static PacketType fromIdentifier(final Identifier id) {
+        final String namespace = id.getNamespace();
+        if (!NEW_NAMESPACE.equals(namespace) && !LEGACY_NAMESPACE.equals(namespace)) {
+            return null;
+        }
+        final String path = id.getPath();
+        for (final PacketType type : PacketType.values()) {
+            if (type.path.equals(path)) {
+                return type;
             }
         }
-        return false;
+        return null;
     }
 }

@@ -38,12 +38,13 @@ public class ClientCommunicationManager extends CommunicationManager {
 
     @Override
     protected void handle(final ExchangeTarget source, final Identifier id, final PacketByteBuf packetBuf) {
-        if (id.equals(PacketType.REGISTER_METADATA.identifier)) {
+        final PacketType type = PacketType.fromIdentifier(id);
+        if (type == PacketType.REGISTER_METADATA) {
             final ServerPlacement placement = receiveMetaData(packetBuf, source);
             context.getSyncmaticManager().addPlacement(placement);
             return;
         }
-        if (id.equals(PacketType.REMOVE_SYNCMATIC.identifier)) {
+        if (type == PacketType.REMOVE_SYNCMATIC) {
             final UUID placementId = packetBuf.readUuid();
             final ServerPlacement placement = context.getSyncmaticManager().getPlacement(placementId);
             if (placement != null) {
@@ -59,7 +60,7 @@ public class ClientCommunicationManager extends CommunicationManager {
             }
             return;
         }
-        if (id.equals(PacketType.MODIFY.identifier)) {
+        if (type == PacketType.MODIFY) {
             final UUID placementId = packetBuf.readUuid();
             final ServerPlacement toModify = context.getSyncmaticManager().getPlacement(placementId);
             receivePositionData(toModify, packetBuf, source);
@@ -81,13 +82,13 @@ public class ClientCommunicationManager extends CommunicationManager {
             }
             return;
         }
-        if (id.equals(PacketType.MESSAGE.identifier)) {
-            final Message.MessageType type = mapMessageType(MessageType.valueOf(packetBuf.readString(32767)));
+        if (type == PacketType.MESSAGE) {
+            final Message.MessageType guiType = mapMessageType(MessageType.valueOf(packetBuf.readString(32767)));
             final String text = packetBuf.readString(32767);
-            ScreenHelper.ifPresent(s -> s.addMessage(type, text));
+            ScreenHelper.ifPresent(s -> s.addMessage(guiType, text));
             return;
         }
-        if (id.equals(PacketType.REGISTER_VERSION.identifier)) {
+        if (type == PacketType.REGISTER_VERSION) {
             LitematicManager.clear();
             Syncmatica.restartClient();
             ActorClientPlayNetworkHandler.getInstance().packetEvent(id, packetBuf);

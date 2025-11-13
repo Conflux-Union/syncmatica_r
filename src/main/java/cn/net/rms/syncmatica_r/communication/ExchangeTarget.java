@@ -20,6 +20,7 @@ public class ExchangeTarget {
     private ClientPlayNetworkHandler server = null;
     private ServerPlayNetworkHandler client = null;
     private FeatureSet features;
+    private ProtocolFlavor protocolFlavor = ProtocolFlavor.LEGACY;
 
     public ExchangeTarget(final ClientPlayNetworkHandler server) {
         this.server = server;
@@ -48,6 +49,14 @@ public class ExchangeTarget {
 
     public void setFeatureSet(final FeatureSet f) {
         features = f;
+    }
+
+    public ProtocolFlavor getProtocolFlavor() {
+        return protocolFlavor;
+    }
+
+    public void setProtocolFlavor(final ProtocolFlavor flavor) {
+        protocolFlavor = flavor;
     }
 
     public Collection<Exchange> getExchanges() {

@@ -162,7 +162,7 @@ public class WidgetListStockingAreaMaterialTotals extends WidgetListBase<
             buf.writeUuid(placement.getId());
             buf.writeString(bucket.getKey().itemId().toString());
             buf.writeString(bucket.getKey().variant());
-            server.sendPacket(PacketType.MATERIAL_CLAIM_TOGGLE.identifier, buf, context);
+            server.sendPacket(PacketType.MATERIAL_CLAIM_TOGGLE.toIdentifier(server.getProtocolFlavor()), buf, context);
         }
         return true;
     }

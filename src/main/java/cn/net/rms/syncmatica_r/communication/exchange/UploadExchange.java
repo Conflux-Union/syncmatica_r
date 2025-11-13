@@ -26,8 +26,9 @@ public class UploadExchange extends AbstractExchange {
 
     @Override
     public boolean checkPacket(final Identifier id, final PacketByteBuf packetBuf) {
-        if (id.equals(PacketType.RECEIVED_LITEMATIC.identifier)
-                || id.equals(PacketType.CANCEL_LITEMATIC.identifier)) {
+        final PacketType type = PacketType.fromIdentifier(id);
+        if (type == PacketType.RECEIVED_LITEMATIC
+                || type == PacketType.CANCEL_LITEMATIC) {
             return checkUUID(packetBuf, toUpload.getId());
         }
         return false;
@@ -37,10 +38,11 @@ public class UploadExchange extends AbstractExchange {
     public void handle(final Identifier id, final PacketByteBuf packetBuf) {
 
         packetBuf.readUuid();
-        if (id.equals(PacketType.RECEIVED_LITEMATIC.identifier)) {
+        final PacketType type = PacketType.fromIdentifier(id);
+        if (type == PacketType.RECEIVED_LITEMATIC) {
             send();
         }
-        if (id.equals(PacketType.CANCEL_LITEMATIC.identifier)) {
+        if (type == PacketType.CANCEL_LITEMATIC) {
             close(false);
         }
     }
@@ -67,13 +69,13 @@ public class UploadExchange extends AbstractExchange {
         packetByteBuf.writeUuid(toUpload.getId());
         packetByteBuf.writeInt(bytesRead);
         packetByteBuf.writeBytes(buffer, 0, bytesRead);
-        getPartner().sendPacket(PacketType.SEND_LITEMATIC.identifier, packetByteBuf, getContext());
+        getPartner().sendPacket(PacketType.SEND_LITEMATIC.toIdentifier(getPartner().getProtocolFlavor()), packetByteBuf, getContext());
     }
 
     private void sendFinish() {
         final PacketByteBuf packetByteBuf = new PacketByteBuf(Unpooled.buffer());
         packetByteBuf.writeUuid(toUpload.getId());
-        getPartner().sendPacket(PacketType.FINISHED_LITEMATIC.identifier, packetByteBuf, getContext());
+        getPartner().sendPacket(PacketType.FINISHED_LITEMATIC.toIdentifier(getPartner().getProtocolFlavor()), packetByteBuf, getContext());
         succeed();
     }
 
@@ -95,7 +97,7 @@ public class UploadExchange extends AbstractExchange {
     protected void sendCancelPacket() {
         final PacketByteBuf packetByteBuf = new PacketByteBuf(Unpooled.buffer());
         packetByteBuf.writeUuid(toUpload.getId());
-        getPartner().sendPacket(PacketType.CANCEL_LITEMATIC.identifier, packetByteBuf, getContext());
+        getPartner().sendPacket(PacketType.CANCEL_LITEMATIC.toIdentifier(getPartner().getProtocolFlavor()), packetByteBuf, getContext());
     }
 
 }

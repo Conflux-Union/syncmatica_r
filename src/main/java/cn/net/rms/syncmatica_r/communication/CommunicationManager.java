@@ -70,7 +70,7 @@ public abstract class CommunicationManager {
     public void sendMetaData(final ServerPlacement metaData, final ExchangeTarget target) {
         final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
         putMetaData(metaData, buf, target);
-        target.sendPacket(PacketType.REGISTER_METADATA.identifier, buf, context);
+        target.sendPacket(PacketType.REGISTER_METADATA.toIdentifier(target.getProtocolFlavor()), buf, context);
     }
 
     public void putMetaData(final ServerPlacement metaData, final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {

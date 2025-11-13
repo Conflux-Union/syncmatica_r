@@ -37,11 +37,12 @@ public class ServerCommunicationManager extends CommunicationManager {
     }
 
     public void sendMessage(final ExchangeTarget client, final MessageType type, final String identifier) {
-        if (client.getFeatureSet().hasFeature(Feature.MESSAGE)) {
+        final FeatureSet featureSet = client.getFeatureSet();
+        if (featureSet != null && featureSet.hasFeature(Feature.MESSAGE)) {
             final PacketByteBuf newPacketBuf = new PacketByteBuf(Unpooled.buffer());
             newPacketBuf.writeString(type.toString());
             newPacketBuf.writeString(identifier);
-            client.sendPacket(PacketType.MESSAGE.identifier, newPacketBuf, context);
+            client.sendPacket(PacketType.MESSAGE.toIdentifier(client.getProtocolFlavor()), newPacketBuf, context);
         } else if (playerMap.containsKey(client)) {
             final ServerPlayerEntity player = playerMap.get(client);
             sendPlayerNotification(player, "Syncmatica_r " + type.toString() + " " + identifier);
@@ -73,7 +74,8 @@ public class ServerCommunicationManager extends CommunicationManager {
 
     @Override
     protected void handle(final ExchangeTarget source, final Identifier id, final PacketByteBuf packetBuf) {
-        if (id.equals(PacketType.REQUEST_LITEMATIC.identifier)) {
+        final PacketType type = PacketType.fromIdentifier(id);
+        if (type == PacketType.REQUEST_LITEMATIC) {
             final UUID syncmaticaId = packetBuf.readUuid();
             final ServerPlacement placement = context.getSyncmaticManager().getPlacement(syncmaticaId);
             if (placement == null) {
@@ -91,7 +93,7 @@ public class ServerCommunicationManager extends CommunicationManager {
             startExchange(upload);
             return;
         }
-        if (id.equals(PacketType.REGISTER_METADATA.identifier)) {
+        if (type == PacketType.REGISTER_METADATA) {
             final ServerPlacement placement = receiveMetaData(packetBuf, source);
             if (context.getSyncmaticManager().getPlacement(placement.getId()) != null) {
                 cancelShare(source, placement);
@@ -125,29 +127,29 @@ public class ServerCommunicationManager extends CommunicationManager {
 
             return;
         }
-        if (id.equals(PacketType.REMOVE_SYNCMATIC.identifier)) {
+        if (type == PacketType.REMOVE_SYNCMATIC) {
             final UUID placementId = packetBuf.readUuid();
             final ServerPlacement placement = context.getSyncmaticManager().getPlacement(placementId);
-            if (placement != null) {
-                final Exchange modifier = getModifier(placement);
-                if (modifier != null) {
-                    modifier.close(true);
-                    notifyClose(modifier);
+                if (placement != null) {
+                    final Exchange modifier = getModifier(placement);
+                    if (modifier != null) {
+                        modifier.close(true);
+                        notifyClose(modifier);
+                    }
+                    context.getSyncmaticManager().removePlacement(placement);
+                    for (final ExchangeTarget client : broadcastTargets) {
+                        final PacketByteBuf newPacketBuf = new PacketByteBuf(Unpooled.buffer());
+                        newPacketBuf.writeUuid(placement.getId());
+                        client.sendPacket(PacketType.REMOVE_SYNCMATIC.toIdentifier(client.getProtocolFlavor()), newPacketBuf, context);
+                    }
                 }
-                context.getSyncmaticManager().removePlacement(placement);
-                for (final ExchangeTarget client : broadcastTargets) {
-                    final PacketByteBuf newPacketBuf = new PacketByteBuf(Unpooled.buffer());
-                    newPacketBuf.writeUuid(placement.getId());
-                    client.sendPacket(PacketType.REMOVE_SYNCMATIC.identifier, newPacketBuf, context);
-                }
-            }
         }
-        if (id.equals(PacketType.MODIFY_REQUEST.identifier)) {
+        if (type == PacketType.MODIFY_REQUEST) {
             final UUID placementId = packetBuf.readUuid();
             final ModifyExchangeServer modifier = new ModifyExchangeServer(placementId, source, context);
             startExchange(modifier);
         }
-        if (id.equals(PacketType.MATERIAL_CLAIM_TOGGLE.identifier)) {
+        if (type == PacketType.MATERIAL_CLAIM_TOGGLE) {
             final UUID placementId = packetBuf.readUuid();
             final String itemId = packetBuf.readString(32767);
             final String variant = packetBuf.readString(32767);
@@ -226,15 +228,15 @@ public class ServerCommunicationManager extends CommunicationManager {
                     buf.writeUuid(placement.getLastModifiedBy().uuid);
                     buf.writeString(placement.getLastModifiedBy().getName());
                 }
-                client.sendPacket(PacketType.MODIFY.identifier, buf, context);
+                client.sendPacket(PacketType.MODIFY.toIdentifier(client.getProtocolFlavor()), buf, context);
                 continue;
             }
             final PacketByteBuf removal = new PacketByteBuf(Unpooled.buffer());
             removal.writeUuid(placement.getId());
-            client.sendPacket(PacketType.REMOVE_SYNCMATIC.identifier, removal, context);
+            client.sendPacket(PacketType.REMOVE_SYNCMATIC.toIdentifier(client.getProtocolFlavor()), removal, context);
             final PacketByteBuf registration = new PacketByteBuf(Unpooled.buffer());
             putMetaData(placement, registration, client);
-            client.sendPacket(PacketType.REGISTER_METADATA.identifier, registration, context);
+            client.sendPacket(PacketType.REGISTER_METADATA.toIdentifier(client.getProtocolFlavor()), registration, context);
         }
     }
 
@@ -253,7 +255,7 @@ public class ServerCommunicationManager extends CommunicationManager {
     private void cancelShare(final ExchangeTarget source, final ServerPlacement placement) {
         final PacketByteBuf packetByteBuf = new PacketByteBuf(Unpooled.buffer());
         packetByteBuf.writeUuid(placement.getId());
-        source.sendPacket(PacketType.CANCEL_SHARE.identifier, packetByteBuf, context);
+        source.sendPacket(PacketType.CANCEL_SHARE.toIdentifier(source.getProtocolFlavor()), packetByteBuf, context);
     }
 
     private void sendPlayerNotification(final ServerPlayerEntity player, final String message) {

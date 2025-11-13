@@ -23,14 +23,25 @@ public class VersionHandshakeClient extends FeatureExchange {
 
     @Override
     public boolean checkPacket(final Identifier id, final PacketByteBuf packetBuf) {
-        return id.equals(PacketType.CONFIRM_USER.identifier)
-                || id.equals(PacketType.REGISTER_VERSION.identifier)
+        final PacketType type = PacketType.fromIdentifier(id);
+        return type == PacketType.CONFIRM_USER
+                || type == PacketType.REGISTER_VERSION
                 || super.checkPacket(id, packetBuf);
     }
 
     @Override
     public void handle(final Identifier id, final PacketByteBuf packetBuf) {
-        if (id.equals(PacketType.REGISTER_VERSION.identifier)) {
+        final PacketType type = PacketType.fromIdentifier(id);
+        if (type == PacketType.REGISTER_VERSION) {
+            // Announce Reforged capability on the new namespace as early as possible.
+            final PacketByteBuf revolutionBuf = new PacketByteBuf(Unpooled.buffer());
+            getPartner().sendPacket(
+                    PacketType.REVOLUTION.toIdentifier(
+                            cn.net.rms.syncmatica_r.communication.ProtocolFlavor.NEW
+                    ),
+                    revolutionBuf,
+                    getContext()
+            );
             final String version = packetBuf.readString(32767);
             if (!getContext().checkPartnerVersion(version)) {
 
@@ -46,7 +57,7 @@ public class VersionHandshakeClient extends FeatureExchange {
                     onFeatureSetReceive();
                 }
             }
-        } else if (id.equals(PacketType.CONFIRM_USER.identifier)) {
+        } else if (type == PacketType.CONFIRM_USER) {
             final int placementCount = packetBuf.readInt();
             for (int i = 0; i < placementCount; i++) {
                 final ServerPlacement p = getManager().receiveMetaData(packetBuf, getPartner());
@@ -63,9 +74,16 @@ public class VersionHandshakeClient extends FeatureExchange {
 
     @Override
     public void onFeatureSetReceive() {
-        final PacketByteBuf newBuf = new PacketByteBuf(Unpooled.buffer());
-        newBuf.writeString(Syncmatica.getVersion());
-        getPartner().sendPacket(PacketType.REGISTER_VERSION.identifier, newBuf, getContext());
+        final PacketByteBuf versionBuf = new PacketByteBuf(Unpooled.buffer());
+        versionBuf.writeString(Syncmatica.getVersion());
+        // Reply on legacy Syncmatica channel for maximum compatibility.
+        getPartner().sendPacket(
+                PacketType.REGISTER_VERSION.toIdentifier(
+                        cn.net.rms.syncmatica_r.communication.ProtocolFlavor.LEGACY
+                ),
+                versionBuf,
+                getContext()
+        );
     }
 
     @Override
