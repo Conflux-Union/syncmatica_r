@@ -2,6 +2,8 @@ package cn.net.rms.syncmatica_r;
 
 import cn.net.rms.syncmatica_r.communication.CommunicationManager;
 import cn.net.rms.syncmatica_r.mixin_actor.ActorClientPlayNetworkHandler;
+import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.loader.api.ModContainer;
 import net.minecraft.util.Identifier;
 
 import java.io.File;
@@ -11,7 +13,6 @@ import java.util.UUID;
 
 public class Syncmatica {
 
-    public static final String VERSION = "0.3.13";
     public static final String MOD_ID = "syncmatica_r";
     public static final String LEGACY_MOD_ID = "syncmatica";
     public static final Identifier CLIENT_CONTEXT = new Identifier(MOD_ID + ":client_context");
@@ -23,6 +24,14 @@ public class Syncmatica {
 
     protected Syncmatica() {
 
+    }
+
+    public static String getVersion() {
+        final ModContainer container = FabricLoader.getInstance().getModContainer(MOD_ID).orElse(null);
+        if (container == null) {
+            return "0.0.0";
+        }
+        return container.getMetadata().getVersion().getFriendlyString();
     }
 
     public static Context initServer(final CommunicationManager comms, final IFileStorage fileStorage, final SyncmaticManager schematics, final boolean isIntegratedServer, final File worldPath) {
