@@ -54,5 +54,7 @@
   "syncmatica_r.error.share_incompatible_schematic": "请在主菜单的原理图管理器中转换此文件后再分享",
   "syncmatica_r.error.invalid_file": "无法分享该类型的文件",
   "syncmatica_r.error.failed_to_load": "加载 litematic {} 失败",
-  "syncmatica_r.success.modification_accepted": "已接受修改请求——再次锁定该放置以将结果分享到服务器"
+  "syncmatica_r.success.modification_accepted": "已接受修改请求——再次锁定该放置以将结果分享到服务器",
+  "syncmatica_r.update.toast.title": "Syncmatica_r 有可用更新",
+  "syncmatica_r.update.toast.description": "当前版本：%s，最新版本：%s"
 }

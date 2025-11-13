@@ -2,7 +2,7 @@
 
 **[English]** | [中文](README_CN.md)
 
-> **Project Origin**: This is a modified fork of [Syncmatica](https://github.com/End-Tech/syncmatica), with enhanced collaboration features including shared material progress tracking.
+> **Project Origin**: This is a modified fork of [Syncmatica](https://github.com/End-Tech/syncmatica), with enhanced collaboration features including shared material progress tracking. This fork is maintained at [RMS-Server/syncmatica_r](https://github.com/RMS-Server/syncmatica_r).
 
 ## Key New Feature: Shared Material Progress Tracking
 

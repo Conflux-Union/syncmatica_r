@@ -2,7 +2,7 @@
 
 [English](README.md) | **[中文]**
 
-> **项目来源**：本项目是基于 [Syncmatica](https://github.com/End-Tech/syncmatica) 的修改版分支，在原有功能基础上增强了协作特性，包括共享材料进度追踪功能。
+> **项目来源**：本项目是基于 [Syncmatica](https://github.com/End-Tech/syncmatica) 的修改版分支，在原有功能基础上增强了协作特性，包括共享材料进度追踪功能；本分支在 [RMS-Server/syncmatica_r](https://github.com/RMS-Server/syncmatica_r) 维护。
 
 ## 核心新增功能：共享材料进度追踪
 

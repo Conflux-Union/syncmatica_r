@@ -151,11 +151,16 @@ public class Context {
         return !version.equals("0.0.1");
     }
 
-    public File getConfigFolder() {
+    private File getConfigRoot() {
         if (isServer() && isIntegratedServer()) {
-            return resolveConfigFolder(worldFolder);
+            return worldFolder == null ? new File(".") : worldFolder;
         }
-        return resolveConfigFolder(new File(".", "config"));
+        return new File(".", "config");
+    }
+
+    public File getConfigFolder() {
+        final File root = getConfigRoot();
+        return new File(root, Syncmatica.MOD_ID);
     }
 
     public File getConfigFile() {
@@ -174,17 +179,12 @@ public class Context {
         return configFile;
     }
 
-    private File resolveConfigFolder(final File base) {
-        final File root = base == null ? new File(".") : base;
-        final File preferred = new File(root, Syncmatica.MOD_ID);
-        final File legacy = new File(root, Syncmatica.LEGACY_MOD_ID);
-        if (!preferred.exists() && legacy.exists()) {
-            return legacy;
-        }
-        return preferred;
-    }
-
     public void loadConfiguration() {
+        final File configFolder = getConfigFolder();
+        final File root = getConfigRoot();
+        final File legacyFolder = new File(root, Syncmatica.LEGACY_MOD_ID);
+        migrateLegacyFolder(legacyFolder, configFolder);
+
         boolean attemptToLoad = false;
         JsonObject configuration;
         try {
@@ -194,6 +194,7 @@ public class Context {
             configuration = new JsonObject();
         }
         boolean needsRewrite = false;
+        needsRewrite |= applyRootDefaults(configuration);
         if (isServer()) {
             needsRewrite = loadConfigurationForService(quota, configuration, attemptToLoad);
             if (materialService != null) {
@@ -212,6 +213,63 @@ public class Context {
                 e.printStackTrace();
             }
         }
+    }
+
+    private void migrateLegacyFolder(final File legacyFolder, final File preferredFolder) {
+        if (preferredFolder.exists()) {
+            return;
+        }
+        if (legacyFolder == null || !legacyFolder.isDirectory()) {
+            return;
+        }
+        copyDirectory(legacyFolder, preferredFolder);
+    }
+
+    private void copyDirectory(final File source, final File target) {
+        if (!source.isDirectory()) {
+            return;
+        }
+        if (!target.exists() && !target.mkdirs()) {
+            return;
+        }
+        final File[] children = source.listFiles();
+        if (children == null) {
+            return;
+        }
+        for (final File child : children) {
+            final File dest = new File(target, child.getName());
+            if (child.isDirectory()) {
+                copyDirectory(child, dest);
+            } else if (!dest.exists()) {
+                copyFile(child, dest);
+            }
+        }
+    }
+
+    private void copyFile(final File source, final File target) {
+        try (InputStream in = new FileInputStream(source);
+             OutputStream out = new FileOutputStream(target)) {
+            final byte[] buffer = new byte[8192];
+            int read;
+            while ((read = in.read(buffer)) > 0) {
+                out.write(buffer, 0, read);
+            }
+        } catch (final IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private boolean applyRootDefaults(final JsonObject configuration) {
+        boolean changed = false;
+        if (!configuration.has("checkupdate")) {
+            configuration.addProperty("checkupdate", true);
+            changed = true;
+        }
+        if (!configuration.has("check_pre_release")) {
+            configuration.addProperty("check_pre_release", false);
+            changed = true;
+        }
+        return changed;
     }
 
     private Boolean loadConfigurationForService(final IService service, final JsonObject configuration, final boolean attemptToLoad) {

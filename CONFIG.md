@@ -22,10 +22,12 @@ Because of that, always edit the file while the game/server is stopped; changes 
 ## JSON Structure Overview
 
 The root object is a flat collection of sections. Servers use all three blocks shown below, while clients only care
-about `debug`.
+about `debug`. Two additional top-level keys control the optional GitHub update check on the client.
 
 ```json
 {
+  "checkupdate": true,
+  "check_pre_release": false,
   "quota": {
     "enabled": false,
     "limit": 40000000
@@ -45,7 +47,7 @@ about `debug`.
 ```
 
 Clients can safely delete the `quota` and `materials` sections; the loader will re-create them when the game later runs
-as a server.
+as a server. The two top-level update keys are ignored on servers.
 
 ## `quota` — Server Upload Control
 
@@ -85,6 +87,15 @@ Operational notes:
 | Key              | Default | Meaning |
 |------------------|---------|---------|
 | doPackageLogging | `false` | When enabled, every Syncmatica_r packet send/receive is logged via Log4j at `INFO`. |
+
+## Client update flags — `checkupdate` and `check_pre_release`
+
+These keys live at the root of the configuration object and are honored only on the client.
+
+| Key                 | Default | Meaning |
+|---------------------|---------|---------|
+| `checkupdate`       | `true`  | Master toggle for the GitHub release check. When `false`, the mod never contacts GitHub and no update toast is shown. |
+| `check_pre_release` | `false` | When `true`, stable builds may treat newer pre-release tags as valid updates. When `false`, stable builds only consider newer stable tags; pre-release builds always see both newer pre-release and stable tags as updates. |
 
 Keep this switch off on production servers; it is noisy and exposes packet metadata in plain logs. Toggle it only while
 diagnosing protocol problems.
