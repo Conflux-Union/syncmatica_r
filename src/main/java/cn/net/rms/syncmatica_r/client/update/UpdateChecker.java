@@ -124,7 +124,7 @@ public final class UpdateChecker {
 
     private void handlePayload(final String payload) {
         try {
-            final JsonObject root = JsonParser.parseString(payload).getAsJsonObject();
+            final JsonObject root = new JsonParser().parse(payload).getAsJsonObject();
             final String tagName = root.get("tag_name").getAsString();
             final String pageUrl = root.get("html_url").getAsString();
             final String normalizedRemote = VersionComparator.normalize(tagName);

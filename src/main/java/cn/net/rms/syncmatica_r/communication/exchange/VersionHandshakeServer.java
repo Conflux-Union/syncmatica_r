@@ -33,7 +33,7 @@ public class VersionHandshakeServer extends FeatureExchange {
         if (id.equals(PacketType.REGISTER_VERSION.identifier)) {
             partnerVersion = packetBuf.readString(32767);
             if (!getContext().checkPartnerVersion(partnerVersion)) {
-                LogManager.getLogger(VersionHandshakeServer.class).info("Denying syncmatica_r join due to outdated client with local version {} and client version {}", Syncmatica.VERSION, partnerVersion);
+                LogManager.getLogger(VersionHandshakeServer.class).info("Denying syncmatica_r join due to outdated client with local version {} and client version {}", Syncmatica.getVersion(), partnerVersion);
 
                 close(false);
                 return;
@@ -53,7 +53,7 @@ public class VersionHandshakeServer extends FeatureExchange {
 
     @Override
     public void onFeatureSetReceive() {
-        LogManager.getLogger(VersionHandshakeServer.class).info("Syncmatica_r client joining with local version {} and client version {}", Syncmatica.VERSION, partnerVersion);
+        LogManager.getLogger(VersionHandshakeServer.class).info("Syncmatica_r client joining with local version {} and client version {}", Syncmatica.getVersion(), partnerVersion);
         final PacketByteBuf newBuf = new PacketByteBuf(Unpooled.buffer());
         final Collection<ServerPlacement> l = getContext().getSyncmaticManager().getAll();
         newBuf.writeInt(l.size());
@@ -67,7 +67,7 @@ public class VersionHandshakeServer extends FeatureExchange {
     @Override
     public void init() {
         final PacketByteBuf newBuf = new PacketByteBuf(Unpooled.buffer());
-        newBuf.writeString(Syncmatica.VERSION);
+        newBuf.writeString(Syncmatica.getVersion());
         getPartner().sendPacket(PacketType.REGISTER_VERSION.identifier, newBuf, getContext());
     }
 }

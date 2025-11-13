@@ -9,6 +9,9 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.toast.SystemToast;
 import net.minecraft.text.Text;
+//#if MC < 12001
+import net.minecraft.text.TranslatableText;
+//#endif
 
 public class SyncmaticaClient implements ClientModInitializer {
 
@@ -28,7 +31,7 @@ public class SyncmaticaClient implements ClientModInitializer {
             return;
         }
         if (UpdateChecker.getInstance() == null) {
-            UpdateChecker.init(Syncmatica.VERSION, UpdateConfig.isCheckPreReleaseEnabled());
+            UpdateChecker.init(Syncmatica.getVersion(), UpdateConfig.isCheckPreReleaseEnabled());
         }
         final UpdateChecker checker = UpdateChecker.getInstance();
         if (checker == null) {
@@ -38,10 +41,17 @@ public class SyncmaticaClient implements ClientModInitializer {
         if (!checker.hasUpdate() || checker.isNotified()) {
             return;
         }
-        final String localVersion = Syncmatica.VERSION;
+        final String localVersion = Syncmatica.getVersion();
         final String remoteVersion = checker.getRemoteVersion();
-        final Text title = Text.translatable("syncmatica_r.update.toast.title");
-        final Text description = Text.translatable("syncmatica_r.update.toast.description", localVersion, remoteVersion);
+        final Text title;
+        final Text description;
+        //#if MC >= 12001
+        //$$ title = Text.translatable("syncmatica_r.update.toast.title");
+        //$$ description = Text.translatable("syncmatica_r.update.toast.description", localVersion, remoteVersion);
+        //#else
+        title = new TranslatableText("syncmatica_r.update.toast.title");
+        description = new TranslatableText("syncmatica_r.update.toast.description", localVersion, remoteVersion);
+        //#endif
         SystemToast.add(client.getToastManager(), SystemToast.Type.TUTORIAL_HINT, title, description);
         checker.markNotified();
     }
