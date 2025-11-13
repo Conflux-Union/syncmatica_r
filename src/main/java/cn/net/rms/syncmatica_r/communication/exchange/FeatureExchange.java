@@ -17,15 +17,17 @@ public abstract class FeatureExchange extends AbstractExchange {
 
     @Override
     public boolean checkPacket(final Identifier id, final PacketByteBuf packetBuf) {
-        return id.equals(PacketType.FEATURE_REQUEST.identifier)
-                || id.equals(PacketType.FEATURE.identifier);
+        final PacketType type = PacketType.fromIdentifier(id);
+        return type == PacketType.FEATURE_REQUEST
+                || type == PacketType.FEATURE;
     }
 
     @Override
     public void handle(final Identifier id, final PacketByteBuf packetBuf) {
-        if (id.equals(PacketType.FEATURE_REQUEST.identifier)) {
+        final PacketType type = PacketType.fromIdentifier(id);
+        if (type == PacketType.FEATURE_REQUEST) {
             sendFeatures();
-        } else if (id.equals(PacketType.FEATURE.identifier)) {
+        } else if (type == PacketType.FEATURE) {
             final FeatureSet fs = FeatureSet.fromString(packetBuf.readString(32767));
             getPartner().setFeatureSet(fs);
             onFeatureSetReceive();
@@ -37,13 +39,13 @@ public abstract class FeatureExchange extends AbstractExchange {
     }
 
     public void requestFeatureSet() {
-        getPartner().sendPacket(PacketType.FEATURE_REQUEST.identifier, new PacketByteBuf(Unpooled.buffer()), getContext());
+        getPartner().sendPacket(PacketType.FEATURE_REQUEST.toIdentifier(getPartner().getProtocolFlavor()), new PacketByteBuf(Unpooled.buffer()), getContext());
     }
 
     private void sendFeatures() {
         final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
         final FeatureSet fs = getContext().getFeatureSet();
         buf.writeString(fs.toString(), 32767);
-        getPartner().sendPacket(PacketType.FEATURE.identifier, buf, getContext());
+        getPartner().sendPacket(PacketType.FEATURE.toIdentifier(getPartner().getProtocolFlavor()), buf, getContext());
     }
 }

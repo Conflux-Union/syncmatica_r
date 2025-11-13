@@ -35,9 +35,10 @@ public class ShareLitematicExchange extends AbstractExchange {
 
     @Override
     public boolean checkPacket(final Identifier id, final PacketByteBuf packetBuf) {
-        if (id.equals(PacketType.REQUEST_LITEMATIC.identifier)
-                || id.equals(PacketType.REGISTER_METADATA.identifier)
-                || id.equals(PacketType.CANCEL_SHARE.identifier)) {
+        final PacketType type = PacketType.fromIdentifier(id);
+        if (type == PacketType.REQUEST_LITEMATIC
+                || type == PacketType.REGISTER_METADATA
+                || type == PacketType.CANCEL_SHARE) {
             return AbstractExchange.checkUUID(packetBuf, toShare.getId());
         }
         return false;
@@ -45,7 +46,8 @@ public class ShareLitematicExchange extends AbstractExchange {
 
     @Override
     public void handle(final Identifier id, final PacketByteBuf packetBuf) {
-        if (id.equals(PacketType.REQUEST_LITEMATIC.identifier)) {
+        final PacketType type = PacketType.fromIdentifier(id);
+        if (type == PacketType.REQUEST_LITEMATIC) {
             packetBuf.readUuid();
             final UploadExchange upload;
             try {
@@ -58,14 +60,14 @@ public class ShareLitematicExchange extends AbstractExchange {
             getManager().startExchange(upload);
             return;
         }
-        if (id.equals(PacketType.REGISTER_METADATA.identifier)) {
+        if (type == PacketType.REGISTER_METADATA) {
             final RedirectFileStorage redirect = (RedirectFileStorage) getContext().getFileStorage();
             redirect.addRedirect(toUpload);
             LitematicManager.getInstance().renderSyncmatic(toShare, schematicPlacement, false);
             getContext().getSyncmaticManager().addPlacement(toShare);
             return;
         }
-        if (id.equals(PacketType.CANCEL_SHARE.identifier)) {
+        if (type == PacketType.CANCEL_SHARE) {
             close(false);
         }
     }

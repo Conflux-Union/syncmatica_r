@@ -165,7 +165,7 @@ public class WidgetSyncmaticaServerPlacementEntry extends WidgetListEntryBase<Se
                     final ExchangeTarget server = ((ClientCommunicationManager) con.getCommunicationManager()).getServer();
                     final PacketByteBuf packetBuf = new PacketByteBuf(Unpooled.buffer());
                     packetBuf.writeUuid(placement.placement.getId());
-                    server.sendPacket(PacketType.REMOVE_SYNCMATIC.identifier, packetBuf, LitematicManager.getInstance().getActiveContext());
+                    server.sendPacket(PacketType.REMOVE_SYNCMATIC.toIdentifier(server.getProtocolFlavor()), packetBuf, LitematicManager.getInstance().getActiveContext());
                 }
             },
             MATERIAL_GATHERING() {

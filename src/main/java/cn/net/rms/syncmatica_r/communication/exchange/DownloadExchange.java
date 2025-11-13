@@ -38,9 +38,10 @@ public class DownloadExchange extends AbstractExchange {
 
     @Override
     public boolean checkPacket(final Identifier id, final PacketByteBuf packetBuf) {
-        if (id.equals(PacketType.SEND_LITEMATIC.identifier)
-                || id.equals(PacketType.FINISHED_LITEMATIC.identifier)
-                || id.equals(PacketType.CANCEL_LITEMATIC.identifier)) {
+        final PacketType type = PacketType.fromIdentifier(id);
+        if (type == PacketType.SEND_LITEMATIC
+                || type == PacketType.FINISHED_LITEMATIC
+                || type == PacketType.CANCEL_LITEMATIC) {
             return checkUUID(packetBuf, toDownload.getId());
         }
         return false;
@@ -49,7 +50,8 @@ public class DownloadExchange extends AbstractExchange {
     @Override
     public void handle(final Identifier id, final PacketByteBuf packetBuf) {
         packetBuf.readUuid();
-        if (id.equals(PacketType.SEND_LITEMATIC.identifier)) {
+        final PacketType type = PacketType.fromIdentifier(id);
+        if (type == PacketType.SEND_LITEMATIC) {
             final int size = packetBuf.readInt();
             bytesSent += size;
             if (getContext().isServer() && getContext().getQuotaService().isOverQuota(getPartner(), bytesSent)) {
@@ -69,10 +71,10 @@ public class DownloadExchange extends AbstractExchange {
             }
             final PacketByteBuf packetByteBuf = new PacketByteBuf(Unpooled.buffer());
             packetByteBuf.writeUuid(toDownload.getId());
-            getPartner().sendPacket(PacketType.RECEIVED_LITEMATIC.identifier, packetByteBuf, getContext());
+            getPartner().sendPacket(PacketType.RECEIVED_LITEMATIC.toIdentifier(getPartner().getProtocolFlavor()), packetByteBuf, getContext());
             return;
         }
-        if (id.equals(PacketType.FINISHED_LITEMATIC.identifier)) {
+        if (type == PacketType.FINISHED_LITEMATIC) {
             try {
                 outputStream.flush();
             } catch (final IOException e) {
@@ -89,7 +91,7 @@ public class DownloadExchange extends AbstractExchange {
             }
             return;
         }
-        if (id.equals(PacketType.CANCEL_LITEMATIC.identifier)) {
+        if (type == PacketType.CANCEL_LITEMATIC) {
             close(false);
         }
     }
@@ -98,7 +100,7 @@ public class DownloadExchange extends AbstractExchange {
     public void init() {
         final PacketByteBuf packetByteBuf = new PacketByteBuf(Unpooled.buffer());
         packetByteBuf.writeUuid(toDownload.getId());
-        getPartner().sendPacket(PacketType.REQUEST_LITEMATIC.identifier, packetByteBuf, getContext());
+        getPartner().sendPacket(PacketType.REQUEST_LITEMATIC.toIdentifier(getPartner().getProtocolFlavor()), packetByteBuf, getContext());
     }
 
     @Override
@@ -121,7 +123,7 @@ public class DownloadExchange extends AbstractExchange {
     protected void sendCancelPacket() {
         final PacketByteBuf packetByteBuf = new PacketByteBuf(Unpooled.buffer());
         packetByteBuf.writeUuid(toDownload.getId());
-        getPartner().sendPacket(PacketType.CANCEL_LITEMATIC.identifier, packetByteBuf, getContext());
+        getPartner().sendPacket(PacketType.CANCEL_LITEMATIC.toIdentifier(getPartner().getProtocolFlavor()), packetByteBuf, getContext());
     }
 
     public ServerPlacement getPlacement() {

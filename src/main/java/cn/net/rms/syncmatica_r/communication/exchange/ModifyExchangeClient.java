@@ -28,9 +28,10 @@ public class ModifyExchangeClient extends AbstractExchange {
 
     @Override
     public boolean checkPacket(final Identifier id, final PacketByteBuf packetBuf) {
-        if (id.equals(PacketType.MODIFY_REQUEST_DENY.identifier)
-                || id.equals(PacketType.MODIFY_REQUEST_ACCEPT.identifier)
-                || (expectRemove && id.equals(PacketType.REMOVE_SYNCMATIC.identifier))) {
+        final PacketType type = PacketType.fromIdentifier(id);
+        if (type == PacketType.MODIFY_REQUEST_DENY
+                || type == PacketType.MODIFY_REQUEST_ACCEPT
+                || (expectRemove && type == PacketType.REMOVE_SYNCMATIC)) {
             return AbstractExchange.checkUUID(packetBuf, placement.getId());
         }
         return false;
@@ -38,7 +39,8 @@ public class ModifyExchangeClient extends AbstractExchange {
 
     @Override
     public void handle(final Identifier id, final PacketByteBuf packetBuf) {
-        if (id.equals(PacketType.MODIFY_REQUEST_DENY.identifier)) {
+        final PacketType type = PacketType.fromIdentifier(id);
+        if (type == PacketType.MODIFY_REQUEST_DENY) {
             packetBuf.readUuid();
             close(false);
             if (!litematic.isLocked()) {
@@ -48,10 +50,10 @@ public class ModifyExchangeClient extends AbstractExchange {
                 litematic.toggleLocked();
             }
             ScreenHelper.ifPresent(s -> s.addMessage(Message.MessageType.SUCCESS, "syncmatica_r.error.modification_deny"));
-        } else if (id.equals(PacketType.MODIFY_REQUEST_ACCEPT.identifier)) {
+        } else if (type == PacketType.MODIFY_REQUEST_ACCEPT) {
             packetBuf.readUuid();
             acceptModification();
-        } else if (id.equals(PacketType.REMOVE_SYNCMATIC.identifier)) {
+        } else if (type == PacketType.REMOVE_SYNCMATIC) {
             packetBuf.readUuid();
             final ShareLitematicExchange legacyModify = new ShareLitematicExchange(litematic, getPartner(), getContext(), placement);
             getContext().getCommunicationManager().startExchange(legacyModify);
@@ -69,7 +71,7 @@ public class ModifyExchangeClient extends AbstractExchange {
         if (getPartner().getFeatureSet().hasFeature(Feature.MODIFY)) {
             final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
             buf.writeUuid(placement.getId());
-            getPartner().sendPacket(PacketType.MODIFY_REQUEST.identifier, buf, getContext());
+            getPartner().sendPacket(PacketType.MODIFY_REQUEST.toIdentifier(getPartner().getProtocolFlavor()), buf, getContext());
         } else {
             acceptModification();
         }
@@ -98,13 +100,13 @@ public class ModifyExchangeClient extends AbstractExchange {
             buf.writeUuid(placement.getId());
             getContext().getCommunicationManager().putPositionData(placement, buf, getPartner());
             getContext().getCommunicationManager().putMaterialData(placement, buf, getPartner());
-            getPartner().sendPacket(PacketType.MODIFY_FINISH.identifier, buf, getContext());
+            getPartner().sendPacket(PacketType.MODIFY_FINISH.toIdentifier(getPartner().getProtocolFlavor()), buf, getContext());
             succeed();
             getContext().getCommunicationManager().notifyClose(this);
         } else {
             final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
             buf.writeUuid(placement.getId());
-            getPartner().sendPacket(PacketType.REMOVE_SYNCMATIC.identifier, buf, getContext());
+            getPartner().sendPacket(PacketType.REMOVE_SYNCMATIC.toIdentifier(getPartner().getProtocolFlavor()), buf, getContext());
             expectRemove = true;
         }
     }
@@ -116,7 +118,7 @@ public class ModifyExchangeClient extends AbstractExchange {
             buf.writeUuid(placement.getId());
             getContext().getCommunicationManager().putPositionData(placement, buf, getPartner());
             getContext().getCommunicationManager().putMaterialData(placement, buf, getPartner());
-            getPartner().sendPacket(PacketType.MODIFY_FINISH.identifier, buf, getContext());
+            getPartner().sendPacket(PacketType.MODIFY_FINISH.toIdentifier(getPartner().getProtocolFlavor()), buf, getContext());
         }
     }
 
