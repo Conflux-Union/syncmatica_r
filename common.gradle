@@ -63,8 +63,6 @@ java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(17)
     }
-
-    withSourcesJar()
 }
 
 jar {
@@ -79,9 +77,6 @@ publishing {
 
             artifact(remapJar) {
                 builtBy remapJar
-            }
-            artifact(sourcesJar) {
-                builtBy remapSourcesJar
             }
         }
     }
