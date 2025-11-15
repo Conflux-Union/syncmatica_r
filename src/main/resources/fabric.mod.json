@@ -2,11 +2,12 @@
   "schemaVersion": 1,
   "id": "syncmatica_r",
   "version": "${version}",
-  "name": "Syncmatica",
-  "description": "Server-wide shared litematics.",
+  "name": "Syncmatica Revolution",
+  "description": "Better Server-wide shared litematics.",
   "authors": [
     "nnnik",
-    "samipourquoi"
+    "samipourquoi",
+    "Trirrin"
   ],
   "contact": {
     "sources": "https://github.com/RMS-Server/syncmatica_r"
