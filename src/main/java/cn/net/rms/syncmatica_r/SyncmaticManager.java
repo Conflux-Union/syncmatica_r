@@ -24,7 +24,7 @@ public class SyncmaticManager {
     private final Map<UUID, ServerPlacement> schematics = new HashMap<>();
     private final Collection<Consumer<ServerPlacement>> consumers = new ArrayList<>();
     private final java.util.Set<UUID> dirtyPlacements = new java.util.HashSet<>();
-    private final java.util.Set<UUID> removedPlacements = new java.util.HashSet<>();
+    private final java.util.Map<UUID, ServerPlacement> removedPlacements = new java.util.HashMap<>();
     private boolean metaDirty = false;
 
     Context context;
@@ -61,7 +61,7 @@ public class SyncmaticManager {
         if (context != null && context.getMaterialService() != null) {
             context.getMaterialService().detachPlacement(placement);
         }
-        markPlacementRemoved(placement.getId());
+        markPlacementRemoved(placement);
         updateServerPlacement(placement);
     }
 
@@ -80,7 +80,7 @@ public class SyncmaticManager {
 
         if (context.isServer()) {
             markDirty();
-            if (updated != null) {
+            if (updated != null && schematics.containsKey(updated.getId())) {
                 markPlacementDirty(updated.getId());
             }
         }
@@ -139,7 +139,7 @@ public class SyncmaticManager {
         }
 
         final java.util.Set<UUID> currentDirty = new java.util.HashSet<>(dirtyPlacements);
-        final java.util.Set<UUID> currentRemoved = new java.util.HashSet<>(removedPlacements);
+        final java.util.Map<UUID, ServerPlacement> currentRemoved = new java.util.HashMap<>(removedPlacements);
         dirtyPlacements.clear();
         removedPlacements.clear();
 
@@ -151,8 +151,8 @@ public class SyncmaticManager {
             writePlacementFile(placement);
         }
 
-        for (final UUID id : currentRemoved) {
-            deletePlacementFile(id);
+        for (final ServerPlacement placement : currentRemoved.values()) {
+            deletePlacementFile(placement);
         }
 
         if (metaDirty || context.getMaterialService() != null) {
@@ -254,15 +254,26 @@ public class SyncmaticManager {
         SyncmaticaUtil.backupAndReplace(backup.toPath(), current.toPath(), incoming.toPath());
     }
 
-    private void deletePlacementFile(final UUID id) {
+    private void deletePlacementFile(final ServerPlacement placement) {
+        if (placement == null) {
+            return;
+        }
         final File folder = getPlacementStoreFolder();
-        final File current = new File(folder, id.toString() + PLACEMENT_FILE_SUFFIX);
-        final File backup = new File(folder, id.toString() + PLACEMENT_FILE_SUFFIX + ".bak");
+        final File current = new File(folder, placement.getId().toString() + PLACEMENT_FILE_SUFFIX);
+        final File backup = new File(folder, placement.getId().toString() + PLACEMENT_FILE_SUFFIX + ".bak");
         if (current.exists() && !current.delete()) {
             LogManager.getLogger(SyncmaticManager.class).warn("Failed to delete placement file {}", current.getName());
         }
         if (backup.exists()) {
             backup.delete();
+        }
+        final boolean hasSibling = schematics.values().stream()
+                .anyMatch(p -> p.getHash().equals(placement.getHash()));
+        if (!hasSibling && context != null && context.getFileStorage() != null) {
+            final File schematic = context.getFileStorage().getLocalLitematic(placement);
+            if (schematic != null && schematic.exists() && !schematic.delete()) {
+                LogManager.getLogger(SyncmaticManager.class).warn("Failed to delete litematic file {}", schematic.getName());
+            }
         }
     }
 
@@ -304,15 +315,16 @@ public class SyncmaticManager {
         markDirty();
     }
 
-    private void markPlacementRemoved(final UUID id) {
-        if (id == null) {
+    private void markPlacementRemoved(final ServerPlacement placement) {
+        if (placement == null || placement.getId() == null) {
             return;
         }
         if (context == null || !context.isServer()) {
             return;
         }
+        final UUID id = placement.getId();
         dirtyPlacements.remove(id);
-        removedPlacements.add(id);
+        removedPlacements.put(id, placement);
         markDirty();
     }
 
