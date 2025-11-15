@@ -112,7 +112,6 @@ jobs:
             steps.Version_Metadata.outputs.mod_version,
             matrix.minecraft_version) }}
           version: ${{ format('{0}-{1}-mc{2}',
-            'syncmatica_r',
             steps.Version_Metadata.outputs.tag,
             matrix.minecraft_version) }}
           version-type: ${{ steps.Release_Channel.outputs.type }}
