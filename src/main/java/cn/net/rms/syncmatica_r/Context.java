@@ -142,9 +142,9 @@ public class Context {
     }
 
     public void shutdown() {
+        synMan.shutdown();
         shutdownServices();
         isStarted = false;
-        synMan.shutdown();
     }
 
     public boolean checkPartnerVersion(final String version) {
