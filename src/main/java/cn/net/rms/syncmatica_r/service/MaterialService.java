@@ -159,7 +159,9 @@ public class MaterialService extends AbstractService {
         }
         state.process(Math.max(1, scanBlocksPerTick));
         if (state.isFinished()) {
-            finalizePlacementScan(placementId, state);
+            if (state.hasLoadedChunks()) {
+                finalizePlacementScan(placementId, state);
+            }
             activePlacementScans.remove(placementId);
         } else {
             placementScanQueue.addLast(placementId);
@@ -172,7 +174,9 @@ public class MaterialService extends AbstractService {
         }
         defaultScanState.process(Math.max(1, scanBlocksPerTick));
         if (defaultScanState.isFinished()) {
-            applyDefaultScanResults(defaultScanState.getTotals());
+            if (defaultScanState.hasLoadedChunks()) {
+                applyDefaultScanResults(defaultScanState.getTotals());
+            }
             defaultScanState = null;
         }
     }
@@ -250,7 +254,9 @@ public class MaterialService extends AbstractService {
         while (!state.isFinished()) {
             state.process(Math.max(1, scanBlocksPerTick));
         }
-        finalizePlacementScan(placement.getId(), state);
+        if (state.hasLoadedChunks()) {
+            finalizePlacementScan(placement.getId(), state);
+        }
     }
 
     private Map<String, Map<MaterialKey, Integer>> runDefaultScanNow(final MinecraftServer server) {
@@ -515,6 +521,7 @@ public class MaterialService extends AbstractService {
         private final Iterator<BlockPos> iterator;
         private final Map<MaterialKey, Integer> totals = new HashMap<>();
         private boolean finished;
+        private boolean hasLoadedChunks;
 
         PlacementScanState(final ServerWorld world, final StockingAreaDefinition area) {
             this.world = world;
@@ -541,6 +548,7 @@ public class MaterialService extends AbstractService {
                 if (!world.isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)) {
                     continue;
                 }
+                hasLoadedChunks = true;
                 final BlockEntity blockEntity = world.getBlockEntity(pos);
                 if (blockEntity instanceof Inventory inventory) {
                     scanInventory(inventory, totals);
@@ -558,6 +566,10 @@ public class MaterialService extends AbstractService {
         Map<MaterialKey, Integer> getTotals() {
             return totals;
         }
+
+        boolean hasLoadedChunks() {
+            return hasLoadedChunks;
+        }
     }
 
     private final class DefaultStockingScanState {
@@ -565,6 +577,7 @@ public class MaterialService extends AbstractService {
         private final Iterator<BlockPos> iterator;
         private final Map<String, Map<MaterialKey, Integer>> totals = new HashMap<>();
         private boolean finished;
+        private boolean hasLoadedChunks;
 
         DefaultStockingScanState(final ServerWorld world, final StockingAreaDefinition area) {
             this.world = world;
@@ -591,6 +604,7 @@ public class MaterialService extends AbstractService {
                 if (!world.isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)) {
                     continue;
                 }
+                hasLoadedChunks = true;
                 final BlockEntity blockEntity = world.getBlockEntity(pos);
                 if (!(blockEntity instanceof net.minecraft.block.entity.SignBlockEntity sign)) {
                     continue;
@@ -619,6 +633,10 @@ public class MaterialService extends AbstractService {
 
         Map<String, Map<MaterialKey, Integer>> getTotals() {
             return totals;
+        }
+
+        boolean hasLoadedChunks() {
+            return hasLoadedChunks;
         }
     }
 
