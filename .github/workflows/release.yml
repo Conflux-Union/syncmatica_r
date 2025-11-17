@@ -111,7 +111,7 @@ jobs:
             'Syncmatica Revolution',
             steps.Version_Metadata.outputs.mod_version,
             matrix.minecraft_version) }}
-          version: ${{ format('{0}-{1}-mc{2}',
+          version: ${{ format('{0}-mc{1}',
             steps.Version_Metadata.outputs.tag,
             matrix.minecraft_version) }}
           version-type: ${{ steps.Release_Channel.outputs.type }}
