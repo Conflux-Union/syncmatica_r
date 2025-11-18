@@ -35,6 +35,7 @@ dependencies {
     compileOnly "org.apache.logging.log4j:log4j-core:2.17.2"
     runtimeOnly "org.apache.logging.log4j:log4j-core:2.17.2"
     modImplementation include("org.apache.poi:poi-ooxml:5.2.5")
+    modImplementation include("org.apache.poi:poi:5.2.5")
 
 }
 
