@@ -14,6 +14,10 @@ import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.network.PacketByteBuf;
 //#if MC >= 12005
 //$$ import cn.net.rms.syncmatica_r.communication.SyncmaticaPayload;
+//#endif
+//#if MC >= 12101
+//$$ import net.minecraft.network.packet.CustomPayload;
+//#elseif MC >= 12005
 //$$ import net.minecraft.network.packet.s2c.common.CustomPayloadS2CPacket;
 //#else
 import net.minecraft.network.packet.s2c.play.CustomPayloadS2CPacket;
@@ -62,8 +66,20 @@ public class ActorClientPlayNetworkHandler {
         MaterialHudOverlay.getInstance().scheduleRefresh();
     }
 
-    public void packetEvent(final ClientPlayNetworkHandler clientPlayNetworkHandler, final CustomPayloadS2CPacket packet, final CallbackInfo ci) {
-//#if MC >= 12005
+    public void packetEvent(final ClientPlayNetworkHandler clientPlayNetworkHandler,
+//#if MC >= 12101
+//$$             final CustomPayload packet,
+//#else
+            final CustomPayloadS2CPacket packet,
+//#endif
+            final CallbackInfo ci) {
+//#if MC >= 12101
+//$$         if (!(packet instanceof SyncmaticaPayload payload)) {
+//$$             return;
+//$$         }
+//$$         final Identifier id = payload.id();
+//$$         final PacketByteBuf buf = payload.data();
+//#elseif MC >= 12005
 //$$         if (!(packet.payload() instanceof SyncmaticaPayload payload)) {
 //$$             return;
 //$$         }
