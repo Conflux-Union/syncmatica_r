@@ -42,7 +42,7 @@ public class ExchangeTarget {
         context.getDebugService().logSendPacket(id, persistentName);
         if (server == null) {
 //#if MC >= 12005
-//$$             final SyncmaticaPayload payload = new SyncmaticaPayload(id, new PacketByteBuf(packetBuf.copy()));
+//$$             final SyncmaticaPayload payload = new SyncmaticaPayload(id, packetBuf);
 //$$             final CustomPayloadS2CPacket packet = new CustomPayloadS2CPacket(payload);
 //$$             client.sendPacket(packet);
 //#else
@@ -51,7 +51,7 @@ public class ExchangeTarget {
 //#endif
         } else {
 //#if MC >= 12005
-//$$             final SyncmaticaPayload payload = new SyncmaticaPayload(id, new PacketByteBuf(packetBuf.copy()));
+//$$             final SyncmaticaPayload payload = new SyncmaticaPayload(id, packetBuf);
 //$$             final CustomPayloadC2SPacket packet = new CustomPayloadC2SPacket(payload);
 //$$             server.sendPacket(packet);
 //#else

@@ -6,6 +6,7 @@ import cn.net.rms.syncmatica_r.Syncmatica;
 import cn.net.rms.syncmatica_r.client.HudPreferences;
 import cn.net.rms.syncmatica_r.material.MaterialKey;
 import cn.net.rms.syncmatica_r.material.SyncmaticaMaterialEntry;
+import cn.net.rms.syncmatica_r.util.IdentifierUtil;
 import com.mojang.blaze3d.systems.RenderSystem;
 import fi.dy.masa.malilib.render.RenderUtils;
 import fi.dy.masa.malilib.util.StringUtils;
@@ -34,6 +35,8 @@ import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.registry.Registry;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,6 +45,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 // Lightweight HUD overlay that surfaces the most blocking stocking tasks.
@@ -53,6 +57,7 @@ public final class MaterialHudOverlay implements HudRenderCallback {
     private static final int ICON_SIZE = 16;
     private static final int HUD_MARGIN = 8;
     private static final MaterialHudOverlay INSTANCE = new MaterialHudOverlay();
+    private static final Logger LOGGER = LogManager.getLogger(MaterialHudOverlay.class);
 
     // Keeps the HUD in sync with placement changes without extra ticking.
     private final Consumer<ServerPlacement> placementListener = placement -> refreshSnapshot();
@@ -283,13 +288,12 @@ public final class MaterialHudOverlay implements HudRenderCallback {
             if (id == null || id.isEmpty()) {
                 continue;
             }
-            final Identifier itemId;
-            try {
-                itemId = parseIdentifier(id);
-            } catch (final Exception ex) {
+            final Optional<Identifier> itemId = IdentifierUtil.tryParse(id);
+            if (!itemId.isPresent()) {
+                logInvalidItemId("accumulateContainedItems", id);
                 continue;
             }
-            final Item item = Registry.ITEM.get(itemId);
+            final Item item = Registry.ITEM.get(itemId.get());
             if (item == Items.AIR) {
                 continue;
             }
@@ -299,7 +303,7 @@ public final class MaterialHudOverlay implements HudRenderCallback {
             if (count <= 0) {
                 continue;
             }
-            totals.merge(new MaterialKey(itemId, ""), count, Integer::sum);
+            totals.merge(new MaterialKey(itemId.get(), ""), count, Integer::sum);
             if (!itemNbt.contains("tag", NbtElement.COMPOUND_TYPE)) {
                 continue;
             }
@@ -315,15 +319,11 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         }
     }
 
-//#if MC >= 12005
-//$$     private Identifier parseIdentifier(final String value) {
-//$$         return Identifier.of(value);
-//$$     }
-//#else
-    private Identifier parseIdentifier(final String value) {
-        return new Identifier(value);
+    private void logInvalidItemId(final String source, final String rawId) {
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Ignoring invalid item identifier '{}' while computing {}", rawId, source);
+        }
     }
-//#endif
 
     private int accumulateFingerprint(final Iterable<ItemStack> stacks, final int seed) {
         int fingerprint = seed;
@@ -373,10 +373,15 @@ public final class MaterialHudOverlay implements HudRenderCallback {
             final NbtCompound itemNbt = itemsNbt.getCompound(i);
             final String id = itemNbt.contains("id", NbtElement.STRING_TYPE) ? itemNbt.getString("id") : "";
             final Identifier itemId;
-            try {
-                itemId = id.isEmpty() ? null : parseIdentifier(id);
-            } catch (final Exception ex) {
-                continue;
+            if (id.isEmpty()) {
+                itemId = null;
+            } else {
+                final Optional<Identifier> parsedId = IdentifierUtil.tryParse(id);
+                if (!parsedId.isPresent()) {
+                    logInvalidItemId("fingerprint", id);
+                    continue;
+                }
+                itemId = parsedId.get();
             }
             final int count = itemNbt.contains("Count", NbtElement.NUMBER_TYPE)
                     ? itemNbt.getByte("Count") & 0xFF
@@ -415,13 +420,7 @@ public final class MaterialHudOverlay implements HudRenderCallback {
 
     // No HUD when client options or rows are missing.
     private boolean shouldRender() {
-        if (MinecraftClient.getInstance().options == null) {
-            return false;
-        }
-        if (rows.isEmpty()) {
-            return false;
-        }
-        return true;
+        return MinecraftClient.getInstance().options != null && !rows.isEmpty();
     }
 
 //#if MC >= 12005

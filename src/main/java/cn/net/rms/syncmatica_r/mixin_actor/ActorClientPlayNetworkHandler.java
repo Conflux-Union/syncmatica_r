@@ -78,13 +78,13 @@ public class ActorClientPlayNetworkHandler {
 //$$             return;
 //$$         }
 //$$         final Identifier id = payload.id();
-//$$         final PacketByteBuf buf = payload.data();
+//$$         final PacketByteBuf buf = payload.asPacketByteBuf();
 //#elseif MC >= 12005
 //$$         if (!(packet.payload() instanceof SyncmaticaPayload payload)) {
 //$$             return;
 //$$         }
 //$$         final Identifier id = payload.id();
-//$$         final PacketByteBuf buf = payload.data();
+//$$         final PacketByteBuf buf = payload.asPacketByteBuf();
 //#else
         final Identifier id = packet.getChannel();
         final PacketByteBuf buf = packet.getData();

@@ -26,6 +26,7 @@ import net.minecraft.world.World;
 //$$ import net.minecraft.component.DataComponentTypes;
 //$$ import net.minecraft.component.type.NbtComponent;
 //#endif
+import cn.net.rms.syncmatica_r.util.IdentifierUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -684,25 +685,31 @@ public class MaterialService extends AbstractService {
                 continue;
             }
 
-            try {
-                final Identifier itemId = parseIdentifier(itemNbt.getString("id"));
-                final int count = itemNbt.getByte("Count");
-
-                final MaterialKey key = new MaterialKey(itemId, "");
-                totals.merge(key, count, Integer::sum);
-
-                if (itemNbt.contains("tag")) {
-                    final NbtCompound tag = itemNbt.getCompound("tag");
-                    if (tag.contains("BlockEntityTag")) {
-                        final NbtCompound blockEntityTag = tag.getCompound("BlockEntityTag");
-                        if (blockEntityTag.contains("Items")) {
-                            scanShulkerBoxContents(blockEntityTag.getList("Items", 10), totals);
-                        }
-                    }
+            final String rawId = itemNbt.getString("id");
+            final Optional<Identifier> itemId = IdentifierUtil.tryParse(rawId);
+            if (!itemId.isPresent()) {
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("Ignoring invalid material identifier '{}'", rawId);
                 }
-            } catch (final Exception e) {
-
+                continue;
             }
+            final int count = itemNbt.getByte("Count");
+
+            final MaterialKey key = new MaterialKey(itemId.get(), "");
+            totals.merge(key, count, Integer::sum);
+
+            if (!itemNbt.contains("tag")) {
+                continue;
+            }
+            final NbtCompound tag = itemNbt.getCompound("tag");
+            if (!tag.contains("BlockEntityTag")) {
+                continue;
+            }
+            final NbtCompound blockEntityTag = tag.getCompound("BlockEntityTag");
+            if (!blockEntityTag.contains("Items")) {
+                continue;
+            }
+            scanShulkerBoxContents(blockEntityTag.getList("Items", 10), totals);
         }
     }
 
@@ -726,17 +733,7 @@ public class MaterialService extends AbstractService {
 //#else
                 Registry.WORLD_KEY,
 //#endif
-                parseIdentifier(dimensionId));
+                IdentifierUtil.require(dimensionId));
         return server.getWorld(key);
     }
-
-//#if MC >= 12005
-//$$     private Identifier parseIdentifier(final String value) {
-//$$         return Identifier.of(value);
-//$$     }
-//#else
-    private Identifier parseIdentifier(final String value) {
-        return new Identifier(value);
-    }
-//#endif
 }

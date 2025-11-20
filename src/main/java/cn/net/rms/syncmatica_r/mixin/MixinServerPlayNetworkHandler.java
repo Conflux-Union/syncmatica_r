@@ -55,7 +55,7 @@ public abstract class MixinServerPlayNetworkHandler {
 //#if MC >= 12005
 //$$         NetworkThreadUtils.forceMainThread(packet, (ServerPlayNetworkHandler) (Object) this, player.getServerWorld());
 //$$         if (packet.payload() instanceof SyncmaticaPayload syncPayload) {
-//$$             operateComms(sm -> sm.onPacket(getExchangeTarget(), syncPayload.id(), syncPayload.data()));
+//$$             operateComms(sm -> sm.onPacket(getExchangeTarget(), syncPayload.id(), syncPayload.asPacketByteBuf()));
 //$$         }
 //#else
         NetworkThreadUtils.forceMainThread(packet, (ServerPlayNetworkHandler) (Object) this, player.getServerWorld());
