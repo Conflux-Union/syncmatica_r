@@ -40,6 +40,9 @@ public class SyncmaticManager {
     }
 
     public void addPlacement(final ServerPlacement placement) {
+        if (placement.getCreatedAtMillis() == 0L) {
+            placement.touchCreated(System.currentTimeMillis());
+        }
         schematics.put(placement.getId(), placement);
         if (context != null && context.getMaterialService() != null) {
             context.getMaterialService().attachPlacement(placement);

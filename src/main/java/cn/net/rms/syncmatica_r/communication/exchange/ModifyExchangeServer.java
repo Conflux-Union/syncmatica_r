@@ -40,6 +40,7 @@ public class ModifyExchangeServer extends AbstractExchange {
                     getPartner()
             );
             placement.setLastModifiedBy(identifier);
+            placement.touchModified(System.currentTimeMillis());
             getContext().getSyncmaticManager().updateServerPlacement(placement);
             if (getContext().getMaterialService() != null) {
                 getContext().getMaterialService().refreshPlacement(placement);

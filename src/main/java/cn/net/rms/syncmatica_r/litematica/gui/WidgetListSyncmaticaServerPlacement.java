@@ -19,12 +19,18 @@ import net.minecraft.client.util.math.MatrixStack;
 //#endif
 import net.minecraft.util.math.BlockPos;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPlacement, WidgetSyncmaticaServerPlacementEntry> {
+
+    private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+            .withZone(ZoneId.systemDefault());
 
     private final int infoWidth;
     private final int infoHeight;
@@ -161,6 +167,36 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
 //#else
         drawString(matrixStack, placement.getLastModifiedBy().getName(), x + 4, y, valueColor);
 //#endif
+
+        y += 12;
+        str = StringUtils.translate("syncmatica_r.gui.label.placement_info.uploaded_at");
+//#if MC >= 12001
+//$$         drawString(drawContext, str, x, y, textColor);
+//#else
+        drawString(matrixStack, str, x, y, textColor);
+//#endif
+        y += 12;
+        final String createdAt = formatTimestamp(placement.getCreatedAtMillis());
+//#if MC >= 12001
+//$$         drawString(drawContext, createdAt, x + 4, y, valueColor);
+//#else
+        drawString(matrixStack, createdAt, x + 4, y, valueColor);
+//#endif
+
+        y += 12;
+        str = StringUtils.translate("syncmatica_r.gui.label.placement_info.last_edited_at");
+//#if MC >= 12001
+//$$         drawString(drawContext, str, x, y, textColor);
+//#else
+        drawString(matrixStack, str, x, y, textColor);
+//#endif
+        y += 12;
+        final String lastEdited = formatTimestamp(placement.getLastModifiedAtMillis());
+//#if MC >= 12001
+//$$         drawString(drawContext, lastEdited, x + 4, y, valueColor);
+//#else
+        drawString(matrixStack, lastEdited, x + 4, y, valueColor);
+//#endif
     }
 
     @Override
@@ -179,6 +215,13 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
         final ServerPosition playerPosition = LitematicManager.getInstance().getPlayerPosition();
         final Collection<ServerPlacement> serverPlacements = LitematicManager.getInstance().getActiveContext().getSyncmaticManager().getAll();
         return serverPlacements.stream().sorted(new PlayerDistanceComparator(playerPosition)).collect(Collectors.toList());
+    }
+
+    private String formatTimestamp(final long timestamp) {
+        if (timestamp <= 0L) {
+            return StringUtils.translate("syncmatica_r.gui.label.placement_info.timestamp_unknown");
+        }
+        return TIMESTAMP_FORMATTER.format(Instant.ofEpochMilli(timestamp));
     }
 
     public static class PlayerDistanceComparator implements Comparator<ServerPlacement> {
