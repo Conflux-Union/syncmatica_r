@@ -15,8 +15,13 @@ public class Syncmatica {
 
     public static final String MOD_ID = "syncmatica_r";
     public static final String LEGACY_MOD_ID = "syncmatica";
+//#if MC >= 12005
+//$$     public static final Identifier CLIENT_CONTEXT = Identifier.of(MOD_ID, "client_context");
+//$$     public static final Identifier SERVER_CONTEXT = Identifier.of(MOD_ID, "server_context");
+//#else
     public static final Identifier CLIENT_CONTEXT = new Identifier(MOD_ID + ":client_context");
     public static final Identifier SERVER_CONTEXT = new Identifier(MOD_ID + ":server_context");
+//#endif
     public static final UUID syncmaticaId = UUID.fromString("4c1b738f-56fa-4011-8273-498c972424ea");
     private static final String SERVER_PATH = "." + File.separator + "syncmatics";
     private static final String CLIENT_PATH = "." + File.separator + "schematics" + File.separator + "sync";

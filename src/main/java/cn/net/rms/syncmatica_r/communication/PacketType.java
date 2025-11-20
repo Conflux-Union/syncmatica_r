@@ -57,7 +57,11 @@ public enum PacketType {
         final String namespace = flavor == ProtocolFlavor.LEGACY
                 ? LEGACY_NAMESPACE
                 : NEW_NAMESPACE;
+//#if MC >= 12005
+//$$         return Identifier.of(namespace, path);
+//#else
         return new Identifier(namespace, path);
+//#endif
     }
 
     public Identifier toIdentifier() {

@@ -12,7 +12,12 @@ import cn.net.rms.syncmatica_r.litematica.LitematicManager;
 import cn.net.rms.syncmatica_r.litematica.ScreenHelper;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.network.PacketByteBuf;
+//#if MC >= 12005
+//$$ import cn.net.rms.syncmatica_r.communication.SyncmaticaPayload;
+//$$ import net.minecraft.network.packet.s2c.common.CustomPayloadS2CPacket;
+//#else
 import net.minecraft.network.packet.s2c.play.CustomPayloadS2CPacket;
+//#endif
 import net.minecraft.util.Identifier;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
@@ -58,8 +63,16 @@ public class ActorClientPlayNetworkHandler {
     }
 
     public void packetEvent(final ClientPlayNetworkHandler clientPlayNetworkHandler, final CustomPayloadS2CPacket packet, final CallbackInfo ci) {
+//#if MC >= 12005
+//$$         if (!(packet.payload() instanceof SyncmaticaPayload payload)) {
+//$$             return;
+//$$         }
+//$$         final Identifier id = payload.id();
+//$$         final PacketByteBuf buf = payload.data();
+//#else
         final Identifier id = packet.getChannel();
         final PacketByteBuf buf = packet.getData();
+//#endif
         if (clientCommunication == null) {
 
             ActorClientPlayNetworkHandler.getInstance().startEvent(clientPlayNetworkHandler);

@@ -5,8 +5,13 @@ plugins {
     id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
-sourceCompatibility = JavaVersion.VERSION_16
-targetCompatibility = JavaVersion.VERSION_16
+def mcVersionParts = project.minecraft_version.split('\\.')
+def mcVersionNumber = (mcVersionParts[0] + mcVersionParts[1].padLeft(2, '0') + (mcVersionParts.size() > 2 ? mcVersionParts[2].padLeft(2, '0') : '00')).toInteger()
+def javaRelease = mcVersionNumber >= 12100 ? 21 : (mcVersionNumber >= 12000 ? 17 : 16)
+def toolchainVersion = javaRelease >= 17 ? javaRelease : 17
+
+sourceCompatibility = JavaVersion.toVersion(javaRelease)
+targetCompatibility = JavaVersion.toVersion(javaRelease)
 
 archivesBaseName = project.archives_base_name + '-' + project.minecraft_version
 version = project.mod_version
@@ -65,15 +70,14 @@ tasks.withType(JavaCompile).configureEach {
 
     it.options.encoding = "UTF-8"
 
-    def targetVersion = 16
     if (JavaVersion.current().isJava9Compatible()) {
-        it.options.release = targetVersion
+        it.options.release = javaRelease
     }
 }
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(toolchainVersion)
     }
 }
 

@@ -14,7 +14,13 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.render.item.ItemRenderer;
 import net.minecraft.client.util.math.MatrixStack;
-//#if MC >= 12001
+//#if MC >= 12005
+//$$ import net.minecraft.client.gui.DrawContext;
+//$$ import net.minecraft.client.render.RenderTickCounter;
+//$$ import net.minecraft.component.DataComponentTypes;
+//$$ import net.minecraft.component.type.NbtComponent;
+//$$ import net.minecraft.text.Text;
+//#elseif MC >= 12001
 //$$ import net.minecraft.client.gui.DrawContext;
 //$$ import net.minecraft.text.Text;
 //#endif
@@ -248,11 +254,19 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         if (!(item instanceof BlockItem)) {
             return;
         }
+//#if MC >= 12005
+//$$         final NbtComponent blockEntityData = stack.getComponents().get(DataComponentTypes.BLOCK_ENTITY_DATA);
+//$$         if (blockEntityData == null || blockEntityData.isEmpty()) {
+//$$             return;
+//$$         }
+//$$         final NbtCompound blockEntityTag = blockEntityData.copyNbt();
+//#else
         final NbtCompound nbt = stack.getNbt();
         if (nbt == null || !nbt.contains("BlockEntityTag", NbtElement.COMPOUND_TYPE)) {
             return;
         }
         final NbtCompound blockEntityTag = nbt.getCompound("BlockEntityTag");
+//#endif
         if (!blockEntityTag.contains("Items", NbtElement.LIST_TYPE)) {
             return;
         }
@@ -271,7 +285,7 @@ public final class MaterialHudOverlay implements HudRenderCallback {
             }
             final Identifier itemId;
             try {
-                itemId = new Identifier(id);
+                itemId = parseIdentifier(id);
             } catch (final Exception ex) {
                 continue;
             }
@@ -301,6 +315,16 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         }
     }
 
+//#if MC >= 12005
+//$$     private Identifier parseIdentifier(final String value) {
+//$$         return Identifier.of(value);
+//$$     }
+//#else
+    private Identifier parseIdentifier(final String value) {
+        return new Identifier(value);
+    }
+//#endif
+
     private int accumulateFingerprint(final Iterable<ItemStack> stacks, final int seed) {
         int fingerprint = seed;
         if (stacks == null) {
@@ -324,11 +348,19 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         if (!(item instanceof BlockItem)) {
             return fingerprint;
         }
+//#if MC >= 12005
+//$$         final NbtComponent blockEntityData = stack.getComponents().get(DataComponentTypes.BLOCK_ENTITY_DATA);
+//$$         if (blockEntityData == null || blockEntityData.isEmpty()) {
+//$$             return fingerprint;
+//$$         }
+//$$         final NbtCompound blockEntityTag = blockEntityData.copyNbt();
+//#else
         final NbtCompound nbt = stack.getNbt();
         if (nbt == null || !nbt.contains("BlockEntityTag", NbtElement.COMPOUND_TYPE)) {
             return fingerprint;
         }
         final NbtCompound blockEntityTag = nbt.getCompound("BlockEntityTag");
+//#endif
         if (!blockEntityTag.contains("Items", NbtElement.LIST_TYPE)) {
             return fingerprint;
         }
@@ -342,7 +374,7 @@ public final class MaterialHudOverlay implements HudRenderCallback {
             final String id = itemNbt.contains("id", NbtElement.STRING_TYPE) ? itemNbt.getString("id") : "";
             final Identifier itemId;
             try {
-                itemId = id.isEmpty() ? null : new Identifier(id);
+                itemId = id.isEmpty() ? null : parseIdentifier(id);
             } catch (final Exception ex) {
                 continue;
             }
@@ -392,7 +424,12 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         return true;
     }
 
-//#if MC >= 12001
+//#if MC >= 12005
+//$$     @Override
+//$$     public void onHudRender(final DrawContext drawContext, final RenderTickCounter tickCounter) {
+//$$         render(null, drawContext);
+//$$     }
+//#elseif MC >= 12001
 //$$     @Override
 //$$     public void onHudRender(final DrawContext drawContext, final float tickDelta) {
 //$$         render(null, drawContext);

@@ -3,7 +3,11 @@ package cn.net.rms.syncmatica_r.mixin;
 import cn.net.rms.syncmatica_r.mixin_actor.ActorClientPlayNetworkHandler;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
+//#if MC >= 12005
+//$$ import net.minecraft.network.packet.s2c.common.CustomPayloadS2CPacket;
+//#else
 import net.minecraft.network.packet.s2c.play.CustomPayloadS2CPacket;
+//#endif
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;

@@ -12,7 +12,9 @@ import com.mojang.authlib.GameProfile;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.network.ServerPlayerEntity;
+//#if MC < 12001
 import net.minecraft.text.LiteralText;
+//#endif
 //#if MC >= 12001
 //$$ import net.minecraft.text.Text;
 //#endif
@@ -157,7 +159,11 @@ public class ServerCommunicationManager extends CommunicationManager {
             if (placement == null) {
                 return;
             }
+//#if MC >= 12005
+//$$             final cn.net.rms.syncmatica_r.material.MaterialKey key = new cn.net.rms.syncmatica_r.material.MaterialKey(net.minecraft.util.Identifier.of(itemId), variant);
+//#else
             final cn.net.rms.syncmatica_r.material.MaterialKey key = new cn.net.rms.syncmatica_r.material.MaterialKey(new net.minecraft.util.Identifier(itemId), variant);
+//#endif
             final cn.net.rms.syncmatica_r.material.MaterialProgressEntry entry = placement.getMaterialProgress().getOrCreate(key, 0);
             final net.minecraft.server.network.ServerPlayerEntity player = playerMap.get(source);
             if (player == null) {

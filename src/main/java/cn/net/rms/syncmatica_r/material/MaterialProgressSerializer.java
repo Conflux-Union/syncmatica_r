@@ -55,7 +55,11 @@ public final class MaterialProgressSerializer {
             if (!node.has(FIELD_ITEM) || !node.has(FIELD_REQUIRED)) {
                 continue;
             }
+//#if MC >= 12005
+//$$             final Identifier itemId = Identifier.of(node.get(FIELD_ITEM).getAsString());
+//#else
             final Identifier itemId = new Identifier(node.get(FIELD_ITEM).getAsString());
+//#endif
             final String variant = node.has(FIELD_VARIANT) ? node.get(FIELD_VARIANT).getAsString() : "";
             final MaterialProgressEntry entry = state.getOrCreate(new MaterialKey(itemId, variant), node.get(FIELD_REQUIRED).getAsInt());
             if (node.has(FIELD_STOCK)) {

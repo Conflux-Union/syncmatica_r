@@ -16,6 +16,10 @@ import fi.dy.masa.litematica.schematic.placement.SubRegionPlacement;
 import fi.dy.masa.litematica.util.FileType;
 import fi.dy.masa.malilib.gui.Message;
 import net.minecraft.client.MinecraftClient;
+//#if MC >= 12005
+//$$ import com.mojang.authlib.GameProfile;
+//$$ import net.minecraft.client.session.Session;
+//#endif
 import net.minecraft.util.BlockMirror;
 import net.minecraft.util.BlockRotation;
 import net.minecraft.util.math.BlockPos;
@@ -115,9 +119,16 @@ public class LitematicManager {
                 return null;
             }
 
+//#if MC >= 12005
+//$$             final Session session = MinecraftClient.getInstance().getSession();
+//$$             final PlayerIdentifier owner = context.getPlayerIdentifierProvider().createOrGet(
+//$$                     new GameProfile(session.getUuidOrNull(), session.getUsername())
+//$$             );
+//#else
             final PlayerIdentifier owner = context.getPlayerIdentifierProvider().createOrGet(
                     MinecraftClient.getInstance().getSession().getProfile()
             );
+//#endif
 
             final ServerPlacement placement = new ServerPlacement(UUID.randomUUID(), placementFile, owner);
 

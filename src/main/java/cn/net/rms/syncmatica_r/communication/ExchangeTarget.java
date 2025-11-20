@@ -5,8 +5,14 @@ import cn.net.rms.syncmatica_r.communication.exchange.Exchange;
 import fi.dy.masa.malilib.util.StringUtils;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.network.PacketByteBuf;
+//#if MC >= 12005
+//$$ import cn.net.rms.syncmatica_r.communication.SyncmaticaPayload;
+//$$ import net.minecraft.network.packet.c2s.common.CustomPayloadC2SPacket;
+//$$ import net.minecraft.network.packet.s2c.common.CustomPayloadS2CPacket;
+//#else
 import net.minecraft.network.packet.c2s.play.CustomPayloadC2SPacket;
 import net.minecraft.network.packet.s2c.play.CustomPayloadS2CPacket;
+//#endif
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.util.Identifier;
 
@@ -35,11 +41,23 @@ public class ExchangeTarget {
     public void sendPacket(final Identifier id, final PacketByteBuf packetBuf, final Context context) {
         context.getDebugService().logSendPacket(id, persistentName);
         if (server == null) {
+//#if MC >= 12005
+//$$             final SyncmaticaPayload payload = new SyncmaticaPayload(id, new PacketByteBuf(packetBuf.copy()));
+//$$             final CustomPayloadS2CPacket packet = new CustomPayloadS2CPacket(payload);
+//$$             client.sendPacket(packet);
+//#else
             final CustomPayloadS2CPacket packet = new CustomPayloadS2CPacket(id, packetBuf);
             client.sendPacket(packet);
+//#endif
         } else {
+//#if MC >= 12005
+//$$             final SyncmaticaPayload payload = new SyncmaticaPayload(id, new PacketByteBuf(packetBuf.copy()));
+//$$             final CustomPayloadC2SPacket packet = new CustomPayloadC2SPacket(payload);
+//$$             server.sendPacket(packet);
+//#else
             final CustomPayloadC2SPacket packet = new CustomPayloadC2SPacket(id, packetBuf);
             server.sendPacket(packet);
+//#endif
         }
     }
 

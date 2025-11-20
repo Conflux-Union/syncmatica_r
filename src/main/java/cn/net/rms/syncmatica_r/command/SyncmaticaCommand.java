@@ -13,7 +13,9 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.command.argument.BlockPosArgumentType;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
+//#if MC < 12001
 import net.minecraft.text.LiteralText;
+//#endif
 //#if MC >= 12001
 //$$ import net.minecraft.text.Text;
 //#endif
