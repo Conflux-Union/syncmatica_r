@@ -38,7 +38,11 @@ public abstract class MixinServerPlayNetworkHandler {
     private ServerCommunicationManager comManager = null;
 
     @Inject(method = "<init>", at = @At("TAIL"))
+//#if MC >= 12101
+//$$     public void onConnect(final MinecraftServer server, final ClientConnection connection, final ServerPlayerEntity player, final net.minecraft.server.network.ConnectedClientData clientData, final CallbackInfo ci) {
+//#else
     public void onConnect(final MinecraftServer server, final ClientConnection connection, final ServerPlayerEntity player, final CallbackInfo ci) {
+//#endif
         operateComms(sm -> sm.onPlayerJoin(getExchangeTarget(), player));
     }
 
