@@ -6,6 +6,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import net.minecraft.util.Identifier;
+import cn.net.rms.syncmatica_r.util.IdentifierUtil;
+
+import java.util.Optional;
 
 public final class MaterialProgressSerializer {
     private static final String FIELD_ITEM = "item";
@@ -55,13 +58,12 @@ public final class MaterialProgressSerializer {
             if (!node.has(FIELD_ITEM) || !node.has(FIELD_REQUIRED)) {
                 continue;
             }
-//#if MC >= 12005
-//$$             final Identifier itemId = Identifier.of(node.get(FIELD_ITEM).getAsString());
-//#else
-            final Identifier itemId = new Identifier(node.get(FIELD_ITEM).getAsString());
-//#endif
+            final Optional<Identifier> itemId = IdentifierUtil.tryParse(node.get(FIELD_ITEM).getAsString());
+            if (!itemId.isPresent()) {
+                continue;
+            }
             final String variant = node.has(FIELD_VARIANT) ? node.get(FIELD_VARIANT).getAsString() : "";
-            final MaterialProgressEntry entry = state.getOrCreate(new MaterialKey(itemId, variant), node.get(FIELD_REQUIRED).getAsInt());
+            final MaterialProgressEntry entry = state.getOrCreate(new MaterialKey(itemId.get(), variant), node.get(FIELD_REQUIRED).getAsInt());
             if (node.has(FIELD_STOCK)) {
                 entry.setStockingSupplied(node.get(FIELD_STOCK).getAsInt());
             }

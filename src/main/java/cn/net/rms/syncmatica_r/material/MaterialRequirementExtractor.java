@@ -13,6 +13,7 @@ import net.minecraft.util.registry.Registry;
 //#if MC >= 12005
 //$$ import net.minecraft.nbt.NbtSizeTracker;
 //#endif
+import cn.net.rms.syncmatica_r.util.IdentifierUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -24,6 +25,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public final class MaterialRequirementExtractor {
 
@@ -160,8 +162,11 @@ public final class MaterialRequirementExtractor {
         if (name.isEmpty()) {
             return null;
         }
-        final Identifier blockId = parseIdentifier(name);
-        final Block block = Registry.BLOCK.getOrEmpty(blockId).orElse(Blocks.AIR);
+        final Optional<Identifier> blockId = IdentifierUtil.tryParse(name);
+        if (!blockId.isPresent()) {
+            return null;
+        }
+        final Block block = Registry.BLOCK.getOrEmpty(blockId.get()).orElse(Blocks.AIR);
         if (block == Blocks.AIR) {
             return null;
         }
@@ -249,17 +254,15 @@ public final class MaterialRequirementExtractor {
         if (id.isEmpty()) {
             return;
         }
-        final Identifier identifier;
-        try {
-            identifier = parseIdentifier(id);
-        } catch (final Exception ignored) {
+        final Optional<Identifier> identifier = IdentifierUtil.tryParse(id);
+        if (!identifier.isPresent()) {
             return;
         }
         final int count = Byte.toUnsignedInt(item.getByte("Count"));
         if (count <= 0) {
             return;
         }
-        totals.merge(new MaterialKey(identifier, ""), count, Integer::sum);
+        totals.merge(new MaterialKey(identifier.get(), ""), count, Integer::sum);
         if (item.contains("tag", NbtElement.COMPOUND_TYPE)) {
             final NbtCompound tag = item.getCompound("tag");
             accumulateNestedBlockEntity(tag, totals);
@@ -277,16 +280,6 @@ public final class MaterialRequirementExtractor {
         final NbtList nestedItems = blockEntityTag.getList("Items", NbtElement.COMPOUND_TYPE);
         accumulateItemList(nestedItems, totals);
     }
-
-//#if MC >= 12005
-//$$     private static Identifier parseIdentifier(final String value) {
-//$$         return Identifier.of(value);
-//$$     }
-//#else
-    private static Identifier parseIdentifier(final String value) {
-        return new Identifier(value);
-    }
-//#endif
 
     private static final class ExtractionLimitExceededException extends RuntimeException {
         private final long seenBlocks;

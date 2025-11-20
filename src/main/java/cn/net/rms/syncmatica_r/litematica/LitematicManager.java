@@ -121,8 +121,13 @@ public class LitematicManager {
 
 //#if MC >= 12005
 //$$             final Session session = MinecraftClient.getInstance().getSession();
+//$$             final UUID rawUuid = session == null ? null : session.getUuidOrNull();
+//$$             final String username = session == null ? "unknown" : session.getUsername();
+//$$             final UUID resolvedUuid = rawUuid != null
+//$$                     ? rawUuid
+//$$                     : UUID.nameUUIDFromBytes(("syncmatica:" + username).getBytes(java.nio.charset.StandardCharsets.UTF_8));
 //$$             final PlayerIdentifier owner = context.getPlayerIdentifierProvider().createOrGet(
-//$$                     new GameProfile(session.getUuidOrNull(), session.getUsername())
+//$$                     new GameProfile(resolvedUuid, username)
 //$$             );
 //#else
             final PlayerIdentifier owner = context.getPlayerIdentifierProvider().createOrGet(
