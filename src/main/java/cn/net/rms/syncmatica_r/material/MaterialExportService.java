@@ -9,7 +9,9 @@ import net.minecraft.client.gui.hud.InGameHud;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+//#if MC < 12001
 import net.minecraft.text.LiteralText;
+//#endif
 //#if MC >= 12001
 //$$ import net.minecraft.text.Text;
 //#endif

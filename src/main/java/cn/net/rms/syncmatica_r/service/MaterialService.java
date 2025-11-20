@@ -22,6 +22,10 @@ import net.minecraft.world.World;
 //$$ import net.minecraft.registry.RegistryKeys;
 //$$ import net.minecraft.block.entity.SignText;
 //#endif
+//#if MC >= 12005
+//$$ import net.minecraft.component.DataComponentTypes;
+//$$ import net.minecraft.component.type.NbtComponent;
+//#endif
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -652,6 +656,15 @@ public class MaterialService extends AbstractService {
             totals.merge(key, stack.getCount(), Integer::sum);
 
             if (stack.getItem() instanceof BlockItem) {
+//#if MC >= 12005
+//$$                 final NbtComponent blockEntityData = stack.getComponents().get(DataComponentTypes.BLOCK_ENTITY_DATA);
+//$$                 if (blockEntityData != null && !blockEntityData.isEmpty()) {
+//$$                     final NbtCompound blockEntityTag = blockEntityData.copyNbt();
+//$$                     if (blockEntityTag.contains("Items")) {
+//$$                         scanShulkerBoxContents(blockEntityTag.getList("Items", 10), totals);
+//$$                     }
+//$$                 }
+//#else
                 final NbtCompound nbt = stack.getNbt();
                 if (nbt != null && nbt.contains("BlockEntityTag")) {
                     final NbtCompound blockEntityTag = nbt.getCompound("BlockEntityTag");
@@ -659,6 +672,7 @@ public class MaterialService extends AbstractService {
                         scanShulkerBoxContents(blockEntityTag.getList("Items", 10), totals);
                     }
                 }
+//#endif
             }
         }
     }
@@ -671,7 +685,7 @@ public class MaterialService extends AbstractService {
             }
 
             try {
-                final Identifier itemId = new Identifier(itemNbt.getString("id"));
+                final Identifier itemId = parseIdentifier(itemNbt.getString("id"));
                 final int count = itemNbt.getByte("Count");
 
                 final MaterialKey key = new MaterialKey(itemId, "");
@@ -712,7 +726,17 @@ public class MaterialService extends AbstractService {
 //#else
                 Registry.WORLD_KEY,
 //#endif
-                new Identifier(dimensionId));
+                parseIdentifier(dimensionId));
         return server.getWorld(key);
     }
+
+//#if MC >= 12005
+//$$     private Identifier parseIdentifier(final String value) {
+//$$         return Identifier.of(value);
+//$$     }
+//#else
+    private Identifier parseIdentifier(final String value) {
+        return new Identifier(value);
+    }
+//#endif
 }

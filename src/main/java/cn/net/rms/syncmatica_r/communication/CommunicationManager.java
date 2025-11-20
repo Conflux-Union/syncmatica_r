@@ -272,7 +272,11 @@ public abstract class CommunicationManager {
         }
         final MaterialProgressState snapshot = new MaterialProgressState();
         for (int i = 0; i < total; i++) {
+//#if MC >= 12005
+//$$             final MaterialKey key = new MaterialKey(Identifier.of(buf.readString(32767)), buf.readString(32767));
+//#else
             final MaterialKey key = new MaterialKey(new Identifier(buf.readString(32767)), buf.readString(32767));
+//#endif
             final int required = buf.readInt();
             final MaterialProgressEntry entry = snapshot.getOrCreate(key, required);
             entry.setStockingSupplied(buf.readInt());

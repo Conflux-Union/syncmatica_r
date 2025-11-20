@@ -52,7 +52,11 @@ public class SyncmaticaClient implements ClientModInitializer {
         title = new TranslatableText("syncmatica_r.update.toast.title");
         description = new TranslatableText("syncmatica_r.update.toast.description", localVersion, remoteVersion);
         //#endif
-        //#if MC >= 12001
+        //#if MC >= 12005
+        //$$ if (client.player != null) {
+        //$$     client.player.sendMessage(description, false);
+        //$$ }
+        //#elseif MC >= 12001
         //$$ SystemToast.add(client.getToastManager(), SystemToast.Type.TUTORIAL_HINT, title, description);
         //#else
         client.getToastManager().add(SystemToast.create(client, SystemToast.Type.TUTORIAL_HINT, title, description));

@@ -4,15 +4,20 @@ import cn.net.rms.syncmatica_r.Context;
 import cn.net.rms.syncmatica_r.Syncmatica;
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
 import cn.net.rms.syncmatica_r.communication.ServerCommunicationManager;
-import net.minecraft.network.ClientConnection;
-import net.minecraft.network.NetworkThreadUtils;
+//#if MC >= 12005
+//$$ import cn.net.rms.syncmatica_r.communication.SyncmaticaPayload;
+//$$ import net.minecraft.network.packet.c2s.common.CustomPayloadC2SPacket;
+//#else
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.packet.c2s.play.CustomPayloadC2SPacket;
+import net.minecraft.util.Identifier;
+//#endif
+import net.minecraft.network.ClientConnection;
+import net.minecraft.network.NetworkThreadUtils;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -43,10 +48,17 @@ public abstract class MixinServerPlayNetworkHandler {
 
     @Inject(method = "onCustomPayload", at = @At("HEAD"))
     public void onCustomPayload(final CustomPayloadC2SPacket packet, final CallbackInfo ci) {
+//#if MC >= 12005
+//$$         NetworkThreadUtils.forceMainThread(packet, (ServerPlayNetworkHandler) (Object) this, player.getServerWorld());
+//$$         if (packet.payload() instanceof SyncmaticaPayload syncPayload) {
+//$$             operateComms(sm -> sm.onPacket(getExchangeTarget(), syncPayload.id(), syncPayload.data()));
+//$$         }
+//#else
         NetworkThreadUtils.forceMainThread(packet, (ServerPlayNetworkHandler) (Object) this, player.getServerWorld());
         final Identifier id = ((MixinCustomPayloadC2SPacket) packet).getChannel();
         final PacketByteBuf packetBuf = ((MixinCustomPayloadC2SPacket) packet).getData();
         operateComms(sm -> sm.onPacket(getExchangeTarget(), id, packetBuf));
+//#endif
     }
 
     private ExchangeTarget getExchangeTarget() {

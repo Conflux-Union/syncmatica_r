@@ -10,6 +10,9 @@ import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.registry.Registry;
+//#if MC >= 12005
+//$$ import net.minecraft.nbt.NbtSizeTracker;
+//#endif
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -45,7 +48,11 @@ public final class MaterialRequirementExtractor {
             return requirements;
         }
         try (InputStream input = new FileInputStream(litematicFile)) {
+//#if MC >= 12005
+//$$             final NbtCompound root = NbtIo.readCompressed(input, NbtSizeTracker.ofUnlimitedBytes());
+//#else
             final NbtCompound root = NbtIo.readCompressed(input);
+//#endif
             if (root == null || !root.contains("Regions", NbtElement.COMPOUND_TYPE)) {
                 return requirements;
             }
@@ -153,7 +160,7 @@ public final class MaterialRequirementExtractor {
         if (name.isEmpty()) {
             return null;
         }
-        final Identifier blockId = new Identifier(name);
+        final Identifier blockId = parseIdentifier(name);
         final Block block = Registry.BLOCK.getOrEmpty(blockId).orElse(Blocks.AIR);
         if (block == Blocks.AIR) {
             return null;
@@ -244,7 +251,7 @@ public final class MaterialRequirementExtractor {
         }
         final Identifier identifier;
         try {
-            identifier = new Identifier(id);
+            identifier = parseIdentifier(id);
         } catch (final Exception ignored) {
             return;
         }
@@ -270,6 +277,16 @@ public final class MaterialRequirementExtractor {
         final NbtList nestedItems = blockEntityTag.getList("Items", NbtElement.COMPOUND_TYPE);
         accumulateItemList(nestedItems, totals);
     }
+
+//#if MC >= 12005
+//$$     private static Identifier parseIdentifier(final String value) {
+//$$         return Identifier.of(value);
+//$$     }
+//#else
+    private static Identifier parseIdentifier(final String value) {
+        return new Identifier(value);
+    }
+//#endif
 
     private static final class ExtractionLimitExceededException extends RuntimeException {
         private final long seenBlocks;
