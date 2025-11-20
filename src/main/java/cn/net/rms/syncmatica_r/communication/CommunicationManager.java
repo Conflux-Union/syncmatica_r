@@ -79,11 +79,16 @@ public abstract class CommunicationManager {
         buf.writeString(SyncmaticaUtil.sanitizeFileName(metaData.getName()));
         buf.writeUuid(metaData.getHash());
 
-        if (exchangeTarget.getFeatureSet().hasFeature(Feature.CORE_EX)) {
+        final FeatureSet targetFeatures = exchangeTarget.getFeatureSet();
+        if (targetFeatures != null && targetFeatures.hasFeature(Feature.CORE_EX)) {
             buf.writeUuid(metaData.getOwner().uuid);
             buf.writeString(metaData.getOwner().getName());
             buf.writeUuid(metaData.getLastModifiedBy().uuid);
             buf.writeString(metaData.getLastModifiedBy().getName());
+            if (supportsTimestamps(exchangeTarget)) {
+                buf.writeLong(metaData.getCreatedAtMillis());
+                buf.writeLong(metaData.getLastModifiedAtMillis());
+            }
         }
 
         putPositionData(metaData, buf, exchangeTarget);
@@ -97,7 +102,8 @@ public abstract class CommunicationManager {
         buf.writeInt(metaData.getRotation().ordinal());
         buf.writeInt(metaData.getMirror().ordinal());
 
-        if (exchangeTarget.getFeatureSet().hasFeature(Feature.CORE_EX)) {
+        final FeatureSet targetFeatures = exchangeTarget.getFeatureSet();
+        if (targetFeatures != null && targetFeatures.hasFeature(Feature.CORE_EX)) {
             if (metaData.getSubRegionData().getModificationData() == null) {
                 buf.writeInt(0);
 
@@ -128,8 +134,11 @@ public abstract class CommunicationManager {
 
         PlayerIdentifier owner = PlayerIdentifier.MISSING_PLAYER;
         PlayerIdentifier lastModifiedBy = PlayerIdentifier.MISSING_PLAYER;
+        final FeatureSet targetFeatures = exchangeTarget.getFeatureSet();
+        final boolean hasCoreEx = targetFeatures != null && targetFeatures.hasFeature(Feature.CORE_EX);
+        final boolean hasTimestamps = hasCoreEx && supportsTimestamps(exchangeTarget);
 
-        if (exchangeTarget.getFeatureSet().hasFeature(Feature.CORE_EX)) {
+        if (hasCoreEx) {
             final PlayerIdentifierProvider provider = context.getPlayerIdentifierProvider();
             owner = provider.createOrGet(
                     buf.readUuid(),
@@ -143,6 +152,10 @@ public abstract class CommunicationManager {
 
         final ServerPlacement placement = new ServerPlacement(id, fileName, hash, owner);
         placement.setLastModifiedBy(lastModifiedBy);
+        if (hasTimestamps && buf.readableBytes() >= Long.BYTES * 2) {
+            placement.setCreatedAtMillis(buf.readLong());
+            placement.setLastModifiedAtMillis(buf.readLong());
+        }
 
         receivePositionData(placement, buf, exchangeTarget);
         receiveMaterialProgress(placement, buf, exchangeTarget);
@@ -351,5 +364,14 @@ public abstract class CommunicationManager {
     public void notifyClose(final Exchange e) {
         e.getPartner().getExchanges().remove(e);
         handleExchange(e);
+    }
+
+    protected boolean supportsTimestamps(final ExchangeTarget exchangeTarget) {
+        final FeatureSet localFeatures = context != null ? context.getFeatureSet() : null;
+        final FeatureSet partnerFeatures = exchangeTarget.getFeatureSet();
+        return localFeatures != null
+                && partnerFeatures != null
+                && localFeatures.hasFeature(Feature.TIMESTAMPS)
+                && partnerFeatures.hasFeature(Feature.TIMESTAMPS);
     }
 }

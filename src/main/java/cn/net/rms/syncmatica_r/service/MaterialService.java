@@ -113,6 +113,10 @@ public class MaterialService extends AbstractService {
         placement.setStockingArea(area);
         cancelPlacementScan(placement.getId());
         rebuildSnapshot(placement, true);
+        placement.touchModified(System.currentTimeMillis());
+        if (context != null) {
+            context.getSyncmaticManager().updateServerPlacement(placement);
+        }
     }
 
     public StockingAreaDefinition getStockingArea(final UUID placementId) {

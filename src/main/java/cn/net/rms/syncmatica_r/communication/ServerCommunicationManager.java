@@ -185,6 +185,7 @@ public class ServerCommunicationManager extends CommunicationManager {
                 entry.addClaimer(pid);
             }
             placement.setLastModifiedBy(pid);
+            placement.touchModified(System.currentTimeMillis());
             context.getSyncmaticManager().updateServerPlacement(placement);
             broadcastPlacementUpdate(placement);
         }
@@ -225,14 +226,18 @@ public class ServerCommunicationManager extends CommunicationManager {
 
     public void broadcastPlacementUpdate(final ServerPlacement placement) {
         for (final ExchangeTarget client : broadcastTargets) {
-            if (client.getFeatureSet().hasFeature(Feature.MODIFY)) {
+            final FeatureSet clientFeatures = client.getFeatureSet();
+            if (clientFeatures != null && clientFeatures.hasFeature(Feature.MODIFY)) {
                 final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
                 buf.writeUuid(placement.getId());
                 putPositionData(placement, buf, client);
                 putMaterialData(placement, buf, client);
-                if (client.getFeatureSet().hasFeature(Feature.CORE_EX)) {
+                if (clientFeatures.hasFeature(Feature.CORE_EX)) {
                     buf.writeUuid(placement.getLastModifiedBy().uuid);
                     buf.writeString(placement.getLastModifiedBy().getName());
+                    if (supportsTimestamps(client)) {
+                        buf.writeLong(placement.getLastModifiedAtMillis());
+                    }
                 }
                 client.sendPacket(PacketType.MODIFY.toIdentifier(client.getProtocolFlavor()), buf, context);
                 continue;

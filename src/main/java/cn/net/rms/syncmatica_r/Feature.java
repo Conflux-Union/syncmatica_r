@@ -10,7 +10,8 @@ public enum Feature {
     DEBUG,
     MATERIAL_PROGRESS,
     MATERIAL_CLAIMS,
-    CORE_EX;
+    CORE_EX,
+    TIMESTAMPS;
 
     public static Feature fromString(final String s) {
         for (final Feature f : Feature.values()) {

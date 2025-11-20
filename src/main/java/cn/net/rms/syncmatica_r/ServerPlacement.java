@@ -24,6 +24,8 @@ public class ServerPlacement {
     private final MaterialProgressState materialProgress = new MaterialProgressState();
     private PlayerIdentifier owner;
     private PlayerIdentifier lastModifiedBy;
+    private long createdAtMillis;
+    private long lastModifiedAtMillis;
     private ServerPosition origin;
     private BlockRotation rotation;
     private BlockMirror mirror;
@@ -90,6 +92,13 @@ public class ServerPlacement {
                         .fromJson(obj.get("lastModifiedBy").getAsJsonObject());
             } else {
                 newPlacement.lastModifiedBy = owner;
+            }
+
+            if (obj.has("createdAt")) {
+                newPlacement.createdAtMillis = obj.get("createdAt").getAsLong();
+            }
+            if (obj.has("lastModifiedAt")) {
+                newPlacement.lastModifiedAtMillis = obj.get("lastModifiedAt").getAsLong();
             }
 
             if (obj.has("subregionData")) {
@@ -174,6 +183,38 @@ public class ServerPlacement {
         this.lastModifiedBy = lastModifiedBy;
     }
 
+    public long getCreatedAtMillis() {
+        return createdAtMillis;
+    }
+
+    public void setCreatedAtMillis(final long createdAtMillis) {
+        this.createdAtMillis = createdAtMillis;
+    }
+
+    public long getLastModifiedAtMillis() {
+        return lastModifiedAtMillis;
+    }
+
+    public void setLastModifiedAtMillis(final long lastModifiedAtMillis) {
+        this.lastModifiedAtMillis = lastModifiedAtMillis;
+    }
+
+    public void touchCreated(final long timestamp) {
+        if (createdAtMillis == 0L) {
+            createdAtMillis = timestamp;
+        }
+        if (lastModifiedAtMillis == 0L) {
+            lastModifiedAtMillis = timestamp;
+        }
+    }
+
+    public void touchModified(final long timestamp) {
+        lastModifiedAtMillis = timestamp;
+        if (createdAtMillis == 0L) {
+            createdAtMillis = timestamp;
+        }
+    }
+
     public SubRegionData getSubRegionData() {
         return subRegionData;
     }
@@ -227,6 +268,13 @@ public class ServerPlacement {
         obj.add("owner", owner.toJson());
         if (!owner.equals(lastModifiedBy)) {
             obj.add("lastModifiedBy", lastModifiedBy.toJson());
+        }
+
+        if (createdAtMillis > 0L) {
+            obj.add("createdAt", new JsonPrimitive(createdAtMillis));
+        }
+        if (lastModifiedAtMillis > 0L) {
+            obj.add("lastModifiedAt", new JsonPrimitive(lastModifiedAtMillis));
         }
 
         if (subRegionData.isModified()) {

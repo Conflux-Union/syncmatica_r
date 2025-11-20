@@ -65,13 +65,24 @@ public class ClientCommunicationManager extends CommunicationManager {
             final ServerPlacement toModify = context.getSyncmaticManager().getPlacement(placementId);
             receivePositionData(toModify, packetBuf, source);
             receiveMaterialData(toModify, packetBuf, source);
-            if (source.getFeatureSet().hasFeature(Feature.CORE_EX)) {
+            final FeatureSet featureSet = source.getFeatureSet();
+            final boolean hasCoreEx = featureSet != null && featureSet.hasFeature(Feature.CORE_EX);
+            final boolean hasTimestamps = hasCoreEx && supportsTimestamps(source);
+            if (hasCoreEx) {
                 final PlayerIdentifier lastModifiedBy = context.getPlayerIdentifierProvider().createOrGet(
                         packetBuf.readUuid(),
                         packetBuf.readString(32767)
                 );
                 if (toModify != null) {
                     toModify.setLastModifiedBy(lastModifiedBy);
+                }
+                if (hasTimestamps && packetBuf.readableBytes() >= Long.BYTES) {
+                    final long ts = packetBuf.readLong();
+                    if (toModify != null) {
+                        toModify.setLastModifiedAtMillis(ts);
+                    }
+                } else if (hasTimestamps && packetBuf.readableBytes() > 0) {
+                    packetBuf.skipBytes(Math.min(packetBuf.readableBytes(), Long.BYTES));
                 }
             }
             if (toModify != null) {
