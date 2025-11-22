@@ -66,5 +66,6 @@
   "syncmatica_r.gui.label.material.export.error_no_data": "Nothing to export – material list is empty",
   "syncmatica_r.gui.label.material.export.error_generic": "Failed to export materials – see log for details",
   "syncmatica_r.update.toast.title": "Syncmatica_r update available",
-  "syncmatica_r.update.toast.description": "Current: %s, Latest: %s"
+  "syncmatica_r.update.toast.description": "Current: %s, Latest: %s",
+  "syncmatica_r.update.toast.integrity_warning": "Your current Syncmatica build may be corrupted or withdrawn. Please download the latest release again."
 }

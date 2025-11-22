@@ -66,5 +66,6 @@
   "syncmatica_r.error.failed_to_load": "加载 litematic {} 失败",
   "syncmatica_r.success.modification_accepted": "已接受修改请求——再次锁定该放置以将结果分享到服务器",
   "syncmatica_r.update.toast.title": "Syncmatica_r 有可用更新",
-  "syncmatica_r.update.toast.description": "当前版本：%s，最新版本：%s"
+  "syncmatica_r.update.toast.description": "当前版本：%s，最新版本：%s",
+  "syncmatica_r.update.toast.integrity_warning": "当前mod可能损坏或是您的当前版本可能因为bug被撤回，请重新下载最新版"
 }
