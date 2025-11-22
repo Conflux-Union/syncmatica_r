@@ -38,6 +38,25 @@ public class SyncmaticaClient implements ClientModInitializer {
             return;
         }
         checker.checkForUpdatesAsync();
+        if (checker.hasIntegrityWarning() && !checker.isIntegrityNotified()) {
+            final Text warningTitle;
+            final Text warningDescription;
+            //#if MC >= 12001
+            //$$ warningTitle = Text.translatable("syncmatica_r.update.toast.title");
+            //$$ warningDescription = Text.translatable("syncmatica_r.update.toast.integrity_warning");
+            //#else
+            warningTitle = new TranslatableText("syncmatica_r.update.toast.title");
+            warningDescription = new TranslatableText("syncmatica_r.update.toast.integrity_warning");
+            //#endif
+            //#if MC >= 12005
+            client.player.sendMessage(warningDescription, false);
+            //#elseif MC >= 12001
+            SystemToast.add(client.getToastManager(), SystemToast.Type.TUTORIAL_HINT, warningTitle, warningDescription);
+            //#else
+            //$$ client.getToastManager().add(SystemToast.create(client, SystemToast.Type.TUTORIAL_HINT, warningTitle, warningDescription));
+            //#endif
+            checker.markIntegrityNotified();
+        }
         if (!checker.hasUpdate() || checker.isNotified()) {
             return;
         }

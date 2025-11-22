@@ -66,6 +66,10 @@ public final class VersionComparator {
         return builder.toString();
     }
 
+    public static boolean isPreRelease(final String rawVersion) {
+        return parse(rawVersion).preRelease;
+    }
+
     private static VersionInfo parse(final String rawVersion) {
         if (rawVersion == null) {
             return new VersionInfo(0, 0, 0, false, 0);
