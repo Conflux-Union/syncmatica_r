@@ -23,6 +23,16 @@ public class GuiSyncmaticaSharedSettings extends GuiBase {
         final int sliderHeight = 20;
         final int sliderX = width / 2 - sliderWidth / 2;
         final int sliderY = height / 2 - sliderHeight / 2;
+        final int toggleY = sliderY - sliderHeight - 10;
+
+        final ButtonGeneric hudToggle = new ButtonGeneric(sliderX, toggleY, sliderWidth, sliderHeight,
+                buildHudToggleLabel());
+        addButton(hudToggle, (button, mouseButton) -> {
+            HudPreferences.setHudEnabled(!HudPreferences.isHudEnabled());
+            hudToggle.setDisplayString(buildHudToggleLabel());
+            MaterialHudOverlay.getInstance().scheduleRefresh();
+        });
+
         addWidget(new WidgetSlider(sliderX, sliderY, sliderWidth, sliderHeight, new HudScaleSliderCallback()));
 
         final String backLabel = StringUtils.translate("syncmatica_r.gui.button.back");
@@ -31,6 +41,14 @@ public class GuiSyncmaticaSharedSettings extends GuiBase {
         final int backY = height - 30;
         final ButtonGeneric backButton = new ButtonGeneric(backX, backY, backWidth, 20, backLabel);
         addButton(backButton, (IButtonActionListener) (button, mouseButton) -> closeGui(true));
+    }
+
+    private String buildHudToggleLabel() {
+        final String stateKey = HudPreferences.isHudEnabled()
+                ? "syncmatica_r.gui.label.toggle_on"
+                : "syncmatica_r.gui.label.toggle_off";
+        final String stateValue = StringUtils.translate(stateKey);
+        return StringUtils.translate("syncmatica_r.gui.button.hud_toggle", stateValue);
     }
 
     private static final class HudScaleSliderCallback implements ISliderCallback {

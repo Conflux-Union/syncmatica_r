@@ -420,7 +420,9 @@ public final class MaterialHudOverlay implements HudRenderCallback {
 
     // No HUD when client options or rows are missing.
     private boolean shouldRender() {
-        return MinecraftClient.getInstance().options != null && !rows.isEmpty();
+        return HudPreferences.isHudEnabled()
+                && MinecraftClient.getInstance().options != null
+                && !rows.isEmpty();
     }
 
 //#if MC >= 12005
@@ -441,6 +443,9 @@ public final class MaterialHudOverlay implements HudRenderCallback {
 //#endif
 
     private void render(final MatrixStack matrices, final Object drawContext) {
+        if (!HudPreferences.isHudEnabled()) {
+            return;
+        }
         observeInventoryFingerprint();
         if (needsRefresh) {
             refreshSnapshot();

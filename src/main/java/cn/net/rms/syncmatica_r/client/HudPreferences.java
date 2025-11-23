@@ -16,17 +16,21 @@ public final class HudPreferences {
     private static final double MIN_SCALE = 0.6d;
     private static final double MAX_SCALE = 1.4d;
     private static final double DEFAULT_SCALE = 1.0d;
+    private static final boolean DEFAULT_ENABLED = true;
     private static final String FIELD_SCALE = "hud_scale";
+    private static final String FIELD_ENABLED = "hud_enabled";
     private static final File CONFIG_FILE = resolveConfigFile();
     private static final File LEGACY_CONFIG_FILE = resolveLegacyConfigFile();
 
     private static double hudScale = DEFAULT_SCALE;
+    private static boolean hudEnabled = DEFAULT_ENABLED;
 
     private HudPreferences() {
     }
 
     public static void load() {
         hudScale = DEFAULT_SCALE;
+        hudEnabled = DEFAULT_ENABLED;
         File source = CONFIG_FILE;
         boolean loadedFromLegacy = false;
         if (!source.exists() && LEGACY_CONFIG_FILE.exists()) {
@@ -38,11 +42,17 @@ public final class HudPreferences {
         }
         try (BufferedReader reader = new BufferedReader(new FileReader(source))) {
             final JsonObject root = new Gson().fromJson(reader, JsonObject.class);
-            if (root != null && root.has(FIELD_SCALE)) {
-                setHudScaleInternal(root.get(FIELD_SCALE).getAsDouble(), false);
+            if (root != null) {
+                if (root.has(FIELD_SCALE)) {
+                    setHudScaleInternal(root.get(FIELD_SCALE).getAsDouble(), false);
+                }
+                if (root.has(FIELD_ENABLED)) {
+                    hudEnabled = root.get(FIELD_ENABLED).getAsBoolean();
+                }
             }
         } catch (final Exception ignored) {
             hudScale = DEFAULT_SCALE;
+            hudEnabled = DEFAULT_ENABLED;
             return;
         }
         if (loadedFromLegacy && !CONFIG_FILE.exists()) {
@@ -59,6 +69,7 @@ public final class HudPreferences {
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(CONFIG_FILE))) {
                 final JsonObject root = new JsonObject();
                 root.addProperty(FIELD_SCALE, hudScale);
+                root.addProperty(FIELD_ENABLED, hudEnabled);
                 new Gson().toJson(root, writer);
             }
         } catch (final IOException ignored) {
@@ -82,6 +93,15 @@ public final class HudPreferences {
 
     public static double getHudScale() {
         return hudScale;
+    }
+
+    public static boolean isHudEnabled() {
+        return hudEnabled;
+    }
+
+    public static void setHudEnabled(final boolean enabled) {
+        hudEnabled = enabled;
+        save();
     }
 
     public static double getMinScale() {
