@@ -52,4 +52,9 @@ public class PlayerIdentifierProvider {
                 key -> new PlayerIdentifier(jsonUUID, obj.get("name").getAsString())
         );
     }
+
+    public void clear() {
+        identifiers.clear();
+        identifiers.put(PlayerIdentifier.MISSING_PLAYER_UUID, PlayerIdentifier.MISSING_PLAYER);
+    }
 }
