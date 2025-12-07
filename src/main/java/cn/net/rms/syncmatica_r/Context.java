@@ -144,6 +144,7 @@ public class Context {
     public void shutdown() {
         synMan.shutdown();
         shutdownServices();
+        playerIdentifierProvider.clear();
         isStarted = false;
     }
 
