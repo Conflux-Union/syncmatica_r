@@ -3,6 +3,7 @@ package cn.net.rms.syncmatica_r.litematica.gui;
 import cn.net.rms.syncmatica_r.ServerPlacement;
 import cn.net.rms.syncmatica_r.litematica.ScreenHelper;
 import cn.net.rms.syncmatica_r.material.SyncmaticaMaterialEntry;
+import cn.net.rms.syncmatica_r.util.MaterialClaimHelper;
 import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.gui.GuiListBase;
 import fi.dy.masa.malilib.gui.button.ButtonGeneric;
@@ -24,21 +25,26 @@ public class GuiSyncmaticaMaterialProgress extends GuiListBase<SyncmaticaMateria
         super.initGui();
         final String closeLabel = StringUtils.translate("syncmatica_r.gui.button.back");
         final String exportLabel = StringUtils.translate("syncmatica_r.gui.button.material_export");
+        final String unclaimAllLabel = StringUtils.translate("syncmatica_r.gui.button.material.unclaim_all");
         final int closeWidth = getStringWidth(closeLabel) + 20;
         final int exportWidth = getStringWidth(exportLabel) + 20;
+        final int unclaimAllWidth = getStringWidth(unclaimAllLabel) + 20;
         final int spacing = 6;
-        final int totalWidth = closeWidth + exportWidth + spacing;
+        final int totalWidth = closeWidth + exportWidth + unclaimAllWidth + spacing * 2;
         final int baseX = width - totalWidth - 10;
         final int y = height - 26;
 
-        final ButtonGeneric exportButton = new ButtonGeneric(baseX, y, exportWidth, 20, exportLabel);
+        final ButtonGeneric unclaimAllButton = new ButtonGeneric(baseX, y, unclaimAllWidth, 20, unclaimAllLabel);
+        addButton(unclaimAllButton, (button, mouseButton) -> unclaimAllMaterials());
+
+        final ButtonGeneric exportButton = new ButtonGeneric(baseX + unclaimAllWidth + spacing, y, exportWidth, 20, exportLabel);
         addButton(exportButton, (button, mouseButton) -> {
             final GuiMaterialExportOptions gui = new GuiMaterialExportOptions(placement);
             gui.setParent(this);
             GuiBase.openGui(gui);
         });
 
-        final ButtonGeneric closeButton = new ButtonGeneric(baseX + exportWidth + spacing, y, closeWidth, 20, closeLabel);
+        final ButtonGeneric closeButton = new ButtonGeneric(baseX + unclaimAllWidth + exportWidth + spacing * 2, y, closeWidth, 20, closeLabel);
         addButton(closeButton, (b, i) -> closeGui(true));
     }
 
@@ -55,5 +61,12 @@ public class GuiSyncmaticaMaterialProgress extends GuiListBase<SyncmaticaMateria
     @Override
     protected int getBrowserWidth() {
         return width - 20;
+    }
+
+    private void unclaimAllMaterials() {
+        final int unclaimedCount = MaterialClaimHelper.unclaimAllMaterials(placement);
+        if (unclaimedCount > 0) {
+            getListWidget().refreshEntries();
+        }
     }
 }

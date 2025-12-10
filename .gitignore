@@ -39,3 +39,6 @@ run/
 
 .DS_Store
 /debug/
+
+# claude context
+.claude-context/
