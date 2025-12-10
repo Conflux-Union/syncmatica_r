@@ -12,6 +12,7 @@
   "syncmatica_r.gui.button.shared_settings": "Shared Schematic Settings",
   "syncmatica_r.gui.button.material.claim": "Claim",
   "syncmatica_r.gui.button.material.unclaim": "Unclaim",
+  "syncmatica_r.gui.button.material.unclaim_all": "Unclaim All",
   "syncmatica_r.gui.button.material.claimed": "Claimed",
   "syncmatica_r.gui.button.material.contribute": "Contribute",
   "syncmatica_r.gui.button.back": "Back",

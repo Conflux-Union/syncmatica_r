@@ -12,6 +12,7 @@
   "syncmatica_r.gui.button.shared_settings": "共享原理图设置",
   "syncmatica_r.gui.button.material.claim": "认领",
   "syncmatica_r.gui.button.material.unclaim": "取消认领",
+  "syncmatica_r.gui.button.material.unclaim_all": "取消所有认领",
   "syncmatica_r.gui.button.material.claimed": "已认领",
   "syncmatica_r.gui.button.material.contribute": "投入",
   "syncmatica_r.gui.button.back": "返回",
