@@ -1,6 +1,10 @@
 package cn.net.rms.syncmatica_r.client;
 
 import cn.net.rms.syncmatica_r.Syncmatica;
+import cn.net.rms.syncmatica_r.client.hotkey.HotkeyCallbackOpenMaterialCollections;
+import cn.net.rms.syncmatica_r.client.hotkey.SyncmaticaHotkeyConfig;
+import cn.net.rms.syncmatica_r.client.hotkey.SyncmaticaHotkeyProvider;
+import cn.net.rms.syncmatica_r.client.hotkey.SyncmaticaHotkeys;
 import cn.net.rms.syncmatica_r.client.hud.MaterialHudOverlay;
 import cn.net.rms.syncmatica_r.client.update.UpdateChecker;
 import cn.net.rms.syncmatica_r.client.update.UpdateConfig;
@@ -21,6 +25,12 @@ public class SyncmaticaClient implements ClientModInitializer {
         MaterialHudOverlay.getInstance().setHudScale(HudPreferences.getHudScale());
         MaterialHudOverlay.getInstance().register();
         ClientTickEvents.END_CLIENT_TICK.register(SyncmaticaClient::handleClientTick);
+
+        // Initialize hotkey system
+        SyncmaticaHotkeyConfig.load();
+        SyncmaticaHotkeyProvider.init();
+        SyncmaticaHotkeys.OPEN_MATERIAL_COLLECTIONS.getKeybind()
+                .setCallback(HotkeyCallbackOpenMaterialCollections.INSTANCE);
     }
 
     private static void handleClientTick(final MinecraftClient client) {
