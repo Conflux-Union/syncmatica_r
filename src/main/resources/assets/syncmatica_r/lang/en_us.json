@@ -70,5 +70,10 @@
   "syncmatica_r.gui.label.material.export.error_generic": "Failed to export materials – see log for details",
   "syncmatica_r.update.toast.title": "Syncmatica_r update available",
   "syncmatica_r.update.toast.description": "Current: %s, Latest: %s",
-  "syncmatica_r.update.toast.integrity_warning": "Your current Syncmatica build may be corrupted or withdrawn. Please download the latest release again."
+  "syncmatica_r.update.toast.integrity_warning": "Your current Syncmatica build may be corrupted or withdrawn. Please download the latest release again.",
+  "syncmatica_r.gui.label.hotkey.material_collections": "Open Material Collections",
+  "syncmatica_r.hotkey.open_material_collections.comment": "Opens the Material Collections GUI when pressed",
+  "syncmatica_r.hotkeys.category": "Syncmatica_r Hotkeys",
+  "syncmatica_r.gui.label.hotkey.none": "NONE",
+  "syncmatica_r.gui.label.hotkey.press_key": "Press a key..."
 }
