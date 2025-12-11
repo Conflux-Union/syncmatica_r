@@ -2,6 +2,7 @@ package cn.net.rms.syncmatica_r.litematica.gui;
 
 import cn.net.rms.syncmatica_r.client.hotkey.SyncmaticaHotkeyConfig;
 import fi.dy.masa.malilib.config.options.ConfigHotkey;
+import fi.dy.masa.malilib.event.InputEventHandler;
 import fi.dy.masa.malilib.gui.button.ButtonBase;
 import fi.dy.masa.malilib.gui.button.ButtonGeneric;
 import fi.dy.masa.malilib.gui.button.IButtonActionListener;
@@ -70,6 +71,8 @@ public class ButtonListenerHotkeyConfig implements IButtonActionListener {
         hotkey.getKeybind().setValueFromString("");
         updateButtonDisplay();
         SyncmaticaHotkeyConfig.save();
+        // Notify malilib to update the key-to-hotkey mapping
+        InputEventHandler.getKeybindManager().updateUsedKeys();
     }
 
     private void finalizeCurrentKeys() {
@@ -78,6 +81,8 @@ public class ButtonListenerHotkeyConfig implements IButtonActionListener {
             if (!serialized.isEmpty()) {
                 hotkey.getKeybind().setValueFromString(serialized);
                 SyncmaticaHotkeyConfig.save();
+                // Notify malilib to update the key-to-hotkey mapping
+                InputEventHandler.getKeybindManager().updateUsedKeys();
             }
         }
         exitListeningMode();
