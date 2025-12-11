@@ -1,13 +1,10 @@
 package cn.net.rms.syncmatica_r.client;
 
 import cn.net.rms.syncmatica_r.Syncmatica;
-import cn.net.rms.syncmatica_r.client.hotkey.HotkeyCallbackOpenMaterialCollections;
-import cn.net.rms.syncmatica_r.client.hotkey.SyncmaticaHotkeyConfig;
-import cn.net.rms.syncmatica_r.client.hotkey.SyncmaticaHotkeyProvider;
-import cn.net.rms.syncmatica_r.client.hotkey.SyncmaticaHotkeys;
 import cn.net.rms.syncmatica_r.client.hud.MaterialHudOverlay;
 import cn.net.rms.syncmatica_r.client.update.UpdateChecker;
 import cn.net.rms.syncmatica_r.client.update.UpdateConfig;
+import fi.dy.masa.malilib.event.InitializationHandler;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.MinecraftClient;
@@ -26,11 +23,9 @@ public class SyncmaticaClient implements ClientModInitializer {
         MaterialHudOverlay.getInstance().register();
         ClientTickEvents.END_CLIENT_TICK.register(SyncmaticaClient::handleClientTick);
 
-        // Initialize hotkey system
-        SyncmaticaHotkeyConfig.load();
-        SyncmaticaHotkeyProvider.init();
-        SyncmaticaHotkeys.OPEN_MATERIAL_COLLECTIONS.getKeybind()
-                .setCallback(HotkeyCallbackOpenMaterialCollections.INSTANCE);
+        // Register initialization handler with malilib
+        // This ensures hotkeys are registered at the correct time
+        InitializationHandler.getInstance().registerInitializationHandler(new SyncmaticaInitHandler());
     }
 
     private static void handleClientTick(final MinecraftClient client) {

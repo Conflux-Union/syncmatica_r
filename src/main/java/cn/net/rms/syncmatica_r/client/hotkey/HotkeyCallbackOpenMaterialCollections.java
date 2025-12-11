@@ -1,7 +1,5 @@
 package cn.net.rms.syncmatica_r.client.hotkey;
 
-import cn.net.rms.syncmatica_r.Context;
-import cn.net.rms.syncmatica_r.Syncmatica;
 import cn.net.rms.syncmatica_r.litematica.gui.GuiStockingAreaMaterialOverview;
 import fi.dy.masa.malilib.hotkeys.IHotkeyCallback;
 import fi.dy.masa.malilib.hotkeys.IKeybind;
@@ -12,7 +10,7 @@ import net.minecraft.client.MinecraftClient;
  * Callback handler for the "Open Material Collections" hotkey.
  * Opens the GuiStockingAreaMaterialOverview when conditions are met.
  */
-public final class HotkeyCallbackOpenMaterialCollections implements IHotkeyCallback {
+ public final class HotkeyCallbackOpenMaterialCollections implements IHotkeyCallback {
 
     public static final HotkeyCallbackOpenMaterialCollections INSTANCE = new HotkeyCallbackOpenMaterialCollections();
 
