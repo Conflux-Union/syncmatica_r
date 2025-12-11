@@ -5,6 +5,7 @@ import cn.net.rms.syncmatica_r.communication.FeatureSet;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifierProvider;
 import cn.net.rms.syncmatica_r.service.*;
 import cn.net.rms.syncmatica_r.service.IServiceConfiguration;
+import cn.net.rms.syncmatica_r.util.VersionComparator;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -149,7 +150,12 @@ public class Context {
     }
 
     public boolean checkPartnerVersion(final String version) {
-        return !version.equals("0.0.1");
+        if (version == null) {
+            return true;
+        }
+        final String normalized = VersionComparator.normalize(version);
+        // Preserve legacy behaviour: only hard-block the known bad sentinel version.
+        return !"0.0.1".equals(normalized);
     }
 
     private File getConfigRoot() {
@@ -197,7 +203,7 @@ public class Context {
         boolean needsRewrite = false;
         needsRewrite |= applyRootDefaults(configuration);
         if (isServer()) {
-            needsRewrite = loadConfigurationForService(quota, configuration, attemptToLoad);
+            needsRewrite |= loadConfigurationForService(quota, configuration, attemptToLoad);
             if (materialService != null) {
                 needsRewrite |= loadConfigurationForService(materialService, configuration, attemptToLoad);
             }

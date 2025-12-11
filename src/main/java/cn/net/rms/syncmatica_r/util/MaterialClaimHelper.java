@@ -123,11 +123,9 @@ public final class MaterialClaimHelper {
             final SyncmaticaMaterialEntry entry,
             final ExchangeTarget server,
             final Context context) {
-        
-        io.netty.buffer.ByteBuf byteBuf = null;
+
         try {
-            byteBuf = Unpooled.buffer();
-            final PacketByteBuf buf = new PacketByteBuf(byteBuf);
+            final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
             buf.writeUuid(placement.getId());
             buf.writeString(entry.getKey().itemId().toString());
             buf.writeString(entry.getKey().variant());
@@ -136,10 +134,6 @@ public final class MaterialClaimHelper {
         } catch (final Exception e) {
             LOGGER.error("Failed to send unclaim packet for {}: {}", entry.getKey().itemId(), e.getMessage());
             return false;
-        } finally {
-            if (byteBuf != null) {
-                byteBuf.release();
-            }
         }
     }
 
