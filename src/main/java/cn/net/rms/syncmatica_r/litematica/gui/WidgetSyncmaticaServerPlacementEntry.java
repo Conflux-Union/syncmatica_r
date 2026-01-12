@@ -21,6 +21,9 @@ import net.minecraft.client.util.math.MatrixStack;
 //#if MC >= 12001
 //$$ import net.minecraft.client.gui.DrawContext;
 //#endif
+//#if MC >= 12111
+//$$ import fi.dy.masa.malilib.render.GuiContext;
+//#endif
 import net.minecraft.network.PacketByteBuf;
 
 import java.io.IOException;
@@ -82,6 +85,14 @@ public class WidgetSyncmaticaServerPlacementEntry extends WidgetListEntryBase<Se
         addButton(button, null);
     }
 
+//#if MC >= 12111
+//$$     @Override
+//$$     public void render(final GuiContext guiContext, final int mouseX, final int mouseY, final boolean selected) {
+//$$         final DrawContext drawContext = guiContext;
+//#elseif MC >= 12110
+//$$     @Override
+//$$     public void render(final DrawContext drawContext, final int mouseX, final int mouseY, final boolean selected) {
+//#else
     @Override
     public void render(final int mouseX, final int mouseY, final boolean selected,
 //#if MC >= 12001
@@ -90,8 +101,11 @@ public class WidgetSyncmaticaServerPlacementEntry extends WidgetListEntryBase<Se
             final MatrixStack matrixStack
 //#endif
     ) {
+//#endif
 
+        //#if MC < 12110
         RenderUtils.color(1f, 1f, 1f, 1f);
+        //#endif
 
         if (selected || isMouseOver(mouseX, mouseY)) {
             RenderUtils.drawRect(x, y, width, height, 0x70FFFFFF);
@@ -102,7 +116,13 @@ public class WidgetSyncmaticaServerPlacementEntry extends WidgetListEntryBase<Se
         }
 
         final String schematicName = placement.getName();
-//#if MC >= 12001
+//#if MC >= 12111
+//$$         drawString(guiContext, x + 20, y + 7, 0xFFFFFFFF, schematicName);
+//$$         drawSubWidgets(guiContext, mouseX, mouseY);
+//#elseif MC >= 12110
+//$$         drawString(drawContext, x + 20, y + 7, 0xFFFFFFFF, schematicName);
+//$$         drawSubWidgets(drawContext, mouseX, mouseY);
+//#elseif MC >= 12001
 //$$         drawString(x + 20, y + 7, 0xFFFFFFFF, schematicName, drawContext);
 //$$         drawSubWidgets(mouseX, mouseY, drawContext);
 //#else

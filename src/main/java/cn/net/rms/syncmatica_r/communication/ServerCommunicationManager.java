@@ -8,6 +8,7 @@ import cn.net.rms.syncmatica_r.communication.MessageType;
 import cn.net.rms.syncmatica_r.communication.exchange.FeatureExchange;
 import cn.net.rms.syncmatica_r.communication.exchange.ShareLitematicExchange;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
+import cn.net.rms.syncmatica_r.util.SyncmaticaUtil;
 import com.mojang.authlib.GameProfile;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.PacketByteBuf;
@@ -55,7 +56,7 @@ public class ServerCommunicationManager extends CommunicationManager {
         final VersionHandshakeServer hi = new VersionHandshakeServer(newPlayer, context);
         playerMap.put(newPlayer, player);
         final GameProfile profile = player.getGameProfile();
-        context.getPlayerIdentifierProvider().updateName(profile.getId(), profile.getName());
+        context.getPlayerIdentifierProvider().updateName(SyncmaticaUtil.getProfileId(profile), SyncmaticaUtil.getProfileName(profile));
         startExchangeUnchecked(hi);
     }
 

@@ -15,6 +15,9 @@ import net.minecraft.util.Identifier;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+//#if MC >= 12110
+//$$ import java.nio.file.Path;
+//#endif
 
 public class ShareLitematicExchange extends AbstractExchange {
 
@@ -30,7 +33,12 @@ public class ShareLitematicExchange extends AbstractExchange {
         super(partner, con);
         this.schematicPlacement = schematicPlacement;
         toShare = p == null ? LitematicManager.getInstance().syncmaticFromSchematic(schematicPlacement) : p;
+        //#if MC >= 12110
+        //$$ final Path schematicPath = schematicPlacement.getSchematicFile();
+        //$$ toUpload = schematicPath != null ? schematicPath.toFile() : null;
+        //#else
         toUpload = schematicPlacement.getSchematicFile();
+        //#endif
     }
 
     @Override

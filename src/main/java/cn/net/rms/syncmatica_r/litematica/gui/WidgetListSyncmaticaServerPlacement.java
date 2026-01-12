@@ -14,6 +14,9 @@ import fi.dy.masa.malilib.gui.widgets.WidgetSearchBar;
 import fi.dy.masa.malilib.render.RenderUtils;
 import fi.dy.masa.malilib.util.StringUtils;
 import net.minecraft.client.util.math.MatrixStack;
+//#if MC >= 12111
+//$$ import fi.dy.masa.malilib.render.GuiContext;
+//#endif
 //#if MC >= 12001
 //$$ import net.minecraft.client.gui.DrawContext;
 //#endif
@@ -61,7 +64,25 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
         return width - 6 - infoWidth;
     }
 
-//#if MC >= 12001
+//#if MC >= 12111
+//$$     @Override
+//$$     public void drawContents(final GuiContext guiContext, final int mouseX, final int mouseY, final float partialTicks) {
+//$$         RenderUtils.drawOutlinedBox(guiContext, posX, posY, browserWidth, browserHeight, 0xB0000000, GuiBase.COLOR_HORIZONTAL_BAR);
+//$$         super.drawContents(guiContext, mouseX, mouseY, partialTicks);
+//$$         drawPlacementInfo(getLastSelectedEntry(), guiContext);
+//$$     }
+//$$
+//$$     private void drawPlacementInfo(final ServerPlacement placement, final GuiContext guiContext) {
+//#elseif MC >= 12110
+//$$     @Override
+//$$     public void drawContents(final DrawContext drawContext, final int mouseX, final int mouseY, final float partialTicks) {
+//$$         RenderUtils.drawOutlinedBox(drawContext, posX, posY, browserWidth, browserHeight, 0xB0000000, GuiBase.COLOR_HORIZONTAL_BAR);
+//$$         super.drawContents(drawContext, mouseX, mouseY, partialTicks);
+//$$         drawPlacementInfo(getLastSelectedEntry(), drawContext);
+//$$     }
+//$$
+//$$     private void drawPlacementInfo(final ServerPlacement placement, final DrawContext drawContext) {
+//#elseif MC >= 12001
 //$$     @Override
 //$$     public void drawContents(final DrawContext drawContext, final int mouseX, final int mouseY, final float partialTicks) {
 //$$         RenderUtils.drawOutlinedBox(posX, posY, browserWidth, browserHeight, 0xB0000000, GuiBase.COLOR_HORIZONTAL_BAR);
@@ -84,13 +105,21 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
         int y = posY;
         final int height = Math.min(infoHeight, parent.getMaxInfoHeight());
 
+        //#if MC >= 12111
+        //$$ RenderUtils.drawOutlinedBox(guiContext, x, y, infoWidth, height, 0xA0000000, GuiBase.COLOR_HORIZONTAL_BAR);
+        //#elseif MC >= 12110
+        //$$ RenderUtils.drawOutlinedBox(drawContext, x, y, infoWidth, height, 0xA0000000, GuiBase.COLOR_HORIZONTAL_BAR);
+        //#else
         RenderUtils.drawOutlinedBox(x, y, infoWidth, height, 0xA0000000, GuiBase.COLOR_HORIZONTAL_BAR);
+        //#endif
 
         if (placement == null) {
             return;
         }
 
+        //#if MC < 12110
         RenderUtils.color(1f, 1f, 1f, 1f);
+        //#endif
 
         x += 3;
         y += 3;
@@ -98,13 +127,17 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
         final int valueColor = 0xFFFFFFFF;
 
         String str = StringUtils.translate("syncmatica_r.gui.label.placement_info.file_name");
-//#if MC >= 12001
+//#if MC >= 12111
+//$$         drawString(guiContext, str, x, y, textColor);
+//#elseif MC >= 12001
 //$$         drawString(drawContext, str, x, y, textColor);
 //#else
         drawString(matrixStack, str, x, y, textColor);
 //#endif
         y += 12;
-//#if MC >= 12001
+//#if MC >= 12111
+//$$         drawString(guiContext, placement.getName(), x + 4, y, valueColor);
+//#elseif MC >= 12001
 //$$         drawString(drawContext, placement.getName(), x + 4, y, valueColor);
 //#else
         drawString(matrixStack, placement.getName(), x + 4, y, valueColor);
@@ -112,13 +145,17 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
         y += 12;
 
         str = StringUtils.translate("syncmatica_r.gui.label.placement_info.dimension_id");
-//#if MC >= 12001
+//#if MC >= 12111
+//$$         drawString(guiContext, str, x, y, textColor);
+//#elseif MC >= 12001
 //$$         drawString(drawContext, str, x, y, textColor);
 //#else
         drawString(matrixStack, str, x, y, textColor);
 //#endif
         y += 12;
-//#if MC >= 12001
+//#if MC >= 12111
+//$$         drawString(guiContext, placement.getDimension(), x + 4, y, valueColor);
+//#elseif MC >= 12001
 //$$         drawString(drawContext, placement.getDimension(), x + 4, y, valueColor);
 //#else
         drawString(matrixStack, placement.getDimension(), x + 4, y, valueColor);
@@ -126,7 +163,9 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
         y += 12;
 
         str = StringUtils.translate("syncmatica_r.gui.label.placement_info.position");
-//#if MC >= 12001
+//#if MC >= 12111
+//$$         drawString(guiContext, str, x, y, textColor);
+//#elseif MC >= 12001
 //$$         drawString(drawContext, str, x, y, textColor);
 //#else
         drawString(matrixStack, str, x, y, textColor);
@@ -134,7 +173,9 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
         y += 12;
         final BlockPos origin = placement.getPosition();
         final String tmp = String.format("%d %d %d", origin.getX(), origin.getY(), origin.getZ());
-//#if MC >= 12001
+//#if MC >= 12111
+//$$         drawString(guiContext, tmp, x + 4, y, valueColor);
+//#elseif MC >= 12001
 //$$         drawString(drawContext, tmp, x + 4, y, valueColor);
 //#else
         drawString(matrixStack, tmp, x + 4, y, valueColor);
@@ -142,13 +183,17 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
         y += 12;
 
         str = StringUtils.translate("syncmatica_r.gui.label.placement_info.owner");
-//#if MC >= 12001
+//#if MC >= 12111
+//$$         drawString(guiContext, str, x, y, textColor);
+//#elseif MC >= 12001
 //$$         drawString(drawContext, str, x, y, textColor);
 //#else
         drawString(matrixStack, str, x, y, textColor);
 //#endif
         y += 12;
-//#if MC >= 12001
+//#if MC >= 12111
+//$$         drawString(guiContext, placement.getOwner().getName(), x + 4, y, valueColor);
+//#elseif MC >= 12001
 //$$         drawString(drawContext, placement.getOwner().getName(), x + 4, y, valueColor);
 //#else
         drawString(matrixStack, placement.getOwner().getName(), x + 4, y, valueColor);
@@ -156,13 +201,17 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
         y += 12;
 
         str = StringUtils.translate("syncmatica_r.gui.label.placement_info.last_modified");
-//#if MC >= 12001
+//#if MC >= 12111
+//$$         drawString(guiContext, str, x, y, textColor);
+//#elseif MC >= 12001
 //$$         drawString(drawContext, str, x, y, textColor);
 //#else
         drawString(matrixStack, str, x, y, textColor);
 //#endif
         y += 12;
-//#if MC >= 12001
+//#if MC >= 12111
+//$$         drawString(guiContext, placement.getLastModifiedBy().getName(), x + 4, y, valueColor);
+//#elseif MC >= 12001
 //$$         drawString(drawContext, placement.getLastModifiedBy().getName(), x + 4, y, valueColor);
 //#else
         drawString(matrixStack, placement.getLastModifiedBy().getName(), x + 4, y, valueColor);
@@ -170,14 +219,18 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
 
         y += 12;
         str = StringUtils.translate("syncmatica_r.gui.label.placement_info.uploaded_at");
-//#if MC >= 12001
+//#if MC >= 12111
+//$$         drawString(guiContext, str, x, y, textColor);
+//#elseif MC >= 12001
 //$$         drawString(drawContext, str, x, y, textColor);
 //#else
         drawString(matrixStack, str, x, y, textColor);
 //#endif
         y += 12;
         final String createdAt = formatTimestamp(placement.getCreatedAtMillis());
-//#if MC >= 12001
+//#if MC >= 12111
+//$$         drawString(guiContext, createdAt, x + 4, y, valueColor);
+//#elseif MC >= 12001
 //$$         drawString(drawContext, createdAt, x + 4, y, valueColor);
 //#else
         drawString(matrixStack, createdAt, x + 4, y, valueColor);
@@ -185,14 +238,18 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
 
         y += 12;
         str = StringUtils.translate("syncmatica_r.gui.label.placement_info.last_edited_at");
-//#if MC >= 12001
+//#if MC >= 12111
+//$$         drawString(guiContext, str, x, y, textColor);
+//#elseif MC >= 12001
 //$$         drawString(drawContext, str, x, y, textColor);
 //#else
         drawString(matrixStack, str, x, y, textColor);
 //#endif
         y += 12;
         final String lastEdited = formatTimestamp(placement.getLastModifiedAtMillis());
-//#if MC >= 12001
+//#if MC >= 12111
+//$$         drawString(guiContext, lastEdited, x + 4, y, valueColor);
+//#elseif MC >= 12001
 //$$         drawString(drawContext, lastEdited, x + 4, y, valueColor);
 //#else
         drawString(matrixStack, lastEdited, x + 4, y, valueColor);

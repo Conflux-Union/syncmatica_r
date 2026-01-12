@@ -10,6 +10,9 @@ import net.minecraft.client.util.math.MatrixStack;
 //#if MC >= 12001
 //$$ import net.minecraft.client.gui.DrawContext;
 //#endif
+//#if MC >= 12111
+//$$ import fi.dy.masa.malilib.render.GuiContext;
+//#endif
 
 import java.util.Collections;
 import java.util.List;
@@ -66,6 +69,24 @@ public class WidgetStockingAreaMaterialTotalsEntry extends WidgetMaterialProgres
         return bucket == null || !bucket.isPartiallyClaimed();
     }
 
+//#if MC >= 12111
+//$$     @Override
+//$$     public void render(final GuiContext guiContext, final int mouseX, final int mouseY, final boolean selected) {
+//$$         super.render(guiContext, mouseX, mouseY, selected);
+//$$         final DrawContext drawContext = guiContext;
+//$$         if (bucket != null && bucket.isPartiallyClaimed() && isClaimToggleZone(mouseX, mouseY)) {
+//$$             drawPartialClaimTooltip(mouseX, mouseY, drawContext);
+//$$         }
+//$$     }
+//#elseif MC >= 12110
+//$$     @Override
+//$$     public void render(final DrawContext drawContext, final int mouseX, final int mouseY, final boolean selected) {
+//$$         super.render(drawContext, mouseX, mouseY, selected);
+//$$         if (bucket != null && bucket.isPartiallyClaimed() && isClaimToggleZone(mouseX, mouseY)) {
+//$$             drawPartialClaimTooltip(mouseX, mouseY, drawContext);
+//$$         }
+//$$     }
+//#else
     @Override
     public void render(final int mouseX, final int mouseY, final boolean selected,
 //#if MC >= 12001
@@ -91,6 +112,7 @@ public class WidgetStockingAreaMaterialTotalsEntry extends WidgetMaterialProgres
             );
         }
     }
+//#endif
 
     private void drawPartialClaimTooltip(final int mouseX, final int mouseY,
 //#if MC >= 12001
