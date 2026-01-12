@@ -108,11 +108,29 @@ public class WidgetSyncmaticaServerPlacementEntry extends WidgetListEntryBase<Se
         //#endif
 
         if (selected || isMouseOver(mouseX, mouseY)) {
+//#if MC >= 12111
+//$$             RenderUtils.drawRect(guiContext, x, y, width, height, 0x70FFFFFF);
+//#elseif MC >= 12110
+//$$             RenderUtils.drawRect(drawContext, x, y, width, height, 0x70FFFFFF);
+//#else
             RenderUtils.drawRect(x, y, width, height, 0x70FFFFFF);
+//#endif
         } else if (isOdd) {
+//#if MC >= 12111
+//$$             RenderUtils.drawRect(guiContext, x, y, width, height, 0x20FFFFFF);
+//#elseif MC >= 12110
+//$$             RenderUtils.drawRect(drawContext, x, y, width, height, 0x20FFFFFF);
+//#else
             RenderUtils.drawRect(x, y, width, height, 0x20FFFFFF);
+//#endif
         } else {
+//#if MC >= 12111
+//$$             RenderUtils.drawRect(guiContext, x, y, width, height, 0x50FFFFFF);
+//#elseif MC >= 12110
+//$$             RenderUtils.drawRect(drawContext, x, y, width, height, 0x50FFFFFF);
+//#else
             RenderUtils.drawRect(x, y, width, height, 0x50FFFFFF);
+//#endif
         }
 
         final String schematicName = placement.getName();

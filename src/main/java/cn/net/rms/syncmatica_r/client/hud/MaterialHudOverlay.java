@@ -13,6 +13,9 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import fi.dy.masa.malilib.render.RenderUtils;
 import fi.dy.masa.malilib.util.StringUtils;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+//#if MC >= 12111
+//$$ import fi.dy.masa.malilib.render.GuiContext;
+//#endif
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.render.item.ItemRenderer;
@@ -544,7 +547,13 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         final int screenHeight = client.getWindow().getScaledHeight();
         final int x = Math.max(margin, screenWidth - contentWidth - padding * 2 - margin);
         final int y = Math.max(margin, screenHeight - contentHeight - padding * 2 - margin);
+//#if MC >= 12111
+//$$         RenderUtils.drawRect(GuiContext.fromGuiGraphics((DrawContext) drawContext), x, y, contentWidth + padding * 2, contentHeight + padding * 2, 0x80000000);
+//#elseif MC >= 12110
+//$$         RenderUtils.drawRect((DrawContext) drawContext, x, y, contentWidth + padding * 2, contentHeight + padding * 2, 0x80000000);
+//#else
         RenderUtils.drawRect(x, y, contentWidth + padding * 2, contentHeight + padding * 2, 0x80000000);
+//#endif
         final int headerColor = 0xFFFFFF00;
         final String title = header == null ? "" : header;
         drawText(textRenderer, matrices, drawContext, title, x + padding, y + padding, headerColor);

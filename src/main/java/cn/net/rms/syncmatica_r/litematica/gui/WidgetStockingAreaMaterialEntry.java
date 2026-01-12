@@ -72,7 +72,13 @@ public class WidgetStockingAreaMaterialEntry extends WidgetListEntryBase<WidgetS
         // Row rendering depends on whether this is a header, placement, or placeholder row.
         switch (data.getType()) {
             case HEADER:
+//#if MC >= 12111
+//$$                 RenderUtils.drawRect(guiContext, x, y, width, height, 0x40000000);
+//#elseif MC >= 12110
+//$$                 RenderUtils.drawRect(drawContext, x, y, width, height, 0x40000000);
+//#else
                 RenderUtils.drawRect(x, y, width, height, 0x40000000);
+//#endif
                 drawHeader(mouseX, mouseY,
 //#if MC >= 12111
 //$$                         guiContext,
@@ -104,7 +110,13 @@ public class WidgetStockingAreaMaterialEntry extends WidgetListEntryBase<WidgetS
                 );
                 break;
             case EMPTY:
+//#if MC >= 12111
+//$$                 RenderUtils.drawRect(guiContext, x, y, width, height, 0x20000000);
+//#elseif MC >= 12110
+//$$                 RenderUtils.drawRect(drawContext, x, y, width, height, 0x20000000);
+//#else
                 RenderUtils.drawRect(x, y, width, height, 0x20000000);
+//#endif
                 drawCenteredText(data.getHeaderText(),
 //#if MC >= 12111
 //$$                         guiContext
@@ -177,7 +189,13 @@ public class WidgetStockingAreaMaterialEntry extends WidgetListEntryBase<WidgetS
         final int baseColor = data.isHighlighted() ? 0x3050D050 : 0x20000000;
         final int hoverColor = 0x40FFFFFF;
         final int background = hovered ? hoverColor : baseColor;
+//#if MC >= 12111
+//$$         RenderUtils.drawRect(guiContext, x, y, width, height, background);
+//#elseif MC >= 12110
+//$$         RenderUtils.drawRect(drawContext, x, y, width, height, background);
+//#else
         RenderUtils.drawRect(x, y, width, height, background);
+//#endif
         final String name = data.getPlacement().getName();
 //#if MC >= 12111
 //$$         drawString(guiContext, x + 10, y + 6, 0xFFFFFFFF, name);
