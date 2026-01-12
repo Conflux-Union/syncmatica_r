@@ -32,9 +32,9 @@ public class WidgetStockingAreaMaterialTotalsEntry extends WidgetMaterialProgres
     }
 
     @Override
-    public boolean mouseClicked(final int mouseX, final int mouseY, final int mouseButton) {
+    protected boolean mouseClickedImpl(final int mouseX, final int mouseY, final int mouseButton) {
         if (mouseButton != 0 || owner == null || bucket == null) {
-            return super.mouseClicked(mouseX, mouseY, mouseButton);
+            return super.mouseClickedImpl(mouseX, mouseY, mouseButton);
         }
         if (!isMouseOver(mouseX, mouseY) || !GuiBase.isShiftDown()) {
             return false;

@@ -24,6 +24,10 @@ import net.minecraft.client.util.math.MatrixStack;
 //#if MC >= 12111
 //$$ import fi.dy.masa.malilib.render.GuiContext;
 //#endif
+//#if MC >= 12110
+//$$ import net.minecraft.client.gui.Click;
+//#endif
+import fi.dy.masa.malilib.gui.GuiBase;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -68,7 +72,13 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
     ) {
 //#endif
 
+//#if MC >= 12111
+//$$         RenderUtils.drawRect(guiContext, x, y, width, height, resolveBaseBackgroundColor());
+//#elseif MC >= 12110
+//$$         RenderUtils.drawRect(drawContext, x, y, width, height, resolveBaseBackgroundColor());
+//#else
         RenderUtils.drawRect(x, y, width, height, resolveBaseBackgroundColor());
+//#endif
 
         final SyncmaticaMaterialEntry material = resolveCurrentEntry();
 
@@ -77,7 +87,13 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
             final String self = cli != null && cli.player != null ? SyncmaticaUtil.getProfileName(cli.player.getGameProfile()) : "";
             final boolean selfClaimed = material.getClaimers().contains(self);
             final int overlay = selfClaimed ? 0x3040FF40 : 0x30FFFF80;
+//#if MC >= 12111
+//$$             RenderUtils.drawRect(guiContext, x, y, width, height, overlay);
+//#elseif MC >= 12110
+//$$             RenderUtils.drawRect(drawContext, x, y, width, height, overlay);
+//#else
             RenderUtils.drawRect(x, y, width, height, overlay);
+//#endif
         }
         final int textColor = 0xFFFFFFFF;
         final int secondaryColor = 0xC0FFFFFF;
@@ -135,7 +151,7 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
 //#endif
 
         final String missingText = formatMissingShortText(material);
-        final int missingColor = material.isFinished() ? 0x80FF80 : 0xFFFF80;
+        final int missingColor = material.isFinished() ? 0xFF80FF80 : 0xFFFFFF80;
         final int missingTextX = missingColumnRight - getStringWidth(missingText);
 //#if MC >= 12111
 //$$         drawString(guiContext, missingTextX, y + 6, missingColor, missingText);
@@ -151,64 +167,103 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         final int rowTop = y;
         final int rowBottom = y + height;
         if (mouseX >= missingLeftBound && mouseX <= missingColumnRight && mouseY >= rowTop && mouseY <= rowBottom) {
+//#if MC >= 12111
+//$$             final java.util.List<String> lines = java.util.Collections.singletonList(formatMissingVerboseText(material));
+//$$             RenderUtils.drawHoverText(guiContext, mouseX, mouseY, lines);
+//#elseif MC >= 12001
+//$$             final java.util.List<net.minecraft.text.Text> lines = java.util.Collections.singletonList(
+//$$                     literal(formatMissingVerboseText(material))
+//$$             );
+//$$             final MinecraftClient client = MinecraftClient.getInstance();
+//$$             final TextRenderer renderer = client.textRenderer;
+//$$             drawContext.drawTooltip(renderer, lines, mouseX, mouseY);
+//#else
+            final java.util.List<net.minecraft.text.Text> lines = java.util.Collections.singletonList(
+                    literal(formatMissingVerboseText(material))
+            );
             final net.minecraft.client.gui.screen.Screen screen = net.minecraft.client.MinecraftClient.getInstance().currentScreen;
             if (screen != null) {
-                final java.util.List<net.minecraft.text.Text> lines = java.util.Collections.singletonList(
-                        literal(formatMissingVerboseText(material))
-                );
-//#if MC >= 12001
-//$$                 final MinecraftClient client = MinecraftClient.getInstance();
-//$$                 final TextRenderer renderer = client.textRenderer;
-//$$                 drawContext.drawTooltip(renderer, lines, mouseX, mouseY);
-//#else
                 screen.renderTooltip(matrixStack, lines, mouseX, mouseY);
-//#endif
             }
+//#endif
         }
 
         final int blankLeft = nameX + getStringWidth(displayName) + 6;
         final int blankRight = requiredColumnRight - 6;
         if (shouldRenderClaimTooltip(material) && mouseX >= blankLeft && mouseX <= blankRight
                 && mouseY >= rowTop && mouseY <= rowBottom) {
+            final java.util.List<String> claimers = material == null ? java.util.Collections.emptyList() : material.getClaimers();
+            final net.minecraft.client.MinecraftClient cli = net.minecraft.client.MinecraftClient.getInstance();
+            final String self = cli != null && cli.player != null ? SyncmaticaUtil.getProfileName(cli.player.getGameProfile()) : "";
+            final boolean canToggle = claimers.isEmpty() || claimers.contains(self);
+            final String claimKey = canToggle
+                    ? "syncmatica_r.gui.tooltip.material.claim.action"
+                    : "syncmatica_r.gui.tooltip.material.claim.locked";
+//#if MC >= 12111
+//$$             final java.util.List<String> lines = new java.util.ArrayList<>();
+//$$             if (claimers.isEmpty()) {
+//$$                 lines.add(fi.dy.masa.malilib.util.StringUtils.translate("syncmatica_r.gui.tooltip.material.claim.none"));
+//$$             } else {
+//$$                 final String joined = String.join(", ", claimers);
+//$$                 lines.add(fi.dy.masa.malilib.util.StringUtils.translate("syncmatica_r.gui.tooltip.material.claimers", joined));
+//$$             }
+//$$             lines.add(fi.dy.masa.malilib.util.StringUtils.translate(claimKey));
+//$$             RenderUtils.drawHoverText(guiContext, mouseX, mouseY, lines);
+//#else
+            final java.util.List<net.minecraft.text.Text> lines = new java.util.ArrayList<>();
+            if (claimers.isEmpty()) {
+                lines.add(literal(fi.dy.masa.malilib.util.StringUtils.translate("syncmatica_r.gui.tooltip.material.claim.none")));
+            } else {
+                final String joined = String.join(", ", claimers);
+                lines.add(literal(
+                        fi.dy.masa.malilib.util.StringUtils.translate("syncmatica_r.gui.tooltip.material.claimers", joined))
+                );
+            }
+            lines.add(literal(fi.dy.masa.malilib.util.StringUtils.translate(claimKey)));
+//#if MC >= 12001
+//$$             final MinecraftClient client2 = MinecraftClient.getInstance();
+//$$             final TextRenderer textRenderer = client2.textRenderer;
+//$$             drawContext.drawTooltip(textRenderer, lines, mouseX, mouseY);
+//#else
             final net.minecraft.client.gui.screen.Screen screen = net.minecraft.client.MinecraftClient.getInstance().currentScreen;
             if (screen != null) {
-                final java.util.List<net.minecraft.text.Text> lines = new java.util.ArrayList<>();
-                final java.util.List<String> claimers = material == null ? java.util.Collections.emptyList() : material.getClaimers();
-                if (claimers.isEmpty()) {
-                    lines.add(literal(fi.dy.masa.malilib.util.StringUtils.translate("syncmatica_r.gui.tooltip.material.claim.none")));
-                } else {
-                    final String joined = String.join(", ", claimers);
-                    lines.add(literal(
-                            fi.dy.masa.malilib.util.StringUtils.translate("syncmatica_r.gui.tooltip.material.claimers", joined))
-                    );
-                }
-                final net.minecraft.client.MinecraftClient cli = net.minecraft.client.MinecraftClient.getInstance();
-                final String self = cli != null && cli.player != null ? SyncmaticaUtil.getProfileName(cli.player.getGameProfile()) : "";
-                final boolean canToggle = claimers.isEmpty() || claimers.contains(self);
-                final String key = canToggle
-                        ? "syncmatica_r.gui.tooltip.material.claim.action"
-                        : "syncmatica_r.gui.tooltip.material.claim.locked";
-                lines.add(literal(fi.dy.masa.malilib.util.StringUtils.translate(key)));
-//#if MC >= 12001
-//$$                 final MinecraftClient client2 = MinecraftClient.getInstance();
-//$$                 final TextRenderer textRenderer = client2.textRenderer;
-//$$                 drawContext.drawTooltip(textRenderer, lines, mouseX, mouseY);
-//#else
                 screen.renderTooltip(matrixStack, lines, mouseX, mouseY);
-//#endif
             }
+//#endif
+//#endif
         }
     }
+
 
     protected boolean shouldRenderClaimTooltip(final SyncmaticaMaterialEntry material) {
         return true;
     }
 
+//#if MC >= 12110
+//$$     @Override
+//$$     protected boolean onMouseClickedImpl(final Click click, final boolean isLeftClick) {
+//$$         // Use click.button() directly: 0 = left, 1 = right, 2 = middle
+//$$         return mouseClickedImpl((int) click.x(), (int) click.y(), click.button());
+//$$     }
+//$$
+//$$     public boolean mouseClicked(final int mouseX, final int mouseY, final int mouseButton) {
+//$$         return mouseClickedImpl(mouseX, mouseY, mouseButton);
+//$$     }
+//#else
     public boolean mouseClicked(final int mouseX, final int mouseY, final int mouseButton) {
+        return mouseClickedImpl(mouseX, mouseY, mouseButton);
+    }
+
+    public boolean onMouseClicked(final int mouseX, final int mouseY, final int mouseButton) {
+        return mouseClicked(mouseX, mouseY, mouseButton);
+    }
+//#endif
+
+    protected boolean mouseClickedImpl(final int mouseX, final int mouseY, final int mouseButton) {
         if (mouseButton != 0 || !isMouseOver(mouseX, mouseY) || placement == null) {
             return false;
         }
-        if (!fi.dy.masa.malilib.gui.GuiBase.isShiftDown()) {
+        if (!GuiBase.isShiftDown()) {
             return false;
         }
         final SyncmaticaMaterialEntry material = getEntry();
@@ -229,10 +284,6 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         }
         sendToggleClaim(material);
         return true;
-    }
-
-    public boolean onMouseClicked(final int mouseX, final int mouseY, final int mouseButton) {
-        return mouseClicked(mouseX, mouseY, mouseButton);
     }
 
     private void sendToggleClaim(final SyncmaticaMaterialEntry material) {
