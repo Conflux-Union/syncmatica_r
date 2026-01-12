@@ -142,7 +142,7 @@ public final class MaterialClaimHelper {
         if (client == null || client.player == null || client.player.getGameProfile() == null) {
             return null;
         }
-        return client.player.getGameProfile().getName();
+        return SyncmaticaUtil.getProfileName(client.player.getGameProfile());
     }
 
     private static ExchangeTarget getServer() {

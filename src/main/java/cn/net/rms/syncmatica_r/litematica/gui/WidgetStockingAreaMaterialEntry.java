@@ -16,6 +16,9 @@ import net.minecraft.client.util.math.MatrixStack;
 //#if MC >= 12001
 //$$ import net.minecraft.client.gui.DrawContext;
 //#endif
+//#if MC >= 12111
+//$$ import fi.dy.masa.malilib.render.GuiContext;
+//#endif
 
 public class WidgetStockingAreaMaterialEntry extends WidgetListEntryBase<WidgetStockingAreaMaterialEntry.RowData> {
 
@@ -46,6 +49,13 @@ public class WidgetStockingAreaMaterialEntry extends WidgetListEntryBase<WidgetS
         }
     }
 
+//#if MC >= 12111
+//$$     @Override
+//$$     public void render(final GuiContext guiContext, final int mouseX, final int mouseY, final boolean selected) {
+//#elseif MC >= 12110
+//$$     @Override
+//$$     public void render(final DrawContext drawContext, final int mouseX, final int mouseY, final boolean selected) {
+//#else
     @Override
     public void render(final int mouseX, final int mouseY, final boolean selected,
 //#if MC >= 12001
@@ -54,6 +64,7 @@ public class WidgetStockingAreaMaterialEntry extends WidgetListEntryBase<WidgetS
             final MatrixStack matrixStack
 //#endif
     ) {
+//#endif
         final RowData data = getEntry();
         if (data == null) {
             return;
@@ -61,15 +72,27 @@ public class WidgetStockingAreaMaterialEntry extends WidgetListEntryBase<WidgetS
         // Row rendering depends on whether this is a header, placement, or placeholder row.
         switch (data.getType()) {
             case HEADER:
+//#if MC >= 12111
+//$$                 RenderUtils.drawRect(guiContext, x, y, width, height, 0x40000000);
+//#elseif MC >= 12110
+//$$                 RenderUtils.drawRect(drawContext, x, y, width, height, 0x40000000);
+//#else
                 RenderUtils.drawRect(x, y, width, height, 0x40000000);
+//#endif
                 drawHeader(mouseX, mouseY,
-//#if MC >= 12001
+//#if MC >= 12111
+//$$                         guiContext,
+//#elseif MC >= 12001
 //$$                         drawContext,
 //#else
                         matrixStack,
 //#endif
                         data.getHeaderText());
-//#if MC >= 12001
+//#if MC >= 12111
+//$$                 drawSubWidgets(guiContext, mouseX, mouseY);
+//#elseif MC >= 12110
+//$$                 drawSubWidgets(drawContext, mouseX, mouseY);
+//#elseif MC >= 12001
 //$$                 drawSubWidgets(mouseX, mouseY, drawContext);
 //#else
                 drawSubWidgets(mouseX, mouseY, matrixStack);
@@ -77,7 +100,9 @@ public class WidgetStockingAreaMaterialEntry extends WidgetListEntryBase<WidgetS
                 break;
             case PLACEMENT:
                 drawPlacementRow(mouseX, mouseY, data,
-//#if MC >= 12001
+//#if MC >= 12111
+//$$                         guiContext
+//#elseif MC >= 12001
 //$$                         drawContext
 //#else
                         matrixStack
@@ -85,9 +110,17 @@ public class WidgetStockingAreaMaterialEntry extends WidgetListEntryBase<WidgetS
                 );
                 break;
             case EMPTY:
+//#if MC >= 12111
+//$$                 RenderUtils.drawRect(guiContext, x, y, width, height, 0x20000000);
+//#elseif MC >= 12110
+//$$                 RenderUtils.drawRect(drawContext, x, y, width, height, 0x20000000);
+//#else
                 RenderUtils.drawRect(x, y, width, height, 0x20000000);
+//#endif
                 drawCenteredText(data.getHeaderText(),
-//#if MC >= 12001
+//#if MC >= 12111
+//$$                         guiContext
+//#elseif MC >= 12001
 //$$                         drawContext
 //#else
                         matrixStack
@@ -100,14 +133,20 @@ public class WidgetStockingAreaMaterialEntry extends WidgetListEntryBase<WidgetS
     }
 
     private void drawHeader(final int mouseX, final int mouseY,
-//#if MC >= 12001
+//#if MC >= 12111
+//$$                           final GuiContext guiContext,
+//#elseif MC >= 12001
 //$$                           final DrawContext drawContext,
 //#else
                             final MatrixStack matrixStack,
 //#endif
                             final String text) {
         final int textColor = 0xFFFFFFFF;
-//#if MC >= 12001
+//#if MC >= 12111
+//$$         drawString(guiContext, x + 8, y + 6, textColor, text);
+//#elseif MC >= 12110
+//$$         drawString(drawContext, x + 8, y + 6, textColor, text);
+//#elseif MC >= 12001
 //$$         drawString(x + 8, y + 6, textColor, text, drawContext);
 //#else
         drawString(x + 8, y + 6, textColor, text, matrixStack);
@@ -115,7 +154,9 @@ public class WidgetStockingAreaMaterialEntry extends WidgetListEntryBase<WidgetS
     }
 
     private void drawCenteredText(final String text,
-//#if MC >= 12001
+//#if MC >= 12111
+//$$                                  final GuiContext guiContext
+//#elseif MC >= 12001
 //$$                                  final DrawContext drawContext
 //#else
                                    final MatrixStack matrixStack
@@ -124,7 +165,11 @@ public class WidgetStockingAreaMaterialEntry extends WidgetListEntryBase<WidgetS
         final int textColor = 0x80FFFFFF;
         final int textWidth = measure(text);
         final int textX = x + (width - textWidth) / 2;
-//#if MC >= 12001
+//#if MC >= 12111
+//$$         drawString(guiContext, textX, y + 6, textColor, text);
+//#elseif MC >= 12110
+//$$         drawString(drawContext, textX, y + 6, textColor, text);
+//#elseif MC >= 12001
 //$$         drawString(textX, y + 6, textColor, text, drawContext);
 //#else
         drawString(textX, y + 6, textColor, text, matrixStack);
@@ -132,7 +177,9 @@ public class WidgetStockingAreaMaterialEntry extends WidgetListEntryBase<WidgetS
     }
 
     private void drawPlacementRow(final int mouseX, final int mouseY, final RowData data,
-//#if MC >= 12001
+//#if MC >= 12111
+//$$                                   final GuiContext guiContext
+//#elseif MC >= 12001
 //$$                                   final DrawContext drawContext
 //#else
                                    final MatrixStack matrixStack
@@ -142,9 +189,21 @@ public class WidgetStockingAreaMaterialEntry extends WidgetListEntryBase<WidgetS
         final int baseColor = data.isHighlighted() ? 0x3050D050 : 0x20000000;
         final int hoverColor = 0x40FFFFFF;
         final int background = hovered ? hoverColor : baseColor;
+//#if MC >= 12111
+//$$         RenderUtils.drawRect(guiContext, x, y, width, height, background);
+//#elseif MC >= 12110
+//$$         RenderUtils.drawRect(drawContext, x, y, width, height, background);
+//#else
         RenderUtils.drawRect(x, y, width, height, background);
+//#endif
         final String name = data.getPlacement().getName();
-//#if MC >= 12001
+//#if MC >= 12111
+//$$         drawString(guiContext, x + 10, y + 6, 0xFFFFFFFF, name);
+//$$         drawSubWidgets(guiContext, mouseX, mouseY);
+//#elseif MC >= 12110
+//$$         drawString(drawContext, x + 10, y + 6, 0xFFFFFFFF, name);
+//$$         drawSubWidgets(drawContext, mouseX, mouseY);
+//#elseif MC >= 12001
 //$$         drawString(x + 10, y + 6, 0xFFFFFFFF, name, drawContext);
 //$$         drawSubWidgets(mouseX, mouseY, drawContext);
 //#else

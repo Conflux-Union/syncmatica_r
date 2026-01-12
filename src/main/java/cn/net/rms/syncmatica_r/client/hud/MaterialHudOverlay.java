@@ -7,15 +7,27 @@ import cn.net.rms.syncmatica_r.client.HudPreferences;
 import cn.net.rms.syncmatica_r.material.MaterialKey;
 import cn.net.rms.syncmatica_r.material.SyncmaticaMaterialEntry;
 import cn.net.rms.syncmatica_r.util.IdentifierUtil;
+import cn.net.rms.syncmatica_r.util.NbtHelper;
+import cn.net.rms.syncmatica_r.util.SyncmaticaUtil;
 import com.mojang.blaze3d.systems.RenderSystem;
 import fi.dy.masa.malilib.render.RenderUtils;
 import fi.dy.masa.malilib.util.StringUtils;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+//#if MC >= 12111
+//$$ import fi.dy.masa.malilib.render.GuiContext;
+//#endif
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.render.item.ItemRenderer;
 import net.minecraft.client.util.math.MatrixStack;
-//#if MC >= 12005
+//#if MC >= 12110
+//$$ import net.minecraft.client.gui.DrawContext;
+//$$ import net.minecraft.client.render.RenderTickCounter;
+//$$ import net.minecraft.component.DataComponentTypes;
+//$$ import net.minecraft.entity.TypedEntityData;
+//$$ import net.minecraft.block.entity.BlockEntityType;
+//$$ import net.minecraft.text.Text;
+//#elseif MC >= 12005
 //$$ import net.minecraft.client.gui.DrawContext;
 //$$ import net.minecraft.client.render.RenderTickCounter;
 //$$ import net.minecraft.component.DataComponentTypes;
@@ -34,7 +46,14 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.util.Identifier;
+//#if MC >= 12001
+//$$ import net.minecraft.registry.Registries;
+//#else
 import net.minecraft.util.registry.Registry;
+//#endif
+//#if MC >= 12110
+//$$ import net.minecraft.entity.EquipmentSlot;
+//#endif
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -214,8 +233,13 @@ public final class MaterialHudOverlay implements HudRenderCallback {
             return null;
         }
         int fingerprint = 1;
+        //#if MC >= 12110
+        //$$ fingerprint = accumulateFingerprint(inventory.getMainStacks(), fingerprint);
+        //$$ fingerprint = accumulateFingerprintFromStack(client.player.getEquippedStack(EquipmentSlot.OFFHAND), fingerprint);
+        //#else
         fingerprint = accumulateFingerprint(inventory.main, fingerprint);
         fingerprint = accumulateFingerprint(inventory.offHand, fingerprint);
+        //#endif
         return fingerprint;
     }
 
@@ -229,8 +253,13 @@ public final class MaterialHudOverlay implements HudRenderCallback {
             return Collections.emptyMap();
         }
         final Map<MaterialKey, Integer> totals = new HashMap<>();
+        //#if MC >= 12110
+        //$$ accumulateStacks(inventory.getMainStacks(), totals);
+        //$$ accumulateStack(client.player.getEquippedStack(EquipmentSlot.OFFHAND), totals);
+        //#else
         accumulateStacks(inventory.main, totals);
         accumulateStacks(inventory.offHand, totals);
+        //#endif
         return totals;
     }
 
@@ -251,7 +280,11 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         if (item == null || item == Items.AIR) {
             return;
         }
+        //#if MC >= 12001
+        //$$ final Identifier itemId = Registries.ITEM.getId(item);
+        //#else
         final Identifier itemId = Registry.ITEM.getId(item);
+        //#endif
         if (itemId == null) {
             return;
         }
@@ -259,33 +292,47 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         if (!(item instanceof BlockItem)) {
             return;
         }
-//#if MC >= 12005
-//$$         final NbtComponent blockEntityData = stack.getComponents().get(DataComponentTypes.BLOCK_ENTITY_DATA);
-//$$         if (blockEntityData == null || blockEntityData.isEmpty()) {
+//#if MC >= 12110
+//$$         final TypedEntityData<BlockEntityType<?>> blockEntityData = stack.get(DataComponentTypes.BLOCK_ENTITY_DATA);
+//$$         if (blockEntityData == null) {
+//$$             return;
+//$$         }
+//$$         final NbtCompound blockEntityTag = blockEntityData.copyNbtWithoutId();
+//$$         if (!blockEntityTag.contains("Items")) {
+//$$             return;
+//$$         }
+//$$         blockEntityTag.getList("Items").ifPresent(items -> accumulateContainedItems(items, totals));
+//#elseif MC >= 12005
+//$$         final NbtComponent blockEntityData = stack.getComponents().getOrDefault(DataComponentTypes.BLOCK_ENTITY_DATA, NbtComponent.DEFAULT);
+//$$         if (blockEntityData.isEmpty()) {
 //$$             return;
 //$$         }
 //$$         final NbtCompound blockEntityTag = blockEntityData.copyNbt();
+//$$         if (!blockEntityTag.contains("Items", NbtElement.LIST_TYPE)) {
+//$$             return;
+//$$         }
+//$$         accumulateContainedItems(blockEntityTag.getList("Items", NbtElement.COMPOUND_TYPE), totals);
 //#else
         final NbtCompound nbt = stack.getNbt();
         if (nbt == null || !nbt.contains("BlockEntityTag", NbtElement.COMPOUND_TYPE)) {
             return;
         }
         final NbtCompound blockEntityTag = nbt.getCompound("BlockEntityTag");
-//#endif
         if (!blockEntityTag.contains("Items", NbtElement.LIST_TYPE)) {
             return;
         }
         accumulateContainedItems(blockEntityTag.getList("Items", NbtElement.COMPOUND_TYPE), totals);
+//#endif
     }
 
     private void accumulateContainedItems(final NbtList itemsNbt, final Map<MaterialKey, Integer> totals) {
         for (int i = 0; i < itemsNbt.size(); i++) {
-            final NbtCompound itemNbt = itemsNbt.getCompound(i);
-            if (!itemNbt.contains("id", NbtElement.STRING_TYPE)) {
+            final NbtCompound itemNbt = NbtHelper.getCompound(itemsNbt, i);
+            if (itemNbt == null) {
                 continue;
             }
-            final String id = itemNbt.getString("id");
-            if (id == null || id.isEmpty()) {
+            final String id = NbtHelper.getString(itemNbt, "id");
+            if (id.isEmpty()) {
                 continue;
             }
             final Optional<Identifier> itemId = IdentifierUtil.tryParse(id);
@@ -293,29 +340,33 @@ public final class MaterialHudOverlay implements HudRenderCallback {
                 logInvalidItemId("accumulateContainedItems", id);
                 continue;
             }
+            //#if MC >= 12110
+            //$$ final Item item = Registries.ITEM.getEntry(itemId.get()).map(entry -> entry.value()).orElse(Items.AIR);
+            //#elseif MC >= 12001
+            //$$ final Item item = Registries.ITEM.get(itemId.get());
+            //#else
             final Item item = Registry.ITEM.get(itemId.get());
+            //#endif
             if (item == Items.AIR) {
                 continue;
             }
-            final int count = itemNbt.contains("Count", NbtElement.NUMBER_TYPE)
-                    ? itemNbt.getByte("Count") & 0xFF
-                    : 0;
+            final int count = NbtHelper.getByte(itemNbt, "Count") & 0xFF;
             if (count <= 0) {
                 continue;
             }
             totals.merge(new MaterialKey(itemId.get(), ""), count, Integer::sum);
-            if (!itemNbt.contains("tag", NbtElement.COMPOUND_TYPE)) {
+            final NbtCompound tag = NbtHelper.getCompound(itemNbt, "tag");
+            if (tag == null) {
                 continue;
             }
-            final NbtCompound tag = itemNbt.getCompound("tag");
-            if (!tag.contains("BlockEntityTag", NbtElement.COMPOUND_TYPE)) {
+            final NbtCompound blockEntityTag = NbtHelper.getCompound(tag, "BlockEntityTag");
+            if (blockEntityTag == null) {
                 continue;
             }
-            final NbtCompound blockEntityTag = tag.getCompound("BlockEntityTag");
-            if (!blockEntityTag.contains("Items", NbtElement.LIST_TYPE)) {
-                continue;
+            final NbtList nestedItems = NbtHelper.getList(blockEntityTag, "Items");
+            if (nestedItems != null) {
+                accumulateContainedItems(nestedItems, totals);
             }
-            accumulateContainedItems(blockEntityTag.getList("Items", NbtElement.COMPOUND_TYPE), totals);
         }
     }
 
@@ -336,42 +387,71 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         return fingerprint;
     }
 
+    private int accumulateFingerprintFromStack(final ItemStack stack, final int seed) {
+        return accumulateStackFingerprint(stack, seed);
+    }
+
     private int accumulateStackFingerprint(final ItemStack stack, final int seed) {
         int fingerprint = seed;
         if (stack == null || stack.isEmpty()) {
             return 31 * fingerprint;
         }
         final Item item = stack.getItem();
+        //#if MC >= 12001
+        //$$ final Identifier itemId = item == Items.AIR ? null : Registries.ITEM.getId(item);
+        //#else
         final Identifier itemId = item == Items.AIR ? null : Registry.ITEM.getId(item);
+        //#endif
         fingerprint = 31 * fingerprint + (itemId == null ? 0 : itemId.hashCode());
         fingerprint = 31 * fingerprint + stack.getCount();
         if (!(item instanceof BlockItem)) {
             return fingerprint;
         }
-//#if MC >= 12005
-//$$         final NbtComponent blockEntityData = stack.getComponents().get(DataComponentTypes.BLOCK_ENTITY_DATA);
-//$$         if (blockEntityData == null || blockEntityData.isEmpty()) {
+//#if MC >= 12110
+//$$         final TypedEntityData<BlockEntityType<?>> blockEntityData = stack.get(DataComponentTypes.BLOCK_ENTITY_DATA);
+//$$         if (blockEntityData == null) {
+//$$             return fingerprint;
+//$$         }
+//$$         final NbtCompound blockEntityTag = blockEntityData.copyNbtWithoutId();
+//$$         if (!blockEntityTag.contains("Items")) {
+//$$             return fingerprint;
+//$$         }
+//$$         final NbtList itemsList = blockEntityTag.getList("Items").orElse(null);
+//$$         if (itemsList == null) {
+//$$             return fingerprint;
+//$$         }
+//$$         return accumulateFingerprintFromNbt(itemsList, fingerprint);
+//#elseif MC >= 12005
+//$$         final NbtComponent blockEntityData = stack.getComponents().getOrDefault(DataComponentTypes.BLOCK_ENTITY_DATA, NbtComponent.DEFAULT);
+//$$         if (blockEntityData.isEmpty()) {
 //$$             return fingerprint;
 //$$         }
 //$$         final NbtCompound blockEntityTag = blockEntityData.copyNbt();
+//$$         if (!blockEntityTag.contains("Items", NbtElement.LIST_TYPE)) {
+//$$             return fingerprint;
+//$$         }
+//$$         return accumulateFingerprintFromNbt(blockEntityTag.getList("Items", NbtElement.COMPOUND_TYPE), fingerprint);
 //#else
         final NbtCompound nbt = stack.getNbt();
         if (nbt == null || !nbt.contains("BlockEntityTag", NbtElement.COMPOUND_TYPE)) {
             return fingerprint;
         }
         final NbtCompound blockEntityTag = nbt.getCompound("BlockEntityTag");
-//#endif
         if (!blockEntityTag.contains("Items", NbtElement.LIST_TYPE)) {
             return fingerprint;
         }
         return accumulateFingerprintFromNbt(blockEntityTag.getList("Items", NbtElement.COMPOUND_TYPE), fingerprint);
+//#endif
     }
 
     private int accumulateFingerprintFromNbt(final NbtList itemsNbt, final int seed) {
         int fingerprint = seed;
         for (int i = 0; i < itemsNbt.size(); i++) {
-            final NbtCompound itemNbt = itemsNbt.getCompound(i);
-            final String id = itemNbt.contains("id", NbtElement.STRING_TYPE) ? itemNbt.getString("id") : "";
+            final NbtCompound itemNbt = NbtHelper.getCompound(itemsNbt, i);
+            if (itemNbt == null) {
+                continue;
+            }
+            final String id = NbtHelper.getString(itemNbt, "id");
             final Identifier itemId;
             if (id.isEmpty()) {
                 itemId = null;
@@ -383,23 +463,21 @@ public final class MaterialHudOverlay implements HudRenderCallback {
                 }
                 itemId = parsedId.get();
             }
-            final int count = itemNbt.contains("Count", NbtElement.NUMBER_TYPE)
-                    ? itemNbt.getByte("Count") & 0xFF
-                    : 0;
+            final int count = NbtHelper.getByte(itemNbt, "Count") & 0xFF;
             fingerprint = 31 * fingerprint + (itemId == null ? 0 : itemId.hashCode());
             fingerprint = 31 * fingerprint + count;
-            if (!itemNbt.contains("tag", NbtElement.COMPOUND_TYPE)) {
+            final NbtCompound tag = NbtHelper.getCompound(itemNbt, "tag");
+            if (tag == null) {
                 continue;
             }
-            final NbtCompound tag = itemNbt.getCompound("tag");
-            if (!tag.contains("BlockEntityTag", NbtElement.COMPOUND_TYPE)) {
+            final NbtCompound blockEntityTag = NbtHelper.getCompound(tag, "BlockEntityTag");
+            if (blockEntityTag == null) {
                 continue;
             }
-            final NbtCompound blockEntityTag = tag.getCompound("BlockEntityTag");
-            if (!blockEntityTag.contains("Items", NbtElement.LIST_TYPE)) {
-                continue;
+            final NbtList nestedItems = NbtHelper.getList(blockEntityTag, "Items");
+            if (nestedItems != null) {
+                fingerprint = accumulateFingerprintFromNbt(nestedItems, fingerprint);
             }
-            fingerprint = accumulateFingerprintFromNbt(blockEntityTag.getList("Items", NbtElement.COMPOUND_TYPE), fingerprint);
         }
         return fingerprint;
     }
@@ -410,7 +488,7 @@ public final class MaterialHudOverlay implements HudRenderCallback {
             return null;
         }
         if (client.player != null && client.player.getGameProfile() != null) {
-            return client.player.getGameProfile().getName();
+            return SyncmaticaUtil.getProfileName(client.player.getGameProfile());
         }
         if (client.getSession() != null) {
             return client.getSession().getUsername();
@@ -469,7 +547,13 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         final int screenHeight = client.getWindow().getScaledHeight();
         final int x = Math.max(margin, screenWidth - contentWidth - padding * 2 - margin);
         final int y = Math.max(margin, screenHeight - contentHeight - padding * 2 - margin);
+//#if MC >= 12111
+//$$         RenderUtils.drawRect(GuiContext.fromGuiGraphics((DrawContext) drawContext), x, y, contentWidth + padding * 2, contentHeight + padding * 2, 0x80000000);
+//#elseif MC >= 12110
+//$$         RenderUtils.drawRect((DrawContext) drawContext, x, y, contentWidth + padding * 2, contentHeight + padding * 2, 0x80000000);
+//#else
         RenderUtils.drawRect(x, y, contentWidth + padding * 2, contentHeight + padding * 2, 0x80000000);
+//#endif
         final int headerColor = 0xFFFFFF00;
         final String title = header == null ? "" : header;
         drawText(textRenderer, matrices, drawContext, title, x + padding, y + padding, headerColor);
@@ -532,7 +616,11 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         if (key == null) {
             return ItemStack.EMPTY;
         }
+        //#if MC >= 12001
+        //$$ final Item item = Registries.ITEM.get(key.itemId());
+        //#else
         final Item item = Registry.ITEM.get(key.itemId());
+        //#endif
         if (item == Items.AIR) {
             return ItemStack.EMPTY;
         }

@@ -1,5 +1,6 @@
 package cn.net.rms.syncmatica_r.util;
 
+import com.mojang.authlib.GameProfile;
 import org.apache.logging.log4j.LogManager;
 
 import java.io.IOException;
@@ -22,6 +23,22 @@ public class SyncmaticaUtil {
 
     private SyncmaticaUtil() {
 
+    }
+
+    public static String getProfileName(final GameProfile profile) {
+        //#if MC >= 12110
+        //$$ return profile.name();
+        //#else
+        return profile.getName();
+        //#endif
+    }
+
+    public static UUID getProfileId(final GameProfile profile) {
+        //#if MC >= 12110
+        //$$ return profile.id();
+        //#else
+        return profile.getId();
+        //#endif
     }
 
     public static UUID createChecksum(final InputStream fis) throws NoSuchAlgorithmException, IOException {

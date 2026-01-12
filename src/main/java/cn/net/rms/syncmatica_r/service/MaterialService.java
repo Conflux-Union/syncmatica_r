@@ -5,6 +5,7 @@ import cn.net.rms.syncmatica_r.ServerPosition;
 import cn.net.rms.syncmatica_r.communication.ServerCommunicationManager;
 import cn.net.rms.syncmatica_r.material.*;
 import cn.net.rms.syncmatica_r.service.IServiceConfiguration;
+import cn.net.rms.syncmatica_r.util.NbtHelper;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.item.BlockItem;
@@ -22,7 +23,11 @@ import net.minecraft.world.World;
 //$$ import net.minecraft.registry.RegistryKeys;
 //$$ import net.minecraft.block.entity.SignText;
 //#endif
-//#if MC >= 12005
+//#if MC >= 12110
+//$$ import net.minecraft.component.DataComponentTypes;
+//$$ import net.minecraft.entity.TypedEntityData;
+//$$ import net.minecraft.block.entity.BlockEntityType;
+//#elseif MC >= 12005
 //$$ import net.minecraft.component.DataComponentTypes;
 //$$ import net.minecraft.component.type.NbtComponent;
 //#endif
@@ -661,9 +666,15 @@ public class MaterialService extends AbstractService {
             totals.merge(key, stack.getCount(), Integer::sum);
 
             if (stack.getItem() instanceof BlockItem) {
-//#if MC >= 12005
-//$$                 final NbtComponent blockEntityData = stack.getComponents().get(DataComponentTypes.BLOCK_ENTITY_DATA);
-//$$                 if (blockEntityData != null && !blockEntityData.isEmpty()) {
+//#if MC >= 12110
+//$$                 final TypedEntityData<BlockEntityType<?>> blockEntityData = stack.get(DataComponentTypes.BLOCK_ENTITY_DATA);
+//$$                 if (blockEntityData != null) {
+//$$                     final NbtCompound blockEntityTag = blockEntityData.copyNbtWithoutId();
+//$$                     blockEntityTag.getList("Items").ifPresent(items -> scanShulkerBoxContents(items, totals));
+//$$                 }
+//#elseif MC >= 12005
+//$$                 final NbtComponent blockEntityData = stack.getComponents().getOrDefault(DataComponentTypes.BLOCK_ENTITY_DATA, NbtComponent.DEFAULT);
+//$$                 if (!blockEntityData.isEmpty()) {
 //$$                     final NbtCompound blockEntityTag = blockEntityData.copyNbt();
 //$$                     if (blockEntityTag.contains("Items")) {
 //$$                         scanShulkerBoxContents(blockEntityTag.getList("Items", 10), totals);
@@ -684,12 +695,14 @@ public class MaterialService extends AbstractService {
 
     private void scanShulkerBoxContents(final NbtList itemsNbt, final Map<MaterialKey, Integer> totals) {
         for (int i = 0; i < itemsNbt.size(); i++) {
-            final NbtCompound itemNbt = itemsNbt.getCompound(i);
-            if (!itemNbt.contains("id") || !itemNbt.contains("Count")) {
+            final NbtCompound itemNbt = NbtHelper.getCompound(itemsNbt, i);
+            if (itemNbt == null) {
                 continue;
             }
-
-            final String rawId = itemNbt.getString("id");
+            final String rawId = NbtHelper.getString(itemNbt, "id");
+            if (rawId.isEmpty()) {
+                continue;
+            }
             final Optional<Identifier> itemId = IdentifierUtil.tryParse(rawId);
             if (!itemId.isPresent()) {
                 if (LOGGER.isDebugEnabled()) {
@@ -697,23 +710,26 @@ public class MaterialService extends AbstractService {
                 }
                 continue;
             }
-            final int count = itemNbt.getByte("Count");
+            final int count = NbtHelper.getByte(itemNbt, "Count") & 0xFF;
+            if (count <= 0) {
+                continue;
+            }
 
             final MaterialKey key = new MaterialKey(itemId.get(), "");
             totals.merge(key, count, Integer::sum);
 
-            if (!itemNbt.contains("tag")) {
+            final NbtCompound tag = NbtHelper.getCompound(itemNbt, "tag");
+            if (tag == null) {
                 continue;
             }
-            final NbtCompound tag = itemNbt.getCompound("tag");
-            if (!tag.contains("BlockEntityTag")) {
+            final NbtCompound blockEntityTag = NbtHelper.getCompound(tag, "BlockEntityTag");
+            if (blockEntityTag == null) {
                 continue;
             }
-            final NbtCompound blockEntityTag = tag.getCompound("BlockEntityTag");
-            if (!blockEntityTag.contains("Items")) {
-                continue;
+            final NbtList nestedItems = NbtHelper.getList(blockEntityTag, "Items");
+            if (nestedItems != null) {
+                scanShulkerBoxContents(nestedItems, totals);
             }
-            scanShulkerBoxContents(blockEntityTag.getList("Items", 10), totals);
         }
     }
 

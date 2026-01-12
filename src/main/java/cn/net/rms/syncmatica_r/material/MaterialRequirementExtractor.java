@@ -14,6 +14,7 @@ import net.minecraft.util.registry.Registry;
 //$$ import net.minecraft.nbt.NbtSizeTracker;
 //#endif
 import cn.net.rms.syncmatica_r.util.IdentifierUtil;
+import cn.net.rms.syncmatica_r.util.NbtHelper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -55,14 +56,14 @@ public final class MaterialRequirementExtractor {
 //#else
             final NbtCompound root = NbtIo.readCompressed(input);
 //#endif
-            if (root == null || !root.contains("Regions", NbtElement.COMPOUND_TYPE)) {
+            final NbtCompound regions = NbtHelper.getCompound(root, "Regions");
+            if (regions == null) {
                 return requirements;
             }
-            final NbtCompound regions = root.getCompound("Regions");
             long processedBlocks = 0L;
             final long effectiveLimit = (maxBlocks <= 0L) ? Long.MAX_VALUE : maxBlocks;
             for (final String regionName : regions.getKeys()) {
-                final NbtCompound region = regions.getCompound(regionName);
+                final NbtCompound region = NbtHelper.getCompound(regions, regionName);
                 processedBlocks = accumulateRegion(region, requirements, includeContainerContents,
                         processedBlocks, effectiveLimit);
             }
@@ -98,8 +99,8 @@ public final class MaterialRequirementExtractor {
         if (updatedBlocks > maxBlocks) {
             throw new ExtractionLimitExceededException(updatedBlocks);
         }
-        final NbtList paletteData = region.getList("BlockStatePalette", NbtElement.COMPOUND_TYPE);
-        if (paletteData.isEmpty()) {
+        final NbtList paletteData = NbtHelper.getList(region, "BlockStatePalette");
+        if (paletteData == null || paletteData.isEmpty()) {
             return updatedBlocks;
         }
         final List<MaterialKey> palette = buildPalette(paletteData);
@@ -136,9 +137,9 @@ public final class MaterialRequirementExtractor {
                 }
             }
         }
-        if (includeContainerContents && region.contains("TileEntities", NbtElement.LIST_TYPE)) {
-            final NbtList tileEntities = region.getList("TileEntities", NbtElement.COMPOUND_TYPE);
-            if (!tileEntities.isEmpty()) {
+        if (includeContainerContents) {
+            final NbtList tileEntities = NbtHelper.getList(region, "TileEntities");
+            if (tileEntities != null && !tileEntities.isEmpty()) {
                 accumulateTileEntityContents(tileEntities, totals);
             }
         }
@@ -148,17 +149,17 @@ public final class MaterialRequirementExtractor {
     private static List<MaterialKey> buildPalette(final NbtList paletteData) {
         final List<MaterialKey> palette = new ArrayList<>(paletteData.size());
         for (int index = 0; index < paletteData.size(); index++) {
-            final NbtCompound entry = paletteData.getCompound(index);
+            final NbtCompound entry = NbtHelper.getCompound(paletteData, index);
             palette.add(resolvePaletteEntry(entry));
         }
         return palette;
     }
 
     private static MaterialKey resolvePaletteEntry(final NbtCompound entry) {
-        if (entry == null || !entry.contains("Name", NbtElement.STRING_TYPE)) {
+        if (entry == null) {
             return null;
         }
-        final String name = entry.getString("Name");
+        final String name = NbtHelper.getString(entry, "Name");
         if (name.isEmpty()) {
             return null;
         }
@@ -189,6 +190,32 @@ public final class MaterialRequirementExtractor {
     }
 
     private static int[] resolveSize(final NbtCompound region) {
+        //#if MC >= 12110
+        //$$ if (region.contains("Size")) {
+        //$$     final Optional<int[]> intArrayOpt = region.getIntArray("Size");
+        //$$     if (intArrayOpt.isPresent()) {
+        //$$         final int[] raw = intArrayOpt.get();
+        //$$         if (raw.length >= 3) {
+        //$$             return new int[]{Math.abs(raw[0]), Math.abs(raw[1]), Math.abs(raw[2])};
+        //$$         }
+        //$$         return null;
+        //$$     }
+        //$$     final Optional<NbtCompound> compoundOpt = region.getCompound("Size");
+        //$$     if (compoundOpt.isPresent()) {
+        //$$         final NbtCompound compound = compoundOpt.get();
+        //$$         if (compound.contains("x") && compound.contains("y") && compound.contains("z")) {
+        //$$             final int sizeX = Math.abs(compound.getInt("x", 0));
+        //$$             final int sizeY = Math.abs(compound.getInt("y", 0));
+        //$$             final int sizeZ = Math.abs(compound.getInt("z", 0));
+        //$$             if (sizeX == 0 || sizeY == 0 || sizeZ == 0) {
+        //$$                 return null;
+        //$$             }
+        //$$             return new int[]{sizeX, sizeY, sizeZ};
+        //$$         }
+        //$$     }
+        //$$ }
+        //$$ return null;
+        //#else
         if (region.contains("Size", NbtElement.INT_ARRAY_TYPE)) {
             final int[] raw = region.getIntArray("Size");
             if (raw.length >= 3) {
@@ -211,9 +238,28 @@ public final class MaterialRequirementExtractor {
             }
         }
         return null;
+        //#endif
     }
 
     private static long[] resolveBlockStates(final NbtCompound region) {
+        //#if MC >= 12110
+        //$$ if (region.contains("BlockStates")) {
+        //$$     final Optional<long[]> longArrayOpt = region.getLongArray("BlockStates");
+        //$$     if (longArrayOpt.isPresent()) {
+        //$$         return longArrayOpt.get();
+        //$$     }
+        //$$     final Optional<int[]> intArrayOpt = region.getIntArray("BlockStates");
+        //$$     if (intArrayOpt.isPresent()) {
+        //$$         final int[] ints = intArrayOpt.get();
+        //$$         final long[] longs = new long[ints.length];
+        //$$         for (int index = 0; index < ints.length; index++) {
+        //$$             longs[index] = ints[index] & 0xFFFFFFFFL;
+        //$$         }
+        //$$         return longs;
+        //$$     }
+        //$$ }
+        //$$ return new long[0];
+        //#else
         if (region.contains("BlockStates", NbtElement.LONG_ARRAY_TYPE)) {
             return region.getLongArray("BlockStates");
         }
@@ -226,31 +272,34 @@ public final class MaterialRequirementExtractor {
             return longs;
         }
         return new long[0];
+        //#endif
     }
 
     private static void accumulateTileEntityContents(final NbtList entities, final Map<MaterialKey, Integer> totals) {
         for (int i = 0; i < entities.size(); i++) {
-            final NbtCompound entity = entities.getCompound(i);
-            if (entity == null || !entity.contains("Items", NbtElement.LIST_TYPE)) {
+            final NbtCompound entity = NbtHelper.getCompound(entities, i);
+            if (entity == null) {
                 continue;
             }
-            final NbtList items = entity.getList("Items", NbtElement.COMPOUND_TYPE);
-            accumulateItemList(items, totals);
+            final NbtList items = NbtHelper.getList(entity, "Items");
+            if (items != null) {
+                accumulateItemList(items, totals);
+            }
         }
     }
 
     private static void accumulateItemList(final NbtList items, final Map<MaterialKey, Integer> totals) {
         for (int i = 0; i < items.size(); i++) {
-            final NbtCompound item = items.getCompound(i);
+            final NbtCompound item = NbtHelper.getCompound(items, i);
             accumulateItemEntry(item, totals);
         }
     }
 
     private static void accumulateItemEntry(final NbtCompound item, final Map<MaterialKey, Integer> totals) {
-        if (item == null || !item.contains("id", NbtElement.STRING_TYPE) || !item.contains("Count", NbtElement.NUMBER_TYPE)) {
+        if (item == null) {
             return;
         }
-        final String id = item.getString("id");
+        final String id = NbtHelper.getString(item, "id");
         if (id.isEmpty()) {
             return;
         }
@@ -258,27 +307,29 @@ public final class MaterialRequirementExtractor {
         if (!identifier.isPresent()) {
             return;
         }
-        final int count = Byte.toUnsignedInt(item.getByte("Count"));
+        final int count = Byte.toUnsignedInt(NbtHelper.getByte(item, "Count"));
         if (count <= 0) {
             return;
         }
         totals.merge(new MaterialKey(identifier.get(), ""), count, Integer::sum);
-        if (item.contains("tag", NbtElement.COMPOUND_TYPE)) {
-            final NbtCompound tag = item.getCompound("tag");
+        final NbtCompound tag = NbtHelper.getCompound(item, "tag");
+        if (tag != null) {
             accumulateNestedBlockEntity(tag, totals);
         }
     }
 
     private static void accumulateNestedBlockEntity(final NbtCompound tag, final Map<MaterialKey, Integer> totals) {
-        if (tag == null || !tag.contains("BlockEntityTag", NbtElement.COMPOUND_TYPE)) {
+        if (tag == null) {
             return;
         }
-        final NbtCompound blockEntityTag = tag.getCompound("BlockEntityTag");
-        if (!blockEntityTag.contains("Items", NbtElement.LIST_TYPE)) {
+        final NbtCompound blockEntityTag = NbtHelper.getCompound(tag, "BlockEntityTag");
+        if (blockEntityTag == null) {
             return;
         }
-        final NbtList nestedItems = blockEntityTag.getList("Items", NbtElement.COMPOUND_TYPE);
-        accumulateItemList(nestedItems, totals);
+        final NbtList nestedItems = NbtHelper.getList(blockEntityTag, "Items");
+        if (nestedItems != null) {
+            accumulateItemList(nestedItems, totals);
+        }
     }
 
     private static final class ExtractionLimitExceededException extends RuntimeException {

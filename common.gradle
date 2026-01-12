@@ -1,8 +1,8 @@
 plugins {
-    id 'fabric-loom' version '1.10.5'
+    id 'fabric-loom' version '1.14-SNAPSHOT'
     id 'com.replaymod.preprocess'
     id 'maven-publish'
-    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'com.gradleup.shadow' version '9.0.0-beta4'
 }
 
 def mcVersionParts = project.minecraft_version.split('\\.')
@@ -10,10 +10,9 @@ def mcVersionNumber = (mcVersionParts[0] + mcVersionParts[1].padLeft(2, '0') + (
 def javaRelease = mcVersionNumber >= 12100 ? 21 : (mcVersionNumber >= 12000 ? 17 : 16)
 def toolchainVersion = javaRelease >= 17 ? javaRelease : 17
 
-sourceCompatibility = JavaVersion.toVersion(javaRelease)
-targetCompatibility = JavaVersion.toVersion(javaRelease)
-
-archivesBaseName = project.archives_base_name + '-' + project.minecraft_version
+base {
+    archivesName = project.archives_base_name + '-' + project.minecraft_version
+}
 version = project.mod_version
 group = project.maven_group
 
@@ -25,10 +24,20 @@ repositories {
     maven {
         url = "https://www.cursemaven.com"
     }
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "Modrinth"
+                url = "https://api.modrinth.com/maven"
+            }
+        }
+        filter {
+            includeGroup "maven.modrinth"
+        }
+    }
 }
 
 configurations {
-    annotationProcessor.extendsFrom compileClasspath
     shadowInclude
 }
 
@@ -38,8 +47,15 @@ dependencies {
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
-    modImplementation "curse.maven:litematica-${project.litematica_minecraft_version}-308892:${project.litematica_fileid}"
-    modImplementation "curse.maven:malilib-${project.litematica_minecraft_version}-303119:${project.malilib_fileid}"
+    // Litematica and MaLiLib dependencies
+    // Use Modrinth Maven if modrinth_litematica_version is defined, otherwise use CurseForge
+    if (project.hasProperty('modrinth_litematica_version')) {
+        modImplementation "maven.modrinth:litematica:${project.modrinth_litematica_version}"
+        modImplementation "maven.modrinth:malilib:${project.modrinth_malilib_version}"
+    } else {
+        modImplementation "curse.maven:litematica-${project.litematica_minecraft_version}-308892:${project.litematica_fileid}"
+        modImplementation "curse.maven:malilib-${project.litematica_minecraft_version}-303119:${project.malilib_fileid}"
+    }
 
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 
@@ -86,11 +102,23 @@ tasks.withType(JavaCompile).configureEach {
     if (JavaVersion.current().isJava9Compatible()) {
         it.options.release = javaRelease
     }
+
+    // Suppress mixin annotation processor errors in dev environment
+    it.options.compilerArgs += ['-Xlint:-processing']
 }
 
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(toolchainVersion)
+    }
+    sourceCompatibility = JavaVersion.toVersion(javaRelease)
+    targetCompatibility = JavaVersion.toVersion(javaRelease)
+}
+
+loom {
+    mixin {
+        useLegacyMixinAp = false
+        defaultRefmapName = "syncmatica_r.refmap.json"
     }
 }
 
@@ -108,7 +136,7 @@ tasks.named("remapJar") {
 
 jar {
     from("LICENSE") {
-        rename { "${it}_${project.archivesBaseName}" }
+        rename { "${it}_${base.archivesName.get()}" }
     }
 }
 

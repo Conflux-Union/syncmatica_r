@@ -4,6 +4,7 @@ import cn.net.rms.syncmatica_r.Context;
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
 import cn.net.rms.syncmatica_r.communication.ServerCommunicationManager;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
+import cn.net.rms.syncmatica_r.util.SyncmaticaUtil;
 import com.google.gson.JsonObject;
 import com.mojang.authlib.GameProfile;
 
@@ -26,7 +27,7 @@ public class PlayerIdentifierProvider {
     }
 
     public PlayerIdentifier createOrGet(final GameProfile gameProfile) {
-        return createOrGet(gameProfile.getId(), gameProfile.getName());
+        return createOrGet(SyncmaticaUtil.getProfileId(gameProfile), SyncmaticaUtil.getProfileName(gameProfile));
     }
 
     public PlayerIdentifier createOrGet(final UUID uuid, final String playerName) {
