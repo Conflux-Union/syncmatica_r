@@ -7,6 +7,7 @@ import cn.net.rms.syncmatica_r.client.HudPreferences;
 import cn.net.rms.syncmatica_r.material.MaterialKey;
 import cn.net.rms.syncmatica_r.material.SyncmaticaMaterialEntry;
 import cn.net.rms.syncmatica_r.util.IdentifierUtil;
+import cn.net.rms.syncmatica_r.util.NbtHelper;
 import cn.net.rms.syncmatica_r.util.SyncmaticaUtil;
 import com.mojang.blaze3d.systems.RenderSystem;
 import fi.dy.masa.malilib.render.RenderUtils;
@@ -323,27 +324,12 @@ public final class MaterialHudOverlay implements HudRenderCallback {
 
     private void accumulateContainedItems(final NbtList itemsNbt, final Map<MaterialKey, Integer> totals) {
         for (int i = 0; i < itemsNbt.size(); i++) {
-            //#if MC >= 12110
-            //$$ final NbtCompound itemNbt = itemsNbt.getCompound(i).orElse(null);
-            //$$ if (itemNbt == null) continue;
-            //#else
-            final NbtCompound itemNbt = itemsNbt.getCompound(i);
-            //#endif
-            //#if MC >= 12110
-            //$$ if (!itemNbt.contains("id")) {
-            //$$     continue;
-            //$$ }
-            //#else
-            if (!itemNbt.contains("id", NbtElement.STRING_TYPE)) {
+            final NbtCompound itemNbt = NbtHelper.getCompound(itemsNbt, i);
+            if (itemNbt == null) {
                 continue;
             }
-            //#endif
-            //#if MC >= 12110
-            //$$ final String id = itemNbt.getString("id", "");
-            //#else
-            final String id = itemNbt.getString("id");
-            //#endif
-            if (id == null || id.isEmpty()) {
+            final String id = NbtHelper.getString(itemNbt, "id");
+            if (id.isEmpty()) {
                 continue;
             }
             final Optional<Identifier> itemId = IdentifierUtil.tryParse(id);
@@ -361,60 +347,23 @@ public final class MaterialHudOverlay implements HudRenderCallback {
             if (item == Items.AIR) {
                 continue;
             }
-            //#if MC >= 12110
-            //$$ final int count = itemNbt.contains("Count")
-            //$$         ? itemNbt.getByte("Count", (byte) 0) & 0xFF
-            //$$         : 0;
-            //#else
-            final int count = itemNbt.contains("Count", NbtElement.NUMBER_TYPE)
-                    ? itemNbt.getByte("Count") & 0xFF
-                    : 0;
-            //#endif
+            final int count = NbtHelper.getByte(itemNbt, "Count") & 0xFF;
             if (count <= 0) {
                 continue;
             }
             totals.merge(new MaterialKey(itemId.get(), ""), count, Integer::sum);
-            //#if MC >= 12110
-            //$$ if (!itemNbt.contains("tag")) {
-            //$$     continue;
-            //$$ }
-            //#else
-            if (!itemNbt.contains("tag", NbtElement.COMPOUND_TYPE)) {
+            final NbtCompound tag = NbtHelper.getCompound(itemNbt, "tag");
+            if (tag == null) {
                 continue;
             }
-            //#endif
-            //#if MC >= 12110
-            //$$ final NbtCompound tag = itemNbt.getCompound("tag").orElse(null);
-            //$$ if (tag == null) continue;
-            //#else
-            final NbtCompound tag = itemNbt.getCompound("tag");
-            //#endif
-            //#if MC >= 12110
-            //$$ if (!tag.contains("BlockEntityTag")) {
-            //$$     continue;
-            //$$ }
-            //#else
-            if (!tag.contains("BlockEntityTag", NbtElement.COMPOUND_TYPE)) {
+            final NbtCompound blockEntityTag = NbtHelper.getCompound(tag, "BlockEntityTag");
+            if (blockEntityTag == null) {
                 continue;
             }
-            //#endif
-            //#if MC >= 12110
-            //$$ final NbtCompound blockEntityTag = tag.getCompound("BlockEntityTag").orElse(null);
-            //$$ if (blockEntityTag == null) continue;
-            //#else
-            final NbtCompound blockEntityTag = tag.getCompound("BlockEntityTag");
-            //#endif
-            //#if MC >= 12110
-            //$$ if (!blockEntityTag.contains("Items")) {
-            //$$     continue;
-            //$$ }
-            //$$ blockEntityTag.getList("Items").ifPresent(items -> accumulateContainedItems(items, totals));
-            //#else
-            if (!blockEntityTag.contains("Items", NbtElement.LIST_TYPE)) {
-                continue;
+            final NbtList nestedItems = NbtHelper.getList(blockEntityTag, "Items");
+            if (nestedItems != null) {
+                accumulateContainedItems(nestedItems, totals);
             }
-            accumulateContainedItems(blockEntityTag.getList("Items", NbtElement.COMPOUND_TYPE), totals);
-            //#endif
         }
     }
 
@@ -495,17 +444,11 @@ public final class MaterialHudOverlay implements HudRenderCallback {
     private int accumulateFingerprintFromNbt(final NbtList itemsNbt, final int seed) {
         int fingerprint = seed;
         for (int i = 0; i < itemsNbt.size(); i++) {
-            //#if MC >= 12110
-            //$$ final NbtCompound itemNbt = itemsNbt.getCompound(i).orElse(null);
-            //$$ if (itemNbt == null) continue;
-            //#else
-            final NbtCompound itemNbt = itemsNbt.getCompound(i);
-            //#endif
-            //#if MC >= 12110
-            //$$ final String id = itemNbt.contains("id") ? itemNbt.getString("id", "") : "";
-            //#else
-            final String id = itemNbt.contains("id", NbtElement.STRING_TYPE) ? itemNbt.getString("id") : "";
-            //#endif
+            final NbtCompound itemNbt = NbtHelper.getCompound(itemsNbt, i);
+            if (itemNbt == null) {
+                continue;
+            }
+            final String id = NbtHelper.getString(itemNbt, "id");
             final Identifier itemId;
             if (id.isEmpty()) {
                 itemId = null;
@@ -517,61 +460,21 @@ public final class MaterialHudOverlay implements HudRenderCallback {
                 }
                 itemId = parsedId.get();
             }
-            //#if MC >= 12110
-            //$$ final int count = itemNbt.contains("Count")
-            //$$         ? itemNbt.getByte("Count", (byte) 0) & 0xFF
-            //$$         : 0;
-            //#else
-            final int count = itemNbt.contains("Count", NbtElement.NUMBER_TYPE)
-                    ? itemNbt.getByte("Count") & 0xFF
-                    : 0;
-            //#endif
+            final int count = NbtHelper.getByte(itemNbt, "Count") & 0xFF;
             fingerprint = 31 * fingerprint + (itemId == null ? 0 : itemId.hashCode());
             fingerprint = 31 * fingerprint + count;
-            //#if MC >= 12110
-            //$$ if (!itemNbt.contains("tag")) {
-            //$$     continue;
-            //$$ }
-            //#else
-            if (!itemNbt.contains("tag", NbtElement.COMPOUND_TYPE)) {
+            final NbtCompound tag = NbtHelper.getCompound(itemNbt, "tag");
+            if (tag == null) {
                 continue;
             }
-            //#endif
-            //#if MC >= 12110
-            //$$ final NbtCompound tag = itemNbt.getCompound("tag").orElse(null);
-            //$$ if (tag == null) continue;
-            //#else
-            final NbtCompound tag = itemNbt.getCompound("tag");
-            //#endif
-            //#if MC >= 12110
-            //$$ if (!tag.contains("BlockEntityTag")) {
-            //$$     continue;
-            //$$ }
-            //#else
-            if (!tag.contains("BlockEntityTag", NbtElement.COMPOUND_TYPE)) {
+            final NbtCompound blockEntityTag = NbtHelper.getCompound(tag, "BlockEntityTag");
+            if (blockEntityTag == null) {
                 continue;
             }
-            //#endif
-            //#if MC >= 12110
-            //$$ final NbtCompound blockEntityTag = tag.getCompound("BlockEntityTag").orElse(null);
-            //$$ if (blockEntityTag == null) continue;
-            //#else
-            final NbtCompound blockEntityTag = tag.getCompound("BlockEntityTag");
-            //#endif
-            //#if MC >= 12110
-            //$$ if (!blockEntityTag.contains("Items")) {
-            //$$     continue;
-            //$$ }
-            //$$ final NbtList nestedItems = blockEntityTag.getList("Items").orElse(null);
-            //$$ if (nestedItems != null) {
-            //$$     fingerprint = accumulateFingerprintFromNbt(nestedItems, fingerprint);
-            //$$ }
-            //#else
-            if (!blockEntityTag.contains("Items", NbtElement.LIST_TYPE)) {
-                continue;
+            final NbtList nestedItems = NbtHelper.getList(blockEntityTag, "Items");
+            if (nestedItems != null) {
+                fingerprint = accumulateFingerprintFromNbt(nestedItems, fingerprint);
             }
-            fingerprint = accumulateFingerprintFromNbt(blockEntityTag.getList("Items", NbtElement.COMPOUND_TYPE), fingerprint);
-            //#endif
         }
         return fingerprint;
     }
