@@ -17,7 +17,11 @@ import net.minecraft.network.NetworkThreadUtils;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
+//#if MC >= 12101
+//$$ import net.minecraft.network.DisconnectionInfo;
+//#else
 import net.minecraft.text.Text;
+//#endif
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -47,7 +51,11 @@ public abstract class MixinServerPlayNetworkHandler {
     }
 
     @Inject(method = "onDisconnected", at = @At("HEAD"))
+    //#if MC >= 12101
+    //$$ public void onDisconnected(final DisconnectionInfo info, final CallbackInfo ci) {
+    //#else
     public void onDisconnected(final Text reason, final CallbackInfo ci) {
+    //#endif
         operateComms(sm -> sm.onPlayerLeave(getExchangeTarget()));
     }
 

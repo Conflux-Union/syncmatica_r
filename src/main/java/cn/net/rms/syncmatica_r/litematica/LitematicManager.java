@@ -25,6 +25,9 @@ import net.minecraft.util.BlockRotation;
 import net.minecraft.util.math.BlockPos;
 
 import java.io.File;
+//#if MC >= 12110
+//$$ import java.nio.file.Path;
+//#endif
 import java.util.*;
 
 public class LitematicManager {
@@ -73,7 +76,11 @@ public class LitematicManager {
         }
         final File file = context.getFileStorage().getLocalLitematic(placement);
 
+        //#if MC >= 12110
+        //$$ final LitematicaSchematic schematic = SchematicHolder.getInstance().getOrLoad(file.toPath());
+        //#else
         final LitematicaSchematic schematic = SchematicHolder.getInstance().getOrLoad(file);
+        //#endif
 
         if (schematic == null) {
             ScreenHelper.ifPresent(s -> s.addMessage(Message.MessageType.ERROR, "syncmatica_r.error.failed_to_load", file.getAbsolutePath()));
@@ -109,7 +116,12 @@ public class LitematicManager {
             return null;
         }
         try {
+            //#if MC >= 12110
+            //$$ final Path placementPath = schem.getSchematicFile();
+            //$$ final File placementFile = placementPath != null ? placementPath.toFile() : null;
+            //#else
             final File placementFile = schem.getSchematicFile();
+            //#endif
             final FileType fileType = FileType.fromFile(placementFile);
             if (fileType == FileType.VANILLA_STRUCTURE || fileType == FileType.SCHEMATICA_SCHEMATIC) {
                 ScreenHelper.ifPresent(s -> s.addMessage(Message.MessageType.ERROR, "syncmatica_r.error.share_incompatible_schematic"));
@@ -298,8 +310,14 @@ public class LitematicManager {
             final UUID id = ((IIDContainer) schem).getServerId();
             final ServerPlacement p = man.getPlacement(id);
             if (p != null) {
-                if (context.getFileStorage().getLocalLitematic(p) != schem.getSchematicFile()) {
-                    ((RedirectFileStorage) context.getFileStorage()).addRedirect(schem.getSchematicFile());
+                //#if MC >= 12110
+                //$$ final Path schematicPath = schem.getSchematicFile();
+                //$$ final File schematicFile = schematicPath != null ? schematicPath.toFile() : null;
+                //#else
+                final File schematicFile = schem.getSchematicFile();
+                //#endif
+                if (context.getFileStorage().getLocalLitematic(p) != schematicFile) {
+                    ((RedirectFileStorage) context.getFileStorage()).addRedirect(schematicFile);
                 }
                 renderSyncmatic(p, schem, true);
             }

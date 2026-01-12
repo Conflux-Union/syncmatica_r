@@ -22,7 +22,11 @@ import net.minecraft.world.World;
 //$$ import net.minecraft.registry.RegistryKeys;
 //$$ import net.minecraft.block.entity.SignText;
 //#endif
-//#if MC >= 12005
+//#if MC >= 12110
+//$$ import net.minecraft.component.DataComponentTypes;
+//$$ import net.minecraft.entity.TypedEntityData;
+//$$ import net.minecraft.block.entity.BlockEntityType;
+//#elseif MC >= 12005
 //$$ import net.minecraft.component.DataComponentTypes;
 //$$ import net.minecraft.component.type.NbtComponent;
 //#endif
@@ -661,9 +665,15 @@ public class MaterialService extends AbstractService {
             totals.merge(key, stack.getCount(), Integer::sum);
 
             if (stack.getItem() instanceof BlockItem) {
-//#if MC >= 12005
-//$$                 final NbtComponent blockEntityData = stack.getComponents().get(DataComponentTypes.BLOCK_ENTITY_DATA);
-//$$                 if (blockEntityData != null && !blockEntityData.isEmpty()) {
+//#if MC >= 12110
+//$$                 final TypedEntityData<BlockEntityType<?>> blockEntityData = stack.get(DataComponentTypes.BLOCK_ENTITY_DATA);
+//$$                 if (blockEntityData != null) {
+//$$                     final NbtCompound blockEntityTag = blockEntityData.copyNbtWithoutId();
+//$$                     blockEntityTag.getList("Items").ifPresent(items -> scanShulkerBoxContents(items, totals));
+//$$                 }
+//#elseif MC >= 12005
+//$$                 final NbtComponent blockEntityData = stack.getComponents().getOrDefault(DataComponentTypes.BLOCK_ENTITY_DATA, NbtComponent.DEFAULT);
+//$$                 if (!blockEntityData.isEmpty()) {
 //$$                     final NbtCompound blockEntityTag = blockEntityData.copyNbt();
 //$$                     if (blockEntityTag.contains("Items")) {
 //$$                         scanShulkerBoxContents(blockEntityTag.getList("Items", 10), totals);
@@ -684,12 +694,21 @@ public class MaterialService extends AbstractService {
 
     private void scanShulkerBoxContents(final NbtList itemsNbt, final Map<MaterialKey, Integer> totals) {
         for (int i = 0; i < itemsNbt.size(); i++) {
+            //#if MC >= 12110
+            //$$ final NbtCompound itemNbt = itemsNbt.getCompound(i).orElse(null);
+            //$$ if (itemNbt == null) continue;
+            //#else
             final NbtCompound itemNbt = itemsNbt.getCompound(i);
+            //#endif
             if (!itemNbt.contains("id") || !itemNbt.contains("Count")) {
                 continue;
             }
 
+            //#if MC >= 12110
+            //$$ final String rawId = itemNbt.getString("id", "");
+            //#else
             final String rawId = itemNbt.getString("id");
+            //#endif
             final Optional<Identifier> itemId = IdentifierUtil.tryParse(rawId);
             if (!itemId.isPresent()) {
                 if (LOGGER.isDebugEnabled()) {
@@ -697,7 +716,11 @@ public class MaterialService extends AbstractService {
                 }
                 continue;
             }
+            //#if MC >= 12110
+            //$$ final int count = itemNbt.getByte("Count", (byte) 0) & 0xFF;
+            //#else
             final int count = itemNbt.getByte("Count");
+            //#endif
 
             final MaterialKey key = new MaterialKey(itemId.get(), "");
             totals.merge(key, count, Integer::sum);
@@ -705,15 +728,29 @@ public class MaterialService extends AbstractService {
             if (!itemNbt.contains("tag")) {
                 continue;
             }
+            //#if MC >= 12110
+            //$$ final NbtCompound tag = itemNbt.getCompound("tag").orElse(null);
+            //$$ if (tag == null) continue;
+            //#else
             final NbtCompound tag = itemNbt.getCompound("tag");
+            //#endif
             if (!tag.contains("BlockEntityTag")) {
                 continue;
             }
+            //#if MC >= 12110
+            //$$ final NbtCompound blockEntityTag = tag.getCompound("BlockEntityTag").orElse(null);
+            //$$ if (blockEntityTag == null) continue;
+            //#else
             final NbtCompound blockEntityTag = tag.getCompound("BlockEntityTag");
+            //#endif
             if (!blockEntityTag.contains("Items")) {
                 continue;
             }
+            //#if MC >= 12110
+            //$$ blockEntityTag.getList("Items").ifPresent(items -> scanShulkerBoxContents(items, totals));
+            //#else
             scanShulkerBoxContents(blockEntityTag.getList("Items", 10), totals);
+            //#endif
         }
     }
 

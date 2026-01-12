@@ -19,6 +19,9 @@ import net.minecraft.text.LiteralText;
 //#if MC >= 12001
 //$$ import net.minecraft.text.Text;
 //#endif
+//#if MC >= 12111
+//$$ import net.minecraft.command.DefaultPermissions;
+//#endif
 import net.minecraft.util.math.BlockPos;
 
 import java.util.Optional;
@@ -31,7 +34,11 @@ public final class SyncmaticaCommand {
 
     public static void register(final CommandDispatcher<ServerCommandSource> dispatcher) {
         final LiteralArgumentBuilder<ServerCommandSource> root = CommandManager.literal("syncmatica_r")
+                //#if MC >= 12111
+                //$$ .requires(source -> source.getPermissions().hasPermission(DefaultPermissions.MODERATORS))
+                //#else
                 .requires(source -> source.hasPermissionLevel(2))
+                //#endif
                 .then(projectArgument())
                 .then(defaultArgument());
         dispatcher.register(root);

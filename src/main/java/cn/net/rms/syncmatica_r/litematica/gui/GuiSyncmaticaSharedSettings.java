@@ -70,6 +70,16 @@ public class GuiSyncmaticaSharedSettings extends GuiBase
         addButton(hotkeyButton, new ButtonListenerHotkeyConfig(hotkey, hotkeyButton, this, prefix));
     }
 
+//#if MC >= 12110
+//$$     @Override
+//$$     public boolean onKeyTyped(final net.minecraft.client.input.KeyInput keyInput) {
+//$$         if (activeHotkeyListener != null && activeHotkeyListener.isListening()
+//$$                 && activeHotkeyListener.onKeyPressed(keyInput.key(), keyInput.scancode(), keyInput.modifiers())) {
+//$$             return true;
+//$$         }
+//$$         return super.onKeyTyped(keyInput);
+//$$     }
+//#else
     @Override
     public boolean keyPressed(final int keyCode, final int scanCode, final int modifiers) {
         if (activeHotkeyListener != null && activeHotkeyListener.isListening()
@@ -78,6 +88,7 @@ public class GuiSyncmaticaSharedSettings extends GuiBase
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
+//#endif
 
     private String buildHudToggleLabel() {
         final String stateKey = HudPreferences.isHudEnabled()

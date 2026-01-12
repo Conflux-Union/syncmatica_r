@@ -14,7 +14,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(MinecraftClient.class)
 public class MixinMinecraftClient {
 
+    //#if MC >= 12110
+    //$$ @Inject(method = "onDisconnected", at = @At("HEAD"))
+    //#else
     @Inject(method = "disconnect()V", at = @At("HEAD"))
+    //#endif
     private void shutdownSyncmatica(final CallbackInfo ci) {
         ScreenHelper.close();
         MaterialHudOverlay.getInstance().reset();
