@@ -145,7 +145,7 @@ jobs:
           TAG="v$MOD_VERSION"
 
           # Get the previous tag
-          PREV_TAG=$(git tag --sort=-version:refname | grep -v "^$TAG$" | head -n 1)
+          PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]' | grep -v "^$TAG$" | head -n 1)
 
           if [ -z "$PREV_TAG" ]; then
             echo "No previous tag found, using all commits"
