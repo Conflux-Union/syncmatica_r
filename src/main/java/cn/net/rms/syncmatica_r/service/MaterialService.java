@@ -670,14 +670,18 @@ public class MaterialService extends AbstractService {
 //$$                 final TypedEntityData<BlockEntityType<?>> blockEntityData = stack.get(DataComponentTypes.BLOCK_ENTITY_DATA);
 //$$                 if (blockEntityData != null) {
 //$$                     final NbtCompound blockEntityTag = blockEntityData.copyNbtWithoutId();
-//$$                     blockEntityTag.getList("Items").ifPresent(items -> scanShulkerBoxContents(items, totals));
+//$$                     final NbtList items = NbtHelper.getList(blockEntityTag, "Items");
+//$$                     if (items != null) {
+//$$                         scanShulkerBoxContents(items, totals);
+//$$                     }
 //$$                 }
 //#elseif MC >= 12005
 //$$                 final NbtComponent blockEntityData = stack.getComponents().getOrDefault(DataComponentTypes.BLOCK_ENTITY_DATA, NbtComponent.DEFAULT);
 //$$                 if (!blockEntityData.isEmpty()) {
 //$$                     final NbtCompound blockEntityTag = blockEntityData.copyNbt();
-//$$                     if (blockEntityTag.contains("Items")) {
-//$$                         scanShulkerBoxContents(blockEntityTag.getList("Items", 10), totals);
+//$$                     final NbtList items = NbtHelper.getList(blockEntityTag, "Items");
+//$$                     if (items != null) {
+//$$                         scanShulkerBoxContents(items, totals);
 //$$                     }
 //$$                 }
 //#else
