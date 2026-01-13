@@ -269,8 +269,12 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
 
     @Override
     protected Collection<ServerPlacement> getAllEntries() {
+        final cn.net.rms.syncmatica_r.Context activeContext = LitematicManager.getInstance().getActiveContext();
+        if (activeContext == null) {
+            return java.util.Collections.emptyList();
+        }
         final ServerPosition playerPosition = LitematicManager.getInstance().getPlayerPosition();
-        final Collection<ServerPlacement> serverPlacements = LitematicManager.getInstance().getActiveContext().getSyncmaticManager().getAll();
+        final Collection<ServerPlacement> serverPlacements = activeContext.getSyncmaticManager().getAll();
         return serverPlacements.stream().sorted(new PlayerDistanceComparator(playerPosition)).collect(Collectors.toList());
     }
 
