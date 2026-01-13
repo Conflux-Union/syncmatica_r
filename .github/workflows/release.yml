@@ -138,10 +138,93 @@ jobs:
           for version_dir in artifacts/build-*/; do
             cp "$version_dir"*.jar release_files/
           done
+      - name: Generate changelog
+        id: changelog
+        run: |
+          MOD_VERSION=$(grep '^mod_version=' gradle.properties | cut -d'=' -f2)
+          TAG="v$MOD_VERSION"
+
+          # Get the previous tag
+          PREV_TAG=$(git tag --sort=-version:refname | grep -v "^$TAG$" | head -n 1)
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag found, using all commits"
+            COMMIT_RANGE="HEAD"
+          else
+            echo "Generating changelog from $PREV_TAG to HEAD"
+            COMMIT_RANGE="$PREV_TAG..HEAD"
+          fi
+
+          # Generate changelog with categorized commits
+          {
+            echo "## What's Changed"
+            echo ""
+
+            # Features
+            FEATURES=$(git log $COMMIT_RANGE --pretty=format:"%s" --grep="^feat" --grep="^feature" -i | sed 's/^/- /')
+            if [ -n "$FEATURES" ]; then
+              echo "### ✨ Features"
+              echo "$FEATURES"
+              echo ""
+            fi
+
+            # Fixes
+            FIXES=$(git log $COMMIT_RANGE --pretty=format:"%s" --grep="^fix" -i | sed 's/^/- /')
+            if [ -n "$FIXES" ]; then
+              echo "### 🐛 Bug Fixes"
+              echo "$FIXES"
+              echo ""
+            fi
+
+            # Refactors
+            REFACTORS=$(git log $COMMIT_RANGE --pretty=format:"%s" --grep="^refactor" -i | sed 's/^/- /')
+            if [ -n "$REFACTORS" ]; then
+              echo "### ♻️ Refactors"
+              echo "$REFACTORS"
+              echo ""
+            fi
+
+            # Docs
+            DOCS=$(git log $COMMIT_RANGE --pretty=format:"%s" --grep="^docs" -i | sed 's/^/- /')
+            if [ -n "$DOCS" ]; then
+              echo "### 📝 Documentation"
+              echo "$DOCS"
+              echo ""
+            fi
+
+            # Chores
+            CHORES=$(git log $COMMIT_RANGE --pretty=format:"%s" --grep="^chore" -i | sed 's/^/- /')
+            if [ -n "$CHORES" ]; then
+              echo "### 🔧 Chores"
+              echo "$CHORES"
+              echo ""
+            fi
+
+            # Other commits (not matching any category)
+            OTHERS=$(git log $COMMIT_RANGE --pretty=format:"%s" --invert-grep --grep="^feat" --grep="^feature" --grep="^fix" --grep="^refactor" --grep="^docs" --grep="^chore" -i | sed 's/^/- /')
+            if [ -n "$OTHERS" ]; then
+              echo "### 📦 Other Changes"
+              echo "$OTHERS"
+              echo ""
+            fi
+
+            echo ""
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${TAG}"
+          } > changelog.md
+
+          # Save changelog to output
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          cat changelog.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
       - name: Upload to GitHub release
         if: github.event_name == 'release'
         run: |
           TAG="${{ github.event.release.tag_name }}"
+
+          # Update release body with changelog
+          gh release edit "$TAG" --notes "${{ steps.changelog.outputs.changelog }}"
+
+          # Upload artifacts
           for jar_file in release_files/*.jar; do
             gh release upload "$TAG" "$jar_file" --clobber
           done
@@ -159,6 +242,8 @@ jobs:
             git push --delete origin "$TAG" || true
             git tag -d "$TAG" || true
           fi
-          gh release create "$TAG" release_files/*.jar --title "$TAG" --generate-notes
+          gh release create "$TAG" release_files/*.jar \
+            --title "$TAG" \
+            --notes "${{ steps.changelog.outputs.changelog }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
