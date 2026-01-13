@@ -15,12 +15,15 @@ import net.minecraft.network.packet.s2c.play.CustomPayloadS2CPacket;
 //#endif
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.util.Identifier;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
 public class ExchangeTarget {
+    private static final Logger LOGGER = LogManager.getLogger(ExchangeTarget.class);
     private final String persistentName;
     private final List<Exchange> ongoingExchanges = new ArrayList<>();
     private ClientPlayNetworkHandler server = null;
@@ -40,24 +43,31 @@ public class ExchangeTarget {
 
     public void sendPacket(final Identifier id, final PacketByteBuf packetBuf, final Context context) {
         context.getDebugService().logSendPacket(id, persistentName);
-        if (server == null) {
+        try {
+            if (server == null) {
 //#if MC >= 12005
-//$$             final SyncmaticaPayload payload = new SyncmaticaPayload(id, packetBuf);
-//$$             final CustomPayloadS2CPacket packet = new CustomPayloadS2CPacket(payload);
-//$$             client.sendPacket(packet);
+//$$                 final SyncmaticaPayload payload = new SyncmaticaPayload(id, packetBuf);
+//$$                 final CustomPayloadS2CPacket packet = new CustomPayloadS2CPacket(payload);
+//$$                 client.sendPacket(packet);
 //#else
-            final CustomPayloadS2CPacket packet = new CustomPayloadS2CPacket(id, packetBuf);
-            client.sendPacket(packet);
+                final CustomPayloadS2CPacket packet = new CustomPayloadS2CPacket(id, packetBuf);
+                client.sendPacket(packet);
 //#endif
-        } else {
+            } else {
 //#if MC >= 12005
-//$$             final SyncmaticaPayload payload = new SyncmaticaPayload(id, packetBuf);
-//$$             final CustomPayloadC2SPacket packet = new CustomPayloadC2SPacket(payload);
-//$$             server.sendPacket(packet);
+//$$                 final SyncmaticaPayload payload = new SyncmaticaPayload(id, packetBuf);
+//$$                 final CustomPayloadC2SPacket packet = new CustomPayloadC2SPacket(payload);
+//$$                 server.sendPacket(packet);
 //#else
-            final CustomPayloadC2SPacket packet = new CustomPayloadC2SPacket(id, packetBuf);
-            server.sendPacket(packet);
+                final CustomPayloadC2SPacket packet = new CustomPayloadC2SPacket(id, packetBuf);
+                server.sendPacket(packet);
 //#endif
+            }
+        } catch (final Exception e) {
+            // Silently ignore packet send failures for fake players/NPCs
+            // This prevents crashes when mods like DonateMenu spawn fake players
+            // that don't have proper network connections
+            LOGGER.debug("Failed to send packet to {}: {}", persistentName, e.getMessage());
         }
     }
 

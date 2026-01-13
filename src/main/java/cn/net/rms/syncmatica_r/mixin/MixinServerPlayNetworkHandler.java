@@ -48,7 +48,10 @@ public abstract class MixinServerPlayNetworkHandler {
     public void onConnect(final MinecraftServer server, final ClientConnection connection, final ServerPlayerEntity player, final CallbackInfo ci) {
 //#endif
         // Skip fake players (NPCs) that don't have real network connections
-        if (connection == null || connection.isLocal()) {
+        // Note: We only check for null connection, not isLocal(), because isLocal() is true
+        // for both fake players AND single-player (integrated server) connections.
+        // Single-player connections must be processed normally to initialize the context.
+        if (connection == null) {
             return;
         }
         operateComms(sm -> sm.onPlayerJoin(getExchangeTarget(), player));
