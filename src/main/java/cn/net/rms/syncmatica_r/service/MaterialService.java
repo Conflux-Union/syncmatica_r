@@ -16,7 +16,11 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+//#if MC >= 12001
+//$$ import net.minecraft.registry.Registries;
+//#else
 import net.minecraft.util.registry.Registry;
+//#endif
 import net.minecraft.util.registry.RegistryKey;
 import net.minecraft.world.World;
 //#if MC >= 12001
@@ -25,8 +29,7 @@ import net.minecraft.world.World;
 //#endif
 //#if MC >= 12110
 //$$ import net.minecraft.component.DataComponentTypes;
-//$$ import net.minecraft.entity.TypedEntityData;
-//$$ import net.minecraft.block.entity.BlockEntityType;
+//$$ import net.minecraft.component.type.ContainerComponent;
 //#elseif MC >= 12005
 //$$ import net.minecraft.component.DataComponentTypes;
 //$$ import net.minecraft.component.type.NbtComponent;
@@ -45,6 +48,7 @@ public class MaterialService extends AbstractService {
     public static final int SCAN_BLOCKS_PER_TICK_DEFAULT = 2048;
     public static final int MAX_SCHEMATIC_MEGABYTES_DEFAULT = 64;
     public static final int MAX_SCHEMATIC_BLOCKS_DEFAULT = 8_000_000;
+    private static final int MAX_SHULKER_NESTING_DEPTH = 10;
     private static final Logger LOGGER = LogManager.getLogger(MaterialService.class);
     private final Map<UUID, ServerPlacement> placements = new HashMap<>();
 
@@ -661,18 +665,22 @@ public class MaterialService extends AbstractService {
                 continue;
             }
 
+//#if MC >= 12001
+//$$             final Identifier itemId = Registries.ITEM.getId(stack.getItem());
+//#else
             final Identifier itemId = Registry.ITEM.getId(stack.getItem());
-            final MaterialKey key = new MaterialKey(itemId, "");
-            totals.merge(key, stack.getCount(), Integer::sum);
+//#endif
+            boolean hasShulkerContents = false;
 
             if (stack.getItem() instanceof BlockItem) {
 //#if MC >= 12110
-//$$                 final TypedEntityData<BlockEntityType<?>> blockEntityData = stack.get(DataComponentTypes.BLOCK_ENTITY_DATA);
-//$$                 if (blockEntityData != null) {
-//$$                     final NbtCompound blockEntityTag = blockEntityData.copyNbtWithoutId();
-//$$                     final NbtList items = NbtHelper.getList(blockEntityTag, "Items");
-//$$                     if (items != null) {
-//$$                         scanShulkerBoxContents(items, totals);
+//$$                 final ContainerComponent container = stack.getOrDefault(DataComponentTypes.CONTAINER, ContainerComponent.DEFAULT);
+//$$                 if (!container.equals(ContainerComponent.DEFAULT)) {
+//$$                     hasShulkerContents = true;
+//$$                     for (final ItemStack item : container.iterateNonEmpty()) {
+//$$                         final Identifier nestedItemId = Registries.ITEM.getId(item.getItem());
+//$$                         final MaterialKey nestedKey = new MaterialKey(nestedItemId, "");
+//$$                         totals.merge(nestedKey, item.getCount(), Integer::sum);
 //$$                     }
 //$$                 }
 //#elseif MC >= 12005
@@ -680,8 +688,9 @@ public class MaterialService extends AbstractService {
 //$$                 if (!blockEntityData.isEmpty()) {
 //$$                     final NbtCompound blockEntityTag = blockEntityData.copyNbt();
 //$$                     final NbtList items = NbtHelper.getList(blockEntityTag, "Items");
-//$$                     if (items != null) {
-//$$                         scanShulkerBoxContents(items, totals);
+//$$                     if (items != null && items.size() > 0) {
+//$$                         hasShulkerContents = true;
+//$$                         scanShulkerBoxContents(items, totals, 0);
 //$$                     }
 //$$                 }
 //#else
@@ -689,15 +698,29 @@ public class MaterialService extends AbstractService {
                 if (nbt != null && nbt.contains("BlockEntityTag")) {
                     final NbtCompound blockEntityTag = nbt.getCompound("BlockEntityTag");
                     if (blockEntityTag.contains("Items")) {
-                        scanShulkerBoxContents(blockEntityTag.getList("Items", 10), totals);
+                        final NbtList items = blockEntityTag.getList("Items", 10);
+                        if (items != null && items.size() > 0) {
+                            hasShulkerContents = true;
+                            scanShulkerBoxContents(items, totals, 0);
+                        }
                     }
                 }
 //#endif
             }
+
+            if (!hasShulkerContents) {
+                final MaterialKey key = new MaterialKey(itemId, "");
+                totals.merge(key, stack.getCount(), Integer::sum);
+            }
         }
     }
 
-    private void scanShulkerBoxContents(final NbtList itemsNbt, final Map<MaterialKey, Integer> totals) {
+    private void scanShulkerBoxContents(final NbtList itemsNbt, final Map<MaterialKey, Integer> totals, final int depth) {
+        if (depth > MAX_SHULKER_NESTING_DEPTH) {
+            LOGGER.warn("Shulker box nesting depth exceeded limit ({}), skipping further scanning", depth);
+            return;
+        }
+
         for (int i = 0; i < itemsNbt.size(); i++) {
             final NbtCompound itemNbt = NbtHelper.getCompound(itemsNbt, i);
             if (itemNbt == null) {
@@ -709,9 +732,6 @@ public class MaterialService extends AbstractService {
             }
             final Optional<Identifier> itemId = IdentifierUtil.tryParse(rawId);
             if (!itemId.isPresent()) {
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("Ignoring invalid material identifier '{}'", rawId);
-                }
                 continue;
             }
             final int count = NbtHelper.getByte(itemNbt, "Count") & 0xFF;
@@ -719,20 +739,22 @@ public class MaterialService extends AbstractService {
                 continue;
             }
 
-            final MaterialKey key = new MaterialKey(itemId.get(), "");
-            totals.merge(key, count, Integer::sum);
-
             final NbtCompound tag = NbtHelper.getCompound(itemNbt, "tag");
-            if (tag == null) {
-                continue;
+            boolean hasNestedContents = false;
+            if (tag != null) {
+                final NbtCompound blockEntityTag = NbtHelper.getCompound(tag, "BlockEntityTag");
+                if (blockEntityTag != null) {
+                    final NbtList nestedItems = NbtHelper.getList(blockEntityTag, "Items");
+                    if (nestedItems != null && nestedItems.size() > 0) {
+                        hasNestedContents = true;
+                        scanShulkerBoxContents(nestedItems, totals, depth + 1);
+                    }
+                }
             }
-            final NbtCompound blockEntityTag = NbtHelper.getCompound(tag, "BlockEntityTag");
-            if (blockEntityTag == null) {
-                continue;
-            }
-            final NbtList nestedItems = NbtHelper.getList(blockEntityTag, "Items");
-            if (nestedItems != null) {
-                scanShulkerBoxContents(nestedItems, totals);
+
+            if (!hasNestedContents) {
+                final MaterialKey itemKey = new MaterialKey(itemId.get(), "");
+                totals.merge(itemKey, count, Integer::sum);
             }
         }
     }
