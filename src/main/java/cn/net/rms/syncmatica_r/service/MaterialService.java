@@ -492,6 +492,14 @@ public class MaterialService extends AbstractService {
     }
 
     private Inventory resolveInventoryForSign(final ServerWorld world, final BlockPos signPos) {
+        final BlockPos containerPos = resolveContainerPosForSign(world, signPos);
+        if (containerPos == null) {
+            return null;
+        }
+        return getInventoryAt(world, containerPos);
+    }
+
+    private BlockPos resolveContainerPosForSign(final ServerWorld world, final BlockPos signPos) {
         final net.minecraft.block.BlockState state = world.getBlockState(signPos);
         BlockPos candidate = null;
         if (state.getBlock() instanceof net.minecraft.block.WallSignBlock) {
@@ -503,10 +511,13 @@ public class MaterialService extends AbstractService {
             candidate = signPos.down();
         }
         if (candidate == null) {
-
             return null;
         }
-        return getInventoryAt(world, candidate);
+        final BlockEntity be = world.getBlockEntity(candidate);
+        if (!(be instanceof Inventory)) {
+            return null;
+        }
+        return candidate;
     }
 
     private Inventory getInventoryAt(final ServerWorld world, final BlockPos pos) {
@@ -594,6 +605,7 @@ public class MaterialService extends AbstractService {
         private final ServerWorld world;
         private final Iterator<BlockPos> iterator;
         private final Map<String, Map<MaterialKey, Integer>> totals = new HashMap<>();
+        private final Map<String, Set<BlockPos>> scannedContainers = new HashMap<>();
         private boolean finished;
         private boolean hasLoadedChunks;
 
@@ -605,6 +617,33 @@ public class MaterialService extends AbstractService {
             } else {
                 iterator = BlockPos.iterate(area.getMin(), area.getMax()).iterator();
             }
+        }
+
+        private BlockPos getCanonicalContainerPos(final BlockPos containerPos) {
+            final net.minecraft.block.BlockState state = world.getBlockState(containerPos);
+            if (!(state.getBlock() instanceof net.minecraft.block.ChestBlock)) {
+                return containerPos;
+            }
+            final BlockEntity be = world.getBlockEntity(containerPos);
+            if (be == null) {
+                return containerPos;
+            }
+            final net.minecraft.block.entity.BlockEntityType<?> type = be.getType();
+            for (final net.minecraft.util.math.Direction dir : new net.minecraft.util.math.Direction[]{
+                    net.minecraft.util.math.Direction.NORTH,
+                    net.minecraft.util.math.Direction.SOUTH,
+                    net.minecraft.util.math.Direction.EAST,
+                    net.minecraft.util.math.Direction.WEST}) {
+                final BlockPos otherPos = containerPos.offset(dir);
+                final BlockEntity otherBe = world.getBlockEntity(otherPos);
+                if (otherBe != null && otherBe.getType() == type && otherBe instanceof Inventory) {
+                    final int minX = Math.min(containerPos.getX(), otherPos.getX());
+                    final int minY = Math.min(containerPos.getY(), otherPos.getY());
+                    final int minZ = Math.min(containerPos.getZ(), otherPos.getZ());
+                    return new BlockPos(minX, minY, minZ);
+                }
+            }
+            return containerPos;
         }
 
         void process(final int budget) {
@@ -631,11 +670,34 @@ public class MaterialService extends AbstractService {
                 if (names.isEmpty()) {
                     continue;
                 }
-                final Inventory inventory = resolveInventoryForSign(world, pos);
+                final BlockPos containerPos = resolveContainerPosForSign(world, pos);
+                if (containerPos == null) {
+                    continue;
+                }
+                final BlockPos canonicalPos = getCanonicalContainerPos(containerPos).toImmutable();
+                
+                // Check if all projects have already scanned this container
+                boolean needsScan = false;
+                for (final String projectName : names) {
+                    if (!scannedContainers.computeIfAbsent(projectName, key -> new HashSet<>()).contains(canonicalPos)) {
+                        needsScan = true;
+                        break;
+                    }
+                }
+                if (!needsScan) {
+                    continue;
+                }
+                
+                final Inventory inventory = getInventoryAt(world, containerPos);
                 if (inventory == null) {
                     continue;
                 }
                 for (final String projectName : names) {
+                    final Set<BlockPos> scanned = scannedContainers.computeIfAbsent(projectName, key -> new HashSet<>());
+                    if (scanned.contains(canonicalPos)) {
+                        continue;
+                    }
+                    scanned.add(canonicalPos);
                     final Map<MaterialKey, Integer> projectTotals = totals.computeIfAbsent(projectName, key -> new HashMap<>());
                     scanInventory(inventory, projectTotals);
                 }
