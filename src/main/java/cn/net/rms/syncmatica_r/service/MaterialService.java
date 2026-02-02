@@ -27,7 +27,7 @@ import net.minecraft.world.World;
 //$$ import net.minecraft.registry.RegistryKeys;
 //$$ import net.minecraft.block.entity.SignText;
 //#endif
-//#if MC >= 12110
+//#if MC >= 12101
 //$$ import net.minecraft.component.DataComponentTypes;
 //$$ import net.minecraft.component.type.ContainerComponent;
 //#elseif MC >= 12005
@@ -735,7 +735,7 @@ public class MaterialService extends AbstractService {
             boolean hasShulkerContents = false;
 
             if (stack.getItem() instanceof BlockItem) {
-//#if MC >= 12110
+//#if MC >= 12101
 //$$                 final ContainerComponent container = stack.getOrDefault(DataComponentTypes.CONTAINER, ContainerComponent.DEFAULT);
 //$$                 if (!container.equals(ContainerComponent.DEFAULT)) {
 //$$                     hasShulkerContents = true;
