@@ -7,6 +7,7 @@ import cn.net.rms.syncmatica_r.client.HudPreferences;
 import cn.net.rms.syncmatica_r.material.MaterialKey;
 import cn.net.rms.syncmatica_r.material.SyncmaticaMaterialEntry;
 import cn.net.rms.syncmatica_r.util.IdentifierUtil;
+import cn.net.rms.syncmatica_r.util.InventoryScanner;
 import cn.net.rms.syncmatica_r.util.NbtHelper;
 import cn.net.rms.syncmatica_r.util.SyncmaticaUtil;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -255,7 +256,7 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         final Map<MaterialKey, Integer> totals = new HashMap<>();
         //#if MC >= 12110
         //$$ accumulateStacks(inventory.getMainStacks(), totals);
-        //$$ accumulateStack(client.player.getEquippedStack(EquipmentSlot.OFFHAND), totals);
+        //$$ InventoryScanner.scanItemStack(client.player.getEquippedStack(EquipmentSlot.OFFHAND), totals);
         //#else
         accumulateStacks(inventory.main, totals);
         accumulateStacks(inventory.offHand, totals);
@@ -268,111 +269,7 @@ public final class MaterialHudOverlay implements HudRenderCallback {
             return;
         }
         for (final ItemStack stack : stacks) {
-            accumulateStack(stack, totals);
-        }
-    }
-
-    private void accumulateStack(final ItemStack stack, final Map<MaterialKey, Integer> totals) {
-        if (stack == null || stack.isEmpty()) {
-            return;
-        }
-        final Item item = stack.getItem();
-        if (item == null || item == Items.AIR) {
-            return;
-        }
-        //#if MC >= 12001
-        //$$ final Identifier itemId = Registries.ITEM.getId(item);
-        //#else
-        final Identifier itemId = Registry.ITEM.getId(item);
-        //#endif
-        if (itemId == null) {
-            return;
-        }
-        totals.merge(new MaterialKey(itemId, ""), stack.getCount(), Integer::sum);
-        if (!(item instanceof BlockItem)) {
-            return;
-        }
-//#if MC >= 12110
-//$$         final TypedEntityData<BlockEntityType<?>> blockEntityData = stack.get(DataComponentTypes.BLOCK_ENTITY_DATA);
-//$$         if (blockEntityData == null) {
-//$$             return;
-//$$         }
-//$$         final NbtCompound blockEntityTag = blockEntityData.copyNbtWithoutId();
-//$$         if (!blockEntityTag.contains("Items")) {
-//$$             return;
-//$$         }
-//$$         blockEntityTag.getList("Items").ifPresent(items -> accumulateContainedItems(items, totals));
-//#elseif MC >= 12005
-//$$         final NbtComponent blockEntityData = stack.getComponents().getOrDefault(DataComponentTypes.BLOCK_ENTITY_DATA, NbtComponent.DEFAULT);
-//$$         if (blockEntityData.isEmpty()) {
-//$$             return;
-//$$         }
-//$$         final NbtCompound blockEntityTag = blockEntityData.copyNbt();
-//$$         if (!blockEntityTag.contains("Items", NbtElement.LIST_TYPE)) {
-//$$             return;
-//$$         }
-//$$         accumulateContainedItems(blockEntityTag.getList("Items", NbtElement.COMPOUND_TYPE), totals);
-//#else
-        final NbtCompound nbt = stack.getNbt();
-        if (nbt == null || !nbt.contains("BlockEntityTag", NbtElement.COMPOUND_TYPE)) {
-            return;
-        }
-        final NbtCompound blockEntityTag = nbt.getCompound("BlockEntityTag");
-        if (!blockEntityTag.contains("Items", NbtElement.LIST_TYPE)) {
-            return;
-        }
-        accumulateContainedItems(blockEntityTag.getList("Items", NbtElement.COMPOUND_TYPE), totals);
-//#endif
-    }
-
-    private void accumulateContainedItems(final NbtList itemsNbt, final Map<MaterialKey, Integer> totals) {
-        for (int i = 0; i < itemsNbt.size(); i++) {
-            final NbtCompound itemNbt = NbtHelper.getCompound(itemsNbt, i);
-            if (itemNbt == null) {
-                continue;
-            }
-            final String id = NbtHelper.getString(itemNbt, "id");
-            if (id.isEmpty()) {
-                continue;
-            }
-            final Optional<Identifier> itemId = IdentifierUtil.tryParse(id);
-            if (!itemId.isPresent()) {
-                logInvalidItemId("accumulateContainedItems", id);
-                continue;
-            }
-            //#if MC >= 12110
-            //$$ final Item item = Registries.ITEM.getEntry(itemId.get()).map(entry -> entry.value()).orElse(Items.AIR);
-            //#elseif MC >= 12001
-            //$$ final Item item = Registries.ITEM.get(itemId.get());
-            //#else
-            final Item item = Registry.ITEM.get(itemId.get());
-            //#endif
-            if (item == Items.AIR) {
-                continue;
-            }
-            final int count = NbtHelper.getByte(itemNbt, "Count") & 0xFF;
-            if (count <= 0) {
-                continue;
-            }
-            totals.merge(new MaterialKey(itemId.get(), ""), count, Integer::sum);
-            final NbtCompound tag = NbtHelper.getCompound(itemNbt, "tag");
-            if (tag == null) {
-                continue;
-            }
-            final NbtCompound blockEntityTag = NbtHelper.getCompound(tag, "BlockEntityTag");
-            if (blockEntityTag == null) {
-                continue;
-            }
-            final NbtList nestedItems = NbtHelper.getList(blockEntityTag, "Items");
-            if (nestedItems != null) {
-                accumulateContainedItems(nestedItems, totals);
-            }
-        }
-    }
-
-    private void logInvalidItemId(final String source, final String rawId) {
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("Ignoring invalid item identifier '{}' while computing {}", rawId, source);
+            InventoryScanner.scanItemStack(stack, totals);
         }
     }
 
@@ -458,7 +355,6 @@ public final class MaterialHudOverlay implements HudRenderCallback {
             } else {
                 final Optional<Identifier> parsedId = IdentifierUtil.tryParse(id);
                 if (!parsedId.isPresent()) {
-                    logInvalidItemId("fingerprint", id);
                     continue;
                 }
                 itemId = parsedId.get();

@@ -6,34 +6,21 @@ import cn.net.rms.syncmatica_r.communication.ServerCommunicationManager;
 import cn.net.rms.syncmatica_r.material.*;
 import cn.net.rms.syncmatica_r.service.IServiceConfiguration;
 import cn.net.rms.syncmatica_r.util.NbtHelper;
+import cn.net.rms.syncmatica_r.util.InventoryScanner;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.inventory.Inventory;
-import net.minecraft.item.BlockItem;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtList;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 //#if MC >= 12001
-//$$ import net.minecraft.registry.Registries;
+//$$ import net.minecraft.registry.RegistryKeys;
+//$$ import net.minecraft.block.entity.SignText;
 //#else
 import net.minecraft.util.registry.Registry;
 //#endif
 import net.minecraft.util.registry.RegistryKey;
 import net.minecraft.world.World;
-//#if MC >= 12001
-//$$ import net.minecraft.registry.RegistryKeys;
-//$$ import net.minecraft.block.entity.SignText;
-//#endif
-//#if MC >= 12101
-//$$ import net.minecraft.component.DataComponentTypes;
-//$$ import net.minecraft.component.type.ContainerComponent;
-//#elseif MC >= 12005
-//$$ import net.minecraft.component.DataComponentTypes;
-//$$ import net.minecraft.component.type.NbtComponent;
-//#endif
 import cn.net.rms.syncmatica_r.util.IdentifierUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -48,7 +35,6 @@ public class MaterialService extends AbstractService {
     public static final int SCAN_BLOCKS_PER_TICK_DEFAULT = 2048;
     public static final int MAX_SCHEMATIC_MEGABYTES_DEFAULT = 64;
     public static final int MAX_SCHEMATIC_BLOCKS_DEFAULT = 8_000_000;
-    private static final int MAX_SHULKER_NESTING_DEPTH = 10;
     private static final Logger LOGGER = LogManager.getLogger(MaterialService.class);
     private final Map<UUID, ServerPlacement> placements = new HashMap<>();
 
@@ -723,101 +709,7 @@ public class MaterialService extends AbstractService {
     private void scanInventory(final Inventory inventory, final Map<MaterialKey, Integer> totals) {
         for (int slot = 0; slot < inventory.size(); slot++) {
             final ItemStack stack = inventory.getStack(slot);
-            if (stack == null || stack.isEmpty()) {
-                continue;
-            }
-
-//#if MC >= 12001
-//$$             final Identifier itemId = Registries.ITEM.getId(stack.getItem());
-//#else
-            final Identifier itemId = Registry.ITEM.getId(stack.getItem());
-//#endif
-            boolean hasShulkerContents = false;
-
-            if (stack.getItem() instanceof BlockItem) {
-//#if MC >= 12101
-//$$                 final ContainerComponent container = stack.getOrDefault(DataComponentTypes.CONTAINER, ContainerComponent.DEFAULT);
-//$$                 if (!container.equals(ContainerComponent.DEFAULT)) {
-//$$                     hasShulkerContents = true;
-//$$                     for (final ItemStack item : container.iterateNonEmpty()) {
-//$$                         final Identifier nestedItemId = Registries.ITEM.getId(item.getItem());
-//$$                         final MaterialKey nestedKey = new MaterialKey(nestedItemId, "");
-//$$                         totals.merge(nestedKey, item.getCount(), Integer::sum);
-//$$                     }
-//$$                 }
-//#elseif MC >= 12005
-//$$                 final NbtComponent blockEntityData = stack.getComponents().getOrDefault(DataComponentTypes.BLOCK_ENTITY_DATA, NbtComponent.DEFAULT);
-//$$                 if (!blockEntityData.isEmpty()) {
-//$$                     final NbtCompound blockEntityTag = blockEntityData.copyNbt();
-//$$                     final NbtList items = NbtHelper.getList(blockEntityTag, "Items");
-//$$                     if (items != null && items.size() > 0) {
-//$$                         hasShulkerContents = true;
-//$$                         scanShulkerBoxContents(items, totals, 0);
-//$$                     }
-//$$                 }
-//#else
-                final NbtCompound nbt = stack.getNbt();
-                if (nbt != null && nbt.contains("BlockEntityTag")) {
-                    final NbtCompound blockEntityTag = nbt.getCompound("BlockEntityTag");
-                    if (blockEntityTag.contains("Items")) {
-                        final NbtList items = blockEntityTag.getList("Items", 10);
-                        if (items != null && items.size() > 0) {
-                            hasShulkerContents = true;
-                            scanShulkerBoxContents(items, totals, 0);
-                        }
-                    }
-                }
-//#endif
-            }
-
-            if (!hasShulkerContents) {
-                final MaterialKey key = new MaterialKey(itemId, "");
-                totals.merge(key, stack.getCount(), Integer::sum);
-            }
-        }
-    }
-
-    private void scanShulkerBoxContents(final NbtList itemsNbt, final Map<MaterialKey, Integer> totals, final int depth) {
-        if (depth > MAX_SHULKER_NESTING_DEPTH) {
-            LOGGER.warn("Shulker box nesting depth exceeded limit ({}), skipping further scanning", depth);
-            return;
-        }
-
-        for (int i = 0; i < itemsNbt.size(); i++) {
-            final NbtCompound itemNbt = NbtHelper.getCompound(itemsNbt, i);
-            if (itemNbt == null) {
-                continue;
-            }
-            final String rawId = NbtHelper.getString(itemNbt, "id");
-            if (rawId.isEmpty()) {
-                continue;
-            }
-            final Optional<Identifier> itemId = IdentifierUtil.tryParse(rawId);
-            if (!itemId.isPresent()) {
-                continue;
-            }
-            final int count = NbtHelper.getByte(itemNbt, "Count") & 0xFF;
-            if (count <= 0) {
-                continue;
-            }
-
-            final NbtCompound tag = NbtHelper.getCompound(itemNbt, "tag");
-            boolean hasNestedContents = false;
-            if (tag != null) {
-                final NbtCompound blockEntityTag = NbtHelper.getCompound(tag, "BlockEntityTag");
-                if (blockEntityTag != null) {
-                    final NbtList nestedItems = NbtHelper.getList(blockEntityTag, "Items");
-                    if (nestedItems != null && nestedItems.size() > 0) {
-                        hasNestedContents = true;
-                        scanShulkerBoxContents(nestedItems, totals, depth + 1);
-                    }
-                }
-            }
-
-            if (!hasNestedContents) {
-                final MaterialKey itemKey = new MaterialKey(itemId.get(), "");
-                totals.merge(itemKey, count, Integer::sum);
-            }
+            InventoryScanner.scanItemStack(stack, totals);
         }
     }
 
