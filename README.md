@@ -47,6 +47,18 @@ You need to be in the same dimension as a syncmatic to load it.
 To modify a placement just unlock a placement on your client. Lock it again after making changes to share the changes
 with everyone.
 
+How to set up the stocking area
+
+Use the following command to create a stocking area
+
+/syncmatica_r default setStockingarea * * * * * *
+
+/syncmatica_r StockingAreaName setStockingarea SelectedRangeRtartPoint SelectedRangeRndPoint
+
+When the default default is used, the item will search for signs attached to the box within the box selection. If the text of the notice plate matches the name of a schematic on a shared schematic, the contents of the box will be counted as inventory.
+
+When default is replaced with Schematic Name, this stuffing area will serve as the exclusive staging area for the item. There is no longer a need to put up a sign with the corresponding name
+
 ## Contact
 
 - Email: support@rms.net.cn
