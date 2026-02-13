@@ -455,7 +455,8 @@ public class MaterialService extends AbstractService {
     }
 
     private java.util.List<String> readSignNames(final net.minecraft.block.entity.SignBlockEntity sign) {
-        final java.util.List<String> names = new java.util.ArrayList<>(4);
+        final java.util.List<String> names = new java.util.ArrayList<>(1);
+        final StringBuilder sb = new StringBuilder();
         for (int i = 0; i < 4; i++) {
             try {
                 final net.minecraft.text.Text line = getSignLine(sign, i);
@@ -468,11 +469,14 @@ public class MaterialService extends AbstractService {
                 }
                 final String trimmed = value.trim();
                 if (!trimmed.isEmpty()) {
-                    names.add(trimmed);
+                    sb.append(trimmed);
                 }
             } catch (final Throwable ignored) {
 
             }
+        }
+        if (sb.length() > 0) {
+            names.add(sb.toString());
         }
         return names;
     }
