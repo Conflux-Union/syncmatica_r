@@ -41,6 +41,13 @@ Syncmatica_r 是一个旨在与 Litematica 模组集成的修改版，让原理�
 
 要修改放置，只需在客户端解锁该放置。完成更改后重新锁定，即可与所有人共享变更。
 
+备货区设置方式
+使用以下命令创建备货区
+/syncmatica_r default setStockingarea * * * * * *
+/syncmatica_r 备货区名 setStockingarea 框选范围起始点 框选范围终点
+当使用default默认值时，此时项目将检索框选范围内 依附于箱子的告示牌。若告示牌文字内容与共享原理图的某一原理图名称相符，此箱子内物品将被统计为库存。
+当default被替换为"原理图名称"时，此备货区将作为该项目的专属备货区。不再需要贴对应名称的告示牌。
+
 ## 联系方式
 
 - 邮箱：support@rms.net.cn
