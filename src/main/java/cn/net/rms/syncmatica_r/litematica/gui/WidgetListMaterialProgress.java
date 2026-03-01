@@ -1,6 +1,7 @@
 package cn.net.rms.syncmatica_r.litematica.gui;
 
 import cn.net.rms.syncmatica_r.ServerPlacement;
+import cn.net.rms.syncmatica_r.client.MaterialListPreferences;
 import cn.net.rms.syncmatica_r.material.SyncmaticaMaterialEntry;
 import fi.dy.masa.malilib.gui.widgets.WidgetListBase;
 import fi.dy.masa.malilib.render.RenderUtils;
@@ -138,17 +139,30 @@ public class WidgetListMaterialProgress extends WidgetListBase<SyncmaticaMateria
 
     @Override
     protected Collection<SyncmaticaMaterialEntry> getAllEntries() {
-        // Snapshot is sorted to keep highly-missing entries front-loaded.
         final List<SyncmaticaMaterialEntry> snapshot = new ArrayList<>(placement.getMaterialList().getEntries());
+        // Apply filter: hide finished materials if enabled
+        if (MaterialListPreferences.isHideFinished()) {
+            snapshot.removeIf(SyncmaticaMaterialEntry.UNFINISHED.negate());
+        }
+        // Apply sort mode
+        final MaterialListPreferences.SortMode sortMode = MaterialListPreferences.getSortMode();
         snapshot.sort((left, right) -> {
-            final int lm = left.getAmountMissing();
-            final int rm = right.getAmountMissing();
-            if (lm != rm) {
-                return Integer.compare(rm, lm);
+            if (sortMode == MaterialListPreferences.SortMode.NAME_ASC) {
+                // Sort by name ascending
+                final String leftKey = left.getKey() == null ? "" : left.getKey().toString();
+                final String rightKey = right.getKey() == null ? "" : right.getKey().toString();
+                return leftKey.compareTo(rightKey);
+            } else {
+                // Sort by missing count descending, then by name for ties
+                final int lm = left.getAmountMissing();
+                final int rm = right.getAmountMissing();
+                if (lm != rm) {
+                    return Integer.compare(rm, lm);
+                }
+                final String leftKey = left.getKey() == null ? "" : left.getKey().toString();
+                final String rightKey = right.getKey() == null ? "" : right.getKey().toString();
+                return leftKey.compareTo(rightKey);
             }
-            final String leftKey = left.getKey() == null ? "" : left.getKey().toString();
-            final String rightKey = right.getKey() == null ? "" : right.getKey().toString();
-            return leftKey.compareTo(rightKey);
         });
         return snapshot;
     }

@@ -19,6 +19,7 @@ public class SyncmaticaClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         HudPreferences.load();
+        MaterialListPreferences.load();
         MaterialHudOverlay.getInstance().setHudScale(HudPreferences.getHudScale());
         MaterialHudOverlay.getInstance().register();
         ClientTickEvents.END_CLIENT_TICK.register(SyncmaticaClient::handleClientTick);

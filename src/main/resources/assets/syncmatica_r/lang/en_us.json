@@ -76,5 +76,9 @@
   "syncmatica_r.hotkey.open_material_collections.comment": "Opens the Material Collections GUI when pressed",
   "syncmatica_r.hotkeys.category": "Syncmatica_r Hotkeys",
   "syncmatica_r.gui.label.hotkey.none": "NONE",
-  "syncmatica_r.gui.label.hotkey.press_key": "Press a key..."
+  "syncmatica_r.gui.label.hotkey.press_key": "Press a key...",
+  "syncmatica_r.gui.button.material.sort": "Sort: %s",
+  "syncmatica_r.gui.label.material.sort.missing": "Missing",
+  "syncmatica_r.gui.label.material.sort.name": "Name",
+  "syncmatica_r.gui.button.material.hide_finished": "Hide Done: %s"
 }

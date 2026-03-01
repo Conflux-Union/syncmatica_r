@@ -76,5 +76,9 @@
   "syncmatica_r.hotkey.open_material_collections.comment": "按下时打开材料收集界面",
   "syncmatica_r.hotkeys.category": "Syncmatica_r 热键",
   "syncmatica_r.gui.label.hotkey.none": "无",
-  "syncmatica_r.gui.label.hotkey.press_key": "请按下按键..."
+  "syncmatica_r.gui.label.hotkey.press_key": "请按下按键...",
+  "syncmatica_r.gui.button.material.sort": "排序：%s",
+  "syncmatica_r.gui.label.material.sort.missing": "缺失数量",
+  "syncmatica_r.gui.label.material.sort.name": "名称",
+  "syncmatica_r.gui.button.material.hide_finished": "隐藏已完成：%s"
 }
