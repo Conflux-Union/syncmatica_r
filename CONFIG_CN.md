@@ -1,4 +1,4 @@
-# Syncmatica_r 配置手册 (2025-11)
+# Syncmatica_r 配置手册 (2026-03)
 
 **[English](CONFIG.md) | 中文**
 

@@ -2,64 +2,123 @@
 
 **[English]** | [中文](README_CN.md)
 
-> **Project Origin**: This is a modified fork of [Syncmatica](https://github.com/End-Tech/syncmatica), with enhanced collaboration features including shared material progress tracking. This fork is maintained at [RMS-Server/syncmatica_r](https://github.com/RMS-Server/syncmatica_r).
-
-## Key New Feature: Shared Material Progress Tracking
-
-**Material Progress Tracking** provides a real-time material coordination system for collaborative building:
-
-- **Shared Requirements**: Server automatically scans schematic material needs, synced to all players in real-time
-- **Claim System**: Players can claim specific materials to prevent duplicate collection
-- **Stocking Area Scan**: Server can scan configured container areas to track available inventory
-- **Live HUD Overlay**: Client-side floating window displays material progress with customizable position and style
-
-Access the material tracker via the `MaterialGatherings` button to coordinate team resource collection.
+> **Project Origin**: Enhanced fork of [Syncmatica](https://github.com/End-Tech/syncmatica) with collaborative material tracking. Maintained at [RMS-Server/syncmatica_r](https://github.com/RMS-Server/syncmatica_r).
 
 ---
 
-Syncmatica_r is a mod which aims to mod into litematica so that schematics and their placements can be easily shared.
+## Features
 
-> [!CAUTION]
-> Syncmatica_r is a mod that gives its users a lot of power and can have consequences for the server. Only use this mod if
-you feel confident that your users won't abuse it too heavily.
+### Core: Schematic Sharing
 
-### Client
+Syncmatica_r integrates with Litematica to share schematics and their placements across a server:
 
-You first need to install fabric and add the litematica and malilib mods to your client. The next step is to move the
-Syncmatica_r mod file to the mod folder. Now you are ready to go.
+- **Upload & Download**: Share your Litematica placements with the server; download others' shared placements
+- **Placement Sync**: Position, rotation, and other placement data sync automatically to all players
+- **Lock/Unlock Workflow**: Unlock a placement to modify it locally, then lock to share changes with everyone
+- **Dimension Awareness**: Placements only load when you're in the same dimension
 
-### Server
+### Material Progress Tracking
 
-For the server you only need to install fabric and put Syncmatic in the mods folder, and you are good to go.
+A real-time coordination system for collaborative building projects:
 
-After running the mod once it will create a configuration file that you can use to configure the mod as you please.
-See [Config Doku](https://github.com/RMS-Server/syncmatica_r/blob/master/CONFIG.md) for more information.
+- **Requirement Extraction**: Server automatically scans schematic material needs and syncs to all players
+- **Claim System**: Players can claim specific materials to prevent duplicate collection
+- **Stocking Area Scan**: Server scans configured container regions to track available inventory
+- **Live HUD Overlay**: Client-side floating window displays material progress with customizable scale
+- **GUI Dashboard**: Access via the **Material Collections** button to coordinate team resource collection
+- **Sorting & Filtering**: Sort by missing count or item name; hide completed items
+
+---
+
+## Installation
+
+### Client Requirements
+
+1. Fabric Loader
+2. [Litematica](https://masa.dy.fi/mcmods/client_mods/) (required)
+3. [MaLiLib](https://masa.dy.fi/mcmods/client_mods/) (required by Litematica)
+4. Syncmatica_r mod file
+
+Place all mod files in the `mods` folder.
+
+### Server Requirements
+
+1. Fabric Loader
+2. Syncmatica_r mod file
+
+No additional dependencies required on the server side.
+
+### Configuration
+
+After first run, configuration files are created at:
+
+| File | Location | Purpose |
+|------|----------|---------|
+| Main config | `config/syncmatica_r/config.json` | Server quota, material tracking settings |
+| HUD settings | `config/syncmatica_r/hud_settings.json` | Client HUD scale and enable toggle |
+| Material list | `config/syncmatica_r/material_list_settings.json` | Client sort mode and filter preferences |
+
+For integrated (single-player) servers, the main config is stored in `<world-folder>/syncmatica_r/config.json`.
+
+See [CONFIG.md](CONFIG.md) for detailed configuration options.
+
+---
 
 ## Usage
 
-Once installed on your client, you can join every server normally. For servers which have Syncmatica_r installed you will
-get access to a few extra buttons. 2 of them are in the main menu and allow you to see the placements that are shared on
-the server and download them. Another is in your schematic placement overview and allows you to share your own
-litematics with the server.
+### Sharing Schematics
 
-You need to be in the same dimension as a syncmatic to load it.
+1. Join a server with Syncmatica_r installed
+2. Open the main menu — two extra buttons appear:
+   - View shared placements on the server
+   - Download shared placements to your client
+3. Open your Litematica placement overview — an extra button lets you upload your placements to the server
+4. To modify a shared placement: unlock it locally, make changes, then lock again to sync
 
-To modify a placement just unlock a placement on your client. Lock it again after making changes to share the changes
-with everyone.
+### Setting Up Stocking Areas
 
-How to set up the stocking area
+Stocking areas are container regions the server scans for inventory tracking.
 
-Use the following command to create a stocking area
+**Create a default stocking area (matches all schematics via sign labels):**
 
-/syncmatica_r default setStockingarea * * * * * *
+```
+/syncmatica_r default setStockingarea <x1> <y1> <z1> <x2> <y2> <z2>
+```
 
-/syncmatica_r StockingAreaName setStockingarea SelectedRangeRtartPoint SelectedRangeRndPoint
+**Create a schematic-specific stocking area:**
 
-When the default default is used, the item will search for signs attached to the box within the box selection. If the text of the notice plate matches the name of a schematic on a shared schematic, the contents of the box will be counted as inventory.
+```
+/syncmatica_r <SchematicName> setStockingarea <x1> <y1> <z1> <x2> <y2> <z2>
+```
 
-When default is replaced with Schematic Name, this stuffing area will serve as the exclusive staging area for the item. There is no longer a need to put up a sign with the corresponding name
+**How it works:**
+
+- **Default area**: The server looks for signs attached to containers within the region. If a sign's text matches a shared schematic's name, that container's contents count as inventory for that schematic.
+- **Named area**: The region becomes exclusive to the specified schematic — no sign labels needed.
+
+---
+
+## Supported Minecraft Versions
+
+| Version | Status |
+|---------|--------|
+| 1.17.1  | ✅ Supported |
+| 1.20.1  | ✅ Supported |
+| 1.21.1  | ✅ Supported |
+| 1.21.4  | ✅ Supported |
+| 1.21.10 | ✅ Supported |
+| 1.21.11 | ✅ Supported |
+
+---
+
+## License
+
+CC0-1.0 — Public domain dedication.
+
+---
 
 ## Contact
 
-- Email: support@rms.net.cn
-- QQ Group: 362669270
+- **Email**: support@rms.net.cn
+- **QQ Group**: 362669270
+- **GitHub Issues**: [Report a bug](https://github.com/RMS-Server/syncmatica_r/issues)
