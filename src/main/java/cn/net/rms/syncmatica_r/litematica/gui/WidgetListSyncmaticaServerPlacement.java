@@ -73,7 +73,7 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
 //$$     }
 //$$
 //$$     private void drawPlacementInfo(final ServerPlacement placement, final GuiContext guiContext) {
-//#elseif MC >= 12110
+//#elseif MC >= 12108
 //$$     @Override
 //$$     public void drawContents(final DrawContext drawContext, final int mouseX, final int mouseY, final float partialTicks) {
 //$$         RenderUtils.drawOutlinedBox(drawContext, posX, posY, browserWidth, browserHeight, 0xB0000000, GuiBase.COLOR_HORIZONTAL_BAR);
@@ -107,7 +107,7 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
 
         //#if MC >= 12111
         //$$ RenderUtils.drawOutlinedBox(guiContext, x, y, infoWidth, height, 0xA0000000, GuiBase.COLOR_HORIZONTAL_BAR);
-        //#elseif MC >= 12110
+        //#elseif MC >= 12108
         //$$ RenderUtils.drawOutlinedBox(drawContext, x, y, infoWidth, height, 0xA0000000, GuiBase.COLOR_HORIZONTAL_BAR);
         //#else
         RenderUtils.drawOutlinedBox(x, y, infoWidth, height, 0xA0000000, GuiBase.COLOR_HORIZONTAL_BAR);
@@ -117,7 +117,7 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
             return;
         }
 
-        //#if MC < 12110
+        //#if MC < 12108
         RenderUtils.color(1f, 1f, 1f, 1f);
         //#endif
 

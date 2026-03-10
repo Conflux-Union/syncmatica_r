@@ -106,6 +106,7 @@ Stocking areas are container regions the server scans for inventory tracking.
 | 1.20.1  | ✅ Supported |
 | 1.21.1  | ✅ Supported |
 | 1.21.4  | ✅ Supported |
+| 1.21.8  | ✅ Supported |
 | 1.21.10 | ✅ Supported |
 | 1.21.11 | ✅ Supported |
 

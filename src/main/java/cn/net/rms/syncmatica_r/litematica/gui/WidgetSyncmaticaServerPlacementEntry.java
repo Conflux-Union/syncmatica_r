@@ -89,7 +89,7 @@ public class WidgetSyncmaticaServerPlacementEntry extends WidgetListEntryBase<Se
 //$$     @Override
 //$$     public void render(final GuiContext guiContext, final int mouseX, final int mouseY, final boolean selected) {
 //$$         final DrawContext drawContext = guiContext;
-//#elseif MC >= 12110
+//#elseif MC >= 12108
 //$$     @Override
 //$$     public void render(final DrawContext drawContext, final int mouseX, final int mouseY, final boolean selected) {
 //#else
@@ -103,14 +103,14 @@ public class WidgetSyncmaticaServerPlacementEntry extends WidgetListEntryBase<Se
     ) {
 //#endif
 
-        //#if MC < 12110
+        //#if MC < 12108
         RenderUtils.color(1f, 1f, 1f, 1f);
         //#endif
 
         if (selected || isMouseOver(mouseX, mouseY)) {
 //#if MC >= 12111
 //$$             RenderUtils.drawRect(guiContext, x, y, width, height, 0x70FFFFFF);
-//#elseif MC >= 12110
+//#elseif MC >= 12108
 //$$             RenderUtils.drawRect(drawContext, x, y, width, height, 0x70FFFFFF);
 //#else
             RenderUtils.drawRect(x, y, width, height, 0x70FFFFFF);
@@ -118,7 +118,7 @@ public class WidgetSyncmaticaServerPlacementEntry extends WidgetListEntryBase<Se
         } else if (isOdd) {
 //#if MC >= 12111
 //$$             RenderUtils.drawRect(guiContext, x, y, width, height, 0x20FFFFFF);
-//#elseif MC >= 12110
+//#elseif MC >= 12108
 //$$             RenderUtils.drawRect(drawContext, x, y, width, height, 0x20FFFFFF);
 //#else
             RenderUtils.drawRect(x, y, width, height, 0x20FFFFFF);
@@ -126,7 +126,7 @@ public class WidgetSyncmaticaServerPlacementEntry extends WidgetListEntryBase<Se
         } else {
 //#if MC >= 12111
 //$$             RenderUtils.drawRect(guiContext, x, y, width, height, 0x50FFFFFF);
-//#elseif MC >= 12110
+//#elseif MC >= 12108
 //$$             RenderUtils.drawRect(drawContext, x, y, width, height, 0x50FFFFFF);
 //#else
             RenderUtils.drawRect(x, y, width, height, 0x50FFFFFF);
@@ -137,7 +137,7 @@ public class WidgetSyncmaticaServerPlacementEntry extends WidgetListEntryBase<Se
 //#if MC >= 12111
 //$$         drawString(guiContext, x + 20, y + 7, 0xFFFFFFFF, schematicName);
 //$$         drawSubWidgets(guiContext, mouseX, mouseY);
-//#elseif MC >= 12110
+//#elseif MC >= 12108
 //$$         drawString(drawContext, x + 20, y + 7, 0xFFFFFFFF, schematicName);
 //$$         drawSubWidgets(drawContext, mouseX, mouseY);
 //#elseif MC >= 12001

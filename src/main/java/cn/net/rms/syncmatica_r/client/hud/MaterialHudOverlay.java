@@ -52,7 +52,7 @@ import net.minecraft.util.Identifier;
 //#else
 import net.minecraft.util.registry.Registry;
 //#endif
-//#if MC >= 12110
+//#if MC >= 12108
 //$$ import net.minecraft.entity.EquipmentSlot;
 //#endif
 import org.apache.logging.log4j.LogManager;
@@ -234,7 +234,7 @@ public final class MaterialHudOverlay implements HudRenderCallback {
             return null;
         }
         int fingerprint = 1;
-        //#if MC >= 12110
+        //#if MC >= 12108
         //$$ fingerprint = accumulateFingerprint(inventory.getMainStacks(), fingerprint);
         //$$ fingerprint = accumulateFingerprintFromStack(client.player.getEquippedStack(EquipmentSlot.OFFHAND), fingerprint);
         //#else
@@ -254,7 +254,7 @@ public final class MaterialHudOverlay implements HudRenderCallback {
             return Collections.emptyMap();
         }
         final Map<MaterialKey, Integer> totals = new HashMap<>();
-        //#if MC >= 12110
+        //#if MC >= 12108
         //$$ accumulateStacks(inventory.getMainStacks(), totals);
         //$$ InventoryScanner.scanItemStack(client.player.getEquippedStack(EquipmentSlot.OFFHAND), totals);
         //#else
@@ -310,10 +310,7 @@ public final class MaterialHudOverlay implements HudRenderCallback {
 //$$             return fingerprint;
 //$$         }
 //$$         final NbtCompound blockEntityTag = blockEntityData.copyNbtWithoutId();
-//$$         if (!blockEntityTag.contains("Items")) {
-//$$             return fingerprint;
-//$$         }
-//$$         final NbtList itemsList = blockEntityTag.getList("Items").orElse(null);
+//$$         final NbtList itemsList = NbtHelper.getList(blockEntityTag, "Items");
 //$$         if (itemsList == null) {
 //$$             return fingerprint;
 //$$         }
@@ -324,10 +321,11 @@ public final class MaterialHudOverlay implements HudRenderCallback {
 //$$             return fingerprint;
 //$$         }
 //$$         final NbtCompound blockEntityTag = blockEntityData.copyNbt();
-//$$         if (!blockEntityTag.contains("Items", NbtElement.LIST_TYPE)) {
+//$$         final NbtList itemsList = NbtHelper.getList(blockEntityTag, "Items");
+//$$         if (itemsList == null) {
 //$$             return fingerprint;
 //$$         }
-//$$         return accumulateFingerprintFromNbt(blockEntityTag.getList("Items", NbtElement.COMPOUND_TYPE), fingerprint);
+//$$         return accumulateFingerprintFromNbt(itemsList, fingerprint);
 //#else
         final NbtCompound nbt = stack.getNbt();
         if (nbt == null || !nbt.contains("BlockEntityTag", NbtElement.COMPOUND_TYPE)) {
@@ -445,7 +443,7 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         final int y = Math.max(margin, screenHeight - contentHeight - padding * 2 - margin);
 //#if MC >= 12111
 //$$         RenderUtils.drawRect(GuiContext.fromGuiGraphics((DrawContext) drawContext), x, y, contentWidth + padding * 2, contentHeight + padding * 2, 0x80000000);
-//#elseif MC >= 12110
+//#elseif MC >= 12108
 //$$         RenderUtils.drawRect((DrawContext) drawContext, x, y, contentWidth + padding * 2, contentHeight + padding * 2, 0x80000000);
 //#else
         RenderUtils.drawRect(x, y, contentWidth + padding * 2, contentHeight + padding * 2, 0x80000000);

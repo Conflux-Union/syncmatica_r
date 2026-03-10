@@ -25,7 +25,7 @@ import net.minecraft.util.BlockRotation;
 import net.minecraft.util.math.BlockPos;
 
 import java.io.File;
-//#if MC >= 12110
+//#if MC >= 12108
 //$$ import java.nio.file.Path;
 //#endif
 import java.util.*;
@@ -65,7 +65,7 @@ public class LitematicManager {
     }
 
     public void renderSyncmatic(final ServerPlacement placement) {
-        final String dimension = MinecraftClient.getInstance().getCameraEntity().getEntityWorld().getRegistryKey().getValue().toString();
+        final String dimension = getPlayerDimension();
         if (!dimension.equals(placement.getDimension())) {
             ScreenHelper.ifPresent(s -> s.addMessage(Message.MessageType.ERROR, "syncmatica_r.error.player_dimension_mismatch"));
             context.getSyncmaticManager().updateServerPlacement(placement);
@@ -76,7 +76,7 @@ public class LitematicManager {
         }
         final File file = context.getFileStorage().getLocalLitematic(placement);
 
-        //#if MC >= 12110
+        //#if MC >= 12108
         //$$ final LitematicaSchematic schematic = SchematicHolder.getInstance().getOrLoad(file.toPath());
         //#else
         final LitematicaSchematic schematic = SchematicHolder.getInstance().getOrLoad(file);
@@ -116,7 +116,7 @@ public class LitematicManager {
             return null;
         }
         try {
-            //#if MC >= 12110
+            //#if MC >= 12108
             //$$ final Path placementPath = schem.getSchematicFile();
             //$$ final File placementFile = placementPath != null ? placementPath.toFile() : null;
             //#else
@@ -149,7 +149,7 @@ public class LitematicManager {
 
             final ServerPlacement placement = new ServerPlacement(UUID.randomUUID(), placementFile, owner);
 
-            final String dimension = MinecraftClient.getInstance().getCameraEntity().getEntityWorld().getRegistryKey().getValue().toString();
+            final String dimension = getPlayerDimension();
             placement.move(dimension, schem.getOrigin(), schem.getRotation(), schem.getMirror());
             transferSubregionDataToServerPlacement(schem, placement);
             return placement;
@@ -310,7 +310,7 @@ public class LitematicManager {
             final UUID id = ((IIDContainer) schem).getServerId();
             final ServerPlacement p = man.getPlacement(id);
             if (p != null) {
-                //#if MC >= 12110
+                //#if MC >= 12108
                 //$$ final Path schematicPath = schem.getSchematicFile();
                 //$$ final File schematicFile = schematicPath != null ? schematicPath.toFile() : null;
                 //#else
@@ -354,7 +354,13 @@ public class LitematicManager {
 
     public String getPlayerDimension() {
         if (MinecraftClient.getInstance().getCameraEntity() != null) {
+            //#if MC >= 12110
+            //$$ return MinecraftClient.getInstance().getCameraEntity().getEntityWorld().getRegistryKey().getValue().toString();
+            //#elseif MC >= 12108
+            //$$ return MinecraftClient.getInstance().getCameraEntity().getWorld().getRegistryKey().getValue().toString();
+            //#else
             return MinecraftClient.getInstance().getCameraEntity().getEntityWorld().getRegistryKey().getValue().toString();
+            //#endif
         } else {
             return ServerPosition.OVERWORLD_DIMENSION_ID;
         }

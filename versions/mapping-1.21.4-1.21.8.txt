@@ -1,0 +1,3 @@
+# Mapping file for version 1.21.4 to 1.21.8
+# Format: old_version_class new_version_class
+# Keep empty when no namespace rename is required.
