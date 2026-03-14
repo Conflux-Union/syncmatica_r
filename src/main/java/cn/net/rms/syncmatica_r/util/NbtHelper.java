@@ -23,7 +23,7 @@ public final class NbtHelper {
         if (parent == null) {
             return null;
         }
-        //#if MC >= 12108
+        //#if MC >= 12106
         //$$ return parent.getCompound(key).orElse(null);
         //#else
         if (!parent.contains(key, NbtElement.COMPOUND_TYPE)) {
@@ -40,7 +40,7 @@ public final class NbtHelper {
         if (list == null || index < 0 || index >= list.size()) {
             return null;
         }
-        //#if MC >= 12108
+        //#if MC >= 12106
         //$$ return list.getCompound(index).orElse(null);
         //#else
         return list.getCompound(index);
@@ -54,7 +54,7 @@ public final class NbtHelper {
         if (nbt == null) {
             return "";
         }
-        //#if MC >= 12108
+        //#if MC >= 12106
         //$$ return nbt.getString(key, "");
         //#else
         if (!nbt.contains(key, NbtElement.STRING_TYPE)) {
@@ -71,7 +71,7 @@ public final class NbtHelper {
         if (nbt == null) {
             return 0;
         }
-        //#if MC >= 12108
+        //#if MC >= 12106
         //$$ return nbt.getByte(key, (byte) 0);
         //#else
         if (!nbt.contains(key, NbtElement.NUMBER_TYPE)) {
@@ -88,7 +88,7 @@ public final class NbtHelper {
         if (nbt == null) {
             return 0;
         }
-        //#if MC >= 12108
+        //#if MC >= 12106
         //$$ return nbt.getInt(key, 0);
         //#else
         if (!nbt.contains(key, NbtElement.NUMBER_TYPE)) {
@@ -105,7 +105,7 @@ public final class NbtHelper {
         if (nbt == null) {
             return null;
         }
-        //#if MC >= 12108
+        //#if MC >= 12106
         //$$ return nbt.getList(key).orElse(null);
         //#else
         if (!nbt.contains(key, NbtElement.LIST_TYPE)) {
@@ -122,7 +122,7 @@ public final class NbtHelper {
         if (nbt == null) {
             return null;
         }
-        //#if MC >= 12108
+        //#if MC >= 12106
         //$$ return nbt.getList(key).orElse(null);
         //#else
         if (!nbt.contains(key, NbtElement.LIST_TYPE)) {
@@ -139,7 +139,7 @@ public final class NbtHelper {
         if (nbt == null) {
             return null;
         }
-        //#if MC >= 12108
+        //#if MC >= 12106
         //$$ return nbt.getIntArray(key).orElse(null);
         //#else
         if (!nbt.contains(key, NbtElement.INT_ARRAY_TYPE)) {
@@ -156,7 +156,7 @@ public final class NbtHelper {
         if (nbt == null) {
             return null;
         }
-        //#if MC >= 12108
+        //#if MC >= 12106
         //$$ return nbt.getLongArray(key).orElse(null);
         //#else
         if (!nbt.contains(key, NbtElement.LONG_ARRAY_TYPE)) {
@@ -173,7 +173,7 @@ public final class NbtHelper {
         if (nbt == null) {
             return false;
         }
-        //#if MC >= 12108
+        //#if MC >= 12106
         //$$ return nbt.contains(key) && !getString(nbt, key).isEmpty();
         //#else
         return nbt.contains(key, NbtElement.STRING_TYPE);
@@ -187,7 +187,7 @@ public final class NbtHelper {
         if (nbt == null) {
             return false;
         }
-        //#if MC >= 12108
+        //#if MC >= 12106
         //$$ return nbt.contains(key) && nbt.getCompound(key).isPresent();
         //#else
         return nbt.contains(key, NbtElement.COMPOUND_TYPE);
@@ -201,7 +201,7 @@ public final class NbtHelper {
         if (nbt == null) {
             return false;
         }
-        //#if MC >= 12108
+        //#if MC >= 12106
         //$$ return nbt.contains(key) && nbt.getList(key).isPresent();
         //#else
         return nbt.contains(key, NbtElement.LIST_TYPE);
@@ -215,7 +215,7 @@ public final class NbtHelper {
         if (nbt == null) {
             return false;
         }
-        //#if MC >= 12108
+        //#if MC >= 12106
         //$$ return nbt.contains(key);
         //#else
         return nbt.contains(key, NbtElement.NUMBER_TYPE);

@@ -78,7 +78,7 @@ public class WidgetStockingAreaMaterialTotalsEntry extends WidgetMaterialProgres
 //$$             drawPartialClaimTooltip(mouseX, mouseY, drawContext);
 //$$         }
 //$$     }
-//#elseif MC >= 12108
+//#elseif MC >= 12106
 //$$     @Override
 //$$     public void render(final DrawContext drawContext, final int mouseX, final int mouseY, final boolean selected) {
 //$$         super.render(drawContext, mouseX, mouseY, selected);

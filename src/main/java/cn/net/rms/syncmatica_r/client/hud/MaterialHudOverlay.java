@@ -52,7 +52,7 @@ import net.minecraft.util.Identifier;
 //#else
 import net.minecraft.util.registry.Registry;
 //#endif
-//#if MC >= 12108
+//#if MC >= 12106
 //$$ import net.minecraft.entity.EquipmentSlot;
 //#endif
 import org.apache.logging.log4j.LogManager;
@@ -234,7 +234,7 @@ public final class MaterialHudOverlay implements HudRenderCallback {
             return null;
         }
         int fingerprint = 1;
-        //#if MC >= 12108
+        //#if MC >= 12106
         //$$ fingerprint = accumulateFingerprint(inventory.getMainStacks(), fingerprint);
         //$$ fingerprint = accumulateFingerprintFromStack(client.player.getEquippedStack(EquipmentSlot.OFFHAND), fingerprint);
         //#else
@@ -254,7 +254,7 @@ public final class MaterialHudOverlay implements HudRenderCallback {
             return Collections.emptyMap();
         }
         final Map<MaterialKey, Integer> totals = new HashMap<>();
-        //#if MC >= 12108
+        //#if MC >= 12106
         //$$ accumulateStacks(inventory.getMainStacks(), totals);
         //$$ InventoryScanner.scanItemStack(client.player.getEquippedStack(EquipmentSlot.OFFHAND), totals);
         //#else
@@ -443,7 +443,7 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         final int y = Math.max(margin, screenHeight - contentHeight - padding * 2 - margin);
 //#if MC >= 12111
 //$$         RenderUtils.drawRect(GuiContext.fromGuiGraphics((DrawContext) drawContext), x, y, contentWidth + padding * 2, contentHeight + padding * 2, 0x80000000);
-//#elseif MC >= 12108
+//#elseif MC >= 12106
 //$$         RenderUtils.drawRect((DrawContext) drawContext, x, y, contentWidth + padding * 2, contentHeight + padding * 2, 0x80000000);
 //#else
         RenderUtils.drawRect(x, y, contentWidth + padding * 2, contentHeight + padding * 2, 0x80000000);

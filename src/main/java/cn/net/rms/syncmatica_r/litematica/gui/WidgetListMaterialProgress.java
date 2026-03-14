@@ -72,7 +72,7 @@ public class WidgetListMaterialProgress extends WidgetListBase<SyncmaticaMateria
 //$$         super.drawContents(guiContext, mouseX, mouseY, partialTicks);
 //$$         drawTotalsSection(guiContext);
 //$$     }
-//#elseif MC >= 12108
+//#elseif MC >= 12106
 //$$     @Override
 //$$     public void drawContents(final DrawContext drawContext, final int mouseX, final int mouseY, final float partialTicks) {
 //$$         RenderUtils.drawRect(drawContext, posX, posY, browserWidth, browserEntriesOffsetY, 0x30000000);
@@ -211,7 +211,7 @@ public class WidgetListMaterialProgress extends WidgetListBase<SyncmaticaMateria
 //$$             }
 //$$         });
 //$$     }
-//#elseif MC >= 12108
+//#elseif MC >= 12106
 //$$     private void drawTotalsSection(final DrawContext drawContext) {
 //$$         final int footerTop = getTotalsSectionTop();
 //$$         RenderUtils.drawRect(drawContext, posX, footerTop - 1, browserWidth, 1, 0x60000000);
@@ -252,7 +252,7 @@ public class WidgetListMaterialProgress extends WidgetListBase<SyncmaticaMateria
         final int requiredColumnRight = baseX + WidgetMaterialProgressEntry.REQUIRED_COLUMN_RIGHT_OFFSET;
         final int missingColumnRight = posX + browserEntryWidth - 8;
         final int stockColumnRight = missingColumnRight - 100;
-//#if MC < 12108
+//#if MC < 12106
         RenderUtils.drawRect(posX, footerTop - 1, browserWidth, 1, 0x60000000);
         RenderUtils.drawRect(posX, footerTop, browserWidth, TOTALS_SECTION_HEIGHT, 0x20000000);
 //#endif

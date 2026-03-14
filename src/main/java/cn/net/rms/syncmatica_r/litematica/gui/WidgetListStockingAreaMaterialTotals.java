@@ -244,7 +244,7 @@ public class WidgetListStockingAreaMaterialTotals extends WidgetListBase<
 //$$         final String missingLabel = StringUtils.translate("syncmatica_r.gui.label.material.column.missing");
 //$$         drawString(guiContext, missingLabel, missingColumnRight - getStringWidth(missingLabel), posY + 6, textColor);
 //$$     }
-//#elseif MC >= 12108
+//#elseif MC >= 12106
 //$$     private void drawHeader(final DrawContext drawContext) {
 //$$         RenderUtils.drawRect(drawContext, posX, posY, browserWidth, browserEntriesOffsetY, 0x30000000);
 //$$         final int baseX = posX + 6;
@@ -309,7 +309,7 @@ public class WidgetListStockingAreaMaterialTotals extends WidgetListBase<
 //$$             }
 //$$         });
 //$$     }
-//#elseif MC >= 12108
+//#elseif MC >= 12106
 //$$     private void drawTotalsSection(final DrawContext drawContext) {
 //$$         final int footerTop = getTotalsSectionTop();
 //$$         RenderUtils.drawRect(drawContext, posX, footerTop - 1, browserWidth, 1, 0x60000000);
@@ -348,7 +348,7 @@ public class WidgetListStockingAreaMaterialTotals extends WidgetListBase<
         final int requiredColumnRight = baseX + WidgetMaterialProgressEntry.REQUIRED_COLUMN_RIGHT_OFFSET;
         final int missingColumnRight = posX + browserEntryWidth - 8;
         final int stockColumnRight = missingColumnRight - 100;
-//#if MC < 12108
+//#if MC < 12106
         RenderUtils.drawRect(posX, footerTop - 1, browserWidth, 1, 0x60000000);
         RenderUtils.drawRect(posX, footerTop, browserWidth, TOTALS_SECTION_HEIGHT, 0x20000000);
 //#endif

@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(MinecraftClient.class)
 public class MixinMinecraftClient {
 
-    //#if MC >= 12108
+    //#if MC >= 12106
     //$$ @Inject(method = "onDisconnected", at = @At("HEAD"))
     //#else
     @Inject(method = "disconnect()V", at = @At("HEAD"))

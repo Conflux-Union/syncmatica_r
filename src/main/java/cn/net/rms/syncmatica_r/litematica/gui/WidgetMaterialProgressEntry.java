@@ -58,7 +58,7 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
 //$$     @Override
 //$$     public void render(final GuiContext guiContext, final int mouseX, final int mouseY, final boolean selected) {
 //$$         final DrawContext drawContext = guiContext;
-//#elseif MC >= 12108
+//#elseif MC >= 12106
 //$$     @Override
 //$$     public void render(final DrawContext drawContext, final int mouseX, final int mouseY, final boolean selected) {
 //#else
@@ -74,7 +74,7 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
 
 //#if MC >= 12111
 //$$         RenderUtils.drawRect(guiContext, x, y, width, height, resolveBaseBackgroundColor());
-//#elseif MC >= 12108
+//#elseif MC >= 12106
 //$$         RenderUtils.drawRect(drawContext, x, y, width, height, resolveBaseBackgroundColor());
 //#else
         RenderUtils.drawRect(x, y, width, height, resolveBaseBackgroundColor());
@@ -89,7 +89,7 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
             final int overlay = selfClaimed ? 0x3040FF40 : 0x30FFFF80;
 //#if MC >= 12111
 //$$             RenderUtils.drawRect(guiContext, x, y, width, height, overlay);
-//#elseif MC >= 12108
+//#elseif MC >= 12106
 //$$             RenderUtils.drawRect(drawContext, x, y, width, height, overlay);
 //#else
             RenderUtils.drawRect(x, y, width, height, overlay);
@@ -120,7 +120,7 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         final int nameX = baseX + NAME_COLUMN_LEFT_OFFSET;
 //#if MC >= 12111
 //$$         drawString(guiContext, nameX, y + 6, textColor, displayName);
-//#elseif MC >= 12108
+//#elseif MC >= 12106
 //$$         drawString(drawContext, nameX, y + 6, textColor, displayName);
 //#elseif MC >= 12001
 //$$         drawString(nameX, y + 6, textColor, displayName, drawContext);
@@ -131,7 +131,7 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         final String requiredText = String.valueOf(material.getAmountRequired());
 //#if MC >= 12111
 //$$         drawString(guiContext, requiredColumnRight - getStringWidth(requiredText), y + 6, secondaryColor, requiredText);
-//#elseif MC >= 12108
+//#elseif MC >= 12106
 //$$         drawString(drawContext, requiredColumnRight - getStringWidth(requiredText), y + 6, secondaryColor, requiredText);
 //#elseif MC >= 12001
 //$$         drawString(requiredColumnRight - getStringWidth(requiredText), y + 6, secondaryColor, requiredText, drawContext);
@@ -142,7 +142,7 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         final String stockText = String.valueOf(material.getStockingSupplied());
 //#if MC >= 12111
 //$$         drawString(guiContext, stockColumnRight - getStringWidth(stockText), y + 6, secondaryColor, stockText);
-//#elseif MC >= 12108
+//#elseif MC >= 12106
 //$$         drawString(drawContext, stockColumnRight - getStringWidth(stockText), y + 6, secondaryColor, stockText);
 //#elseif MC >= 12001
 //$$         drawString(stockColumnRight - getStringWidth(stockText), y + 6, secondaryColor, stockText, drawContext);
@@ -155,7 +155,7 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         final int missingTextX = missingColumnRight - getStringWidth(missingText);
 //#if MC >= 12111
 //$$         drawString(guiContext, missingTextX, y + 6, missingColor, missingText);
-//#elseif MC >= 12108
+//#elseif MC >= 12106
 //$$         drawString(drawContext, missingTextX, y + 6, missingColor, missingText);
 //#elseif MC >= 12001
 //$$         drawString(missingTextX, y + 6, missingColor, missingText, drawContext);

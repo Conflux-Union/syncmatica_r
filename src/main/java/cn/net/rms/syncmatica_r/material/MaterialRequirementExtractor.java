@@ -190,7 +190,7 @@ public final class MaterialRequirementExtractor {
     }
 
     private static int[] resolveSize(final NbtCompound region) {
-        //#if MC >= 12108
+        //#if MC >= 12106
         //$$ if (region.contains("Size")) {
         //$$     final Optional<int[]> intArrayOpt = region.getIntArray("Size");
         //$$     if (intArrayOpt.isPresent()) {
@@ -242,7 +242,7 @@ public final class MaterialRequirementExtractor {
     }
 
     private static long[] resolveBlockStates(final NbtCompound region) {
-        //#if MC >= 12108
+        //#if MC >= 12106
         //$$ if (region.contains("BlockStates")) {
         //$$     final Optional<long[]> longArrayOpt = region.getLongArray("BlockStates");
         //$$     if (longArrayOpt.isPresent()) {
