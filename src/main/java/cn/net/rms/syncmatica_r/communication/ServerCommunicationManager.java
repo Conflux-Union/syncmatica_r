@@ -22,17 +22,35 @@ import net.minecraft.text.LiteralText;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.*;
 
 public class ServerCommunicationManager extends CommunicationManager {
 
+    private static final Logger LOGGER = LogManager.getLogger(ServerCommunicationManager.class);
+
     private final Map<UUID, List<ServerPlacement>> downloadingFile = new HashMap<>();
     private final Map<ExchangeTarget, ServerPlayerEntity> playerMap = new HashMap<>();
 
     public ServerCommunicationManager() {
         super();
+    }
+
+    private void purgeStaleTargets() {
+        final List<ExchangeTarget> stale = new ArrayList<>();
+        for (final Map.Entry<ExchangeTarget, ServerPlayerEntity> e : playerMap.entrySet()) {
+            if (e.getValue() == null || e.getValue().isDisconnected()) {
+                stale.add(e.getKey());
+            }
+        }
+        for (final ExchangeTarget target : stale) {
+            LOGGER.debug("Purging stale ExchangeTarget: {}", target.getPersistentName());
+            onPlayerLeave(target);
+        }
     }
 
     public GameProfile getGameProfile(final ExchangeTarget exchangeTarget) {
@@ -77,6 +95,10 @@ public class ServerCommunicationManager extends CommunicationManager {
 
     @Override
     protected void handle(final ExchangeTarget source, final Identifier id, final PacketByteBuf packetBuf) {
+        purgeStaleTargets();
+        if (!playerMap.containsKey(source)) {
+            return;
+        }
         final PacketType type = PacketType.fromIdentifier(id);
         if (type == PacketType.REQUEST_LITEMATIC) {
             final UUID syncmaticaId = packetBuf.readUuid();
@@ -226,6 +248,7 @@ public class ServerCommunicationManager extends CommunicationManager {
     }
 
     public void broadcastPlacementUpdate(final ServerPlacement placement) {
+        purgeStaleTargets();
         for (final ExchangeTarget client : broadcastTargets) {
             final FeatureSet clientFeatures = client.getFeatureSet();
             if (clientFeatures != null && clientFeatures.hasFeature(Feature.MODIFY)) {
