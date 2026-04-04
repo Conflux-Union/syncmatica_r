@@ -188,9 +188,7 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
 //#endif
         }
 
-        final int blankLeft = nameX + getStringWidth(displayName) + 6;
-        final int blankRight = requiredColumnRight - 6;
-        if (shouldRenderClaimTooltip(material) && mouseX >= blankLeft && mouseX <= blankRight
+        if (shouldRenderClaimTooltip(material) && mouseX >= x && mouseX <= x + width
                 && mouseY >= rowTop && mouseY <= rowBottom) {
             final java.util.List<String> claimers = material == null ? java.util.Collections.emptyList() : material.getClaimers();
             final net.minecraft.client.MinecraftClient cli = net.minecraft.client.MinecraftClient.getInstance();
@@ -267,14 +265,7 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
             return false;
         }
         final SyncmaticaMaterialEntry material = getEntry();
-        final int baseX = x + 6;
-        final int requiredColumnRight = baseX + REQUIRED_COLUMN_RIGHT_OFFSET;
 
-        final int blankLeft = baseX + NAME_COLUMN_LEFT_OFFSET;
-        final int blankRight = requiredColumnRight - 6;
-        if (mouseX < blankLeft || mouseX > blankRight || mouseY < y || mouseY > y + height) {
-            return false;
-        }
 
         final java.util.List<String> claimers = material == null ? java.util.Collections.emptyList() : material.getClaimers();
         final net.minecraft.client.MinecraftClient cli = net.minecraft.client.MinecraftClient.getInstance();

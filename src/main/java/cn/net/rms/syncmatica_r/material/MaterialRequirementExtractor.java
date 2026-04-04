@@ -163,6 +163,19 @@ public final class MaterialRequirementExtractor {
         if (name.isEmpty()) {
             return null;
         }
+        // Skip the upper/head half of double-block structures (doors, beds, tall plants).
+        // Counting both halves would double the material requirement.
+        final NbtCompound props = NbtHelper.getCompound(entry, "Properties");
+        if (props != null) {
+            final String half = NbtHelper.getString(props, "half");
+            if ("upper".equals(half)) {
+                return null;
+            }
+            final String part = NbtHelper.getString(props, "part");
+            if ("head".equals(part)) {
+                return null;
+            }
+        }
         final Optional<Identifier> blockId = IdentifierUtil.tryParse(name);
         if (!blockId.isPresent()) {
             return null;

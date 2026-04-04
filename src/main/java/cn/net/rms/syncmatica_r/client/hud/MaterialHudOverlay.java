@@ -28,6 +28,12 @@ import net.minecraft.client.util.math.MatrixStack;
 //$$ import net.minecraft.entity.TypedEntityData;
 //$$ import net.minecraft.block.entity.BlockEntityType;
 //$$ import net.minecraft.text.Text;
+//#elseif MC >= 12101
+//$$ import net.minecraft.client.gui.DrawContext;
+//$$ import net.minecraft.client.render.RenderTickCounter;
+//$$ import net.minecraft.component.DataComponentTypes;
+//$$ import net.minecraft.component.type.ContainerComponent;
+//$$ import net.minecraft.text.Text;
 //#elseif MC >= 12005
 //$$ import net.minecraft.client.gui.DrawContext;
 //$$ import net.minecraft.client.render.RenderTickCounter;
@@ -315,6 +321,17 @@ public final class MaterialHudOverlay implements HudRenderCallback {
 //$$             return fingerprint;
 //$$         }
 //$$         return accumulateFingerprintFromNbt(itemsList, fingerprint);
+//#elseif MC >= 12101
+//$$         final ContainerComponent container = stack.getOrDefault(DataComponentTypes.CONTAINER, ContainerComponent.DEFAULT);
+//$$         if (container.equals(ContainerComponent.DEFAULT)) {
+//$$             return fingerprint;
+//$$         }
+//$$         for (final ItemStack nested : container.iterateNonEmpty()) {
+//$$             final net.minecraft.util.Identifier nestedId = Registries.ITEM.getId(nested.getItem());
+//$$             fingerprint = 31 * fingerprint + (nestedId == null ? 0 : nestedId.hashCode());
+//$$             fingerprint = 31 * fingerprint + nested.getCount();
+//$$         }
+//$$         return fingerprint;
 //#elseif MC >= 12005
 //$$         final NbtComponent blockEntityData = stack.getComponents().getOrDefault(DataComponentTypes.BLOCK_ENTITY_DATA, NbtComponent.DEFAULT);
 //$$         if (blockEntityData.isEmpty()) {
