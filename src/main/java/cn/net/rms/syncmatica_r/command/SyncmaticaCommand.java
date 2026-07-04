@@ -10,6 +10,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.minecraft.command.argument.BlockPosArgumentType;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
@@ -19,9 +20,6 @@ import net.minecraft.text.LiteralText;
 //#if MC >= 12001
 //$$ import net.minecraft.text.Text;
 //#endif
-//#if MC >= 12111
-//$$ import net.minecraft.command.DefaultPermissions;
-//#endif
 import net.minecraft.util.math.BlockPos;
 
 import java.util.Optional;
@@ -29,16 +27,15 @@ import java.util.Optional;
 import static com.mojang.brigadier.arguments.StringArgumentType.string;
 
 public final class SyncmaticaCommand {
+    private static final String COMMAND_PERMISSION = "syncmatica_r.command";
+    private static final int COMMAND_PERMISSION_LEVEL = 2;
+
     private SyncmaticaCommand() {
     }
 
     public static void register(final CommandDispatcher<ServerCommandSource> dispatcher) {
         final LiteralArgumentBuilder<ServerCommandSource> root = CommandManager.literal("syncmatica_r")
-                //#if MC >= 12111
-                //$$ .requires(source -> source.getPermissions().hasPermission(DefaultPermissions.MODERATORS))
-                //#else
-                .requires(source -> source.hasPermissionLevel(2))
-                //#endif
+                .requires(Permissions.require(COMMAND_PERMISSION, COMMAND_PERMISSION_LEVEL))
                 .then(projectArgument())
                 .then(defaultArgument());
         dispatcher.register(root);
@@ -129,7 +126,7 @@ public final class SyncmaticaCommand {
         context.getSource().sendFeedback(literal("Default stocking area updated"), false);
 //#endif
         return 1;
-}
+    }
 
     private static net.minecraft.text.Text literal(final String message) {
 //#if MC >= 12001

@@ -27,6 +27,7 @@
     "syncmatica_r.litematica_mixin.json"
   ],
   "depends": {
+    "fabric-permissions-api-v0": "*"
   },
   "suggests": {
     "litematica": "*",

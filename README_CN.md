@@ -91,6 +91,12 @@ Syncmatica_r 与 Litematica 模组集成，实现服务器范围内的原理图�
 /syncmatica_r <原理图名称> setStockingarea <x1> <y1> <z1> <x2> <y2> <z2>
 ```
 
+**权限：**
+
+- 权限节点：`syncmatica_r.command`
+- 回退行为：如果没有权限管理器处理该节点，则仍按原版权限等级 2（OP）允许执行。
+- LuckPerms 示例：`/lp group <group> permission set syncmatica_r.command true`
+
 **工作原理：**
 
 - **默认区域**：服务端检索区域内依附于容器的告示牌，若告示牌文字与共享原理图名称匹配，该容器内容计入该原理图的库存

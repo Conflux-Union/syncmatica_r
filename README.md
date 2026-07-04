@@ -91,6 +91,12 @@ Stocking areas are container regions the server scans for inventory tracking.
 /syncmatica_r <SchematicName> setStockingarea <x1> <y1> <z1> <x2> <y2> <z2>
 ```
 
+**Permission:**
+
+- Permission node: `syncmatica_r.command`
+- Fallback behavior: if no permissions provider handles the node, vanilla permission level 2 (operators) can use the command.
+- LuckPerms example: `/lp group <group> permission set syncmatica_r.command true`
+
 **How it works:**
 
 - **Default area**: The server looks for signs attached to containers within the region. If a sign's text matches a shared schematic's name, that container's contents count as inventory for that schematic.

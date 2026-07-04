@@ -9,6 +9,15 @@ def mcVersionParts = project.minecraft_version.split('\\.')
 def mcVersionNumber = (mcVersionParts[0] + mcVersionParts[1].padLeft(2, '0') + (mcVersionParts.size() > 2 ? mcVersionParts[2].padLeft(2, '0') : '00')).toInteger()
 def javaRelease = mcVersionNumber >= 12100 ? 21 : (mcVersionNumber >= 12000 ? 17 : 16)
 def toolchainVersion = javaRelease >= 17 ? javaRelease : 17
+def preprocessRootProject = rootProject.file("versions/mainProject").text.trim()
+def fabricPermissionsApiVersion = '0.3.3'
+if (mcVersionNumber >= 12111) {
+    fabricPermissionsApiVersion = '0.6.1'
+} else if (mcVersionNumber >= 12109) {
+    fabricPermissionsApiVersion = '0.5.0'
+} else if (mcVersionNumber >= 12106) {
+    fabricPermissionsApiVersion = '0.4.0'
+}
 
 base {
     archivesName = project.archives_base_name + '-' + project.minecraft_version
@@ -39,6 +48,8 @@ repositories {
 
 configurations {
     shadowInclude
+    testImplementation.extendsFrom = []
+    testRuntimeOnly.extendsFrom = []
 }
 
 dependencies {
@@ -58,6 +69,9 @@ dependencies {
     }
 
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+    include(modImplementation("me.lucko:fabric-permissions-api:${fabricPermissionsApiVersion}"))
+    testImplementation "org.junit.jupiter:junit-jupiter:5.10.3"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 
     if (mcVersionNumber >= 12000) {
         implementation "org.apache.logging.log4j:log4j-api:2.17.2"
@@ -105,6 +119,19 @@ tasks.withType(JavaCompile).configureEach {
 
     // Suppress mixin annotation processor errors in dev environment
     it.options.compilerArgs += ['-Xlint:-processing']
+}
+
+sourceSets {
+    test {
+        if (project.name == preprocessRootProject) {
+            java.srcDir rootProject.file("src/test/java")
+        }
+    }
+}
+
+tasks.named("test") {
+    useJUnitPlatform()
+    systemProperty "syncmatica.projectRoot", rootProject.projectDir.absolutePath
 }
 
 java {
