@@ -10,13 +10,17 @@ def mcVersionNumber = (mcVersionParts[0] + mcVersionParts[1].padLeft(2, '0') + (
 def javaRelease = mcVersionNumber >= 12100 ? 21 : (mcVersionNumber >= 12000 ? 17 : 16)
 def toolchainVersion = javaRelease >= 17 ? javaRelease : 17
 def preprocessRootProject = rootProject.file("versions/mainProject").text.trim()
-def fabricPermissionsApiVersion = '0.3.3'
+def fabricPermissionsApiVersion = '0.3.1'
 if (mcVersionNumber >= 12111) {
     fabricPermissionsApiVersion = '0.6.1'
 } else if (mcVersionNumber >= 12109) {
     fabricPermissionsApiVersion = '0.5.0'
 } else if (mcVersionNumber >= 12106) {
     fabricPermissionsApiVersion = '0.4.0'
+} else if (mcVersionNumber >= 12103) {
+    fabricPermissionsApiVersion = '0.3.3'
+} else if (mcVersionNumber >= 12102) {
+    fabricPermissionsApiVersion = '0.3.2'
 }
 
 base {

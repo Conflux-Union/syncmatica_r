@@ -44,6 +44,21 @@ final class SyncmaticaCommandPermissionContractTest {
     }
 
     @Test
+    void buildUsesMinecraftCompatibleFabricPermissionsApi() throws IOException {
+        final String gradleSource = read("common.gradle");
+
+        assertTrue(
+                gradleSource.contains("def fabricPermissionsApiVersion = '0.3.1'"),
+                "Minecraft 1.21.1 and older must not embed fabric-permissions-api 0.3.2+");
+        assertTrue(
+                gradleSource.contains("mcVersionNumber >= 12103"),
+                "fabric-permissions-api 0.3.3 must be guarded to Minecraft 1.21.3+");
+        assertTrue(
+                gradleSource.contains("mcVersionNumber >= 12102"),
+                "fabric-permissions-api 0.3.2 must be guarded to Minecraft 1.21.2+");
+    }
+
+    @Test
     void modMetadataDeclaresFabricPermissionsApi() throws IOException {
         final String modJson = read("src/main/resources/fabric.mod.json");
 
