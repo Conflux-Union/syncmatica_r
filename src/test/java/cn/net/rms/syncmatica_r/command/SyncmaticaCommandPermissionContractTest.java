@@ -39,7 +39,7 @@ final class SyncmaticaCommandPermissionContractTest {
 
         assertTrue(
                 gradleSource.contains(
-                        "include(modImplementation(\"me.lucko:fabric-permissions-api:${fabricPermissionsApiVersion}\"))"),
+                        "include(autoImpl(\"me.lucko:fabric-permissions-api:${fabricPermissionsApiVersion}\"))"),
                 "common.gradle must include fabric-permissions-api");
     }
 
