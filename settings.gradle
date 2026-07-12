@@ -8,6 +8,10 @@ pluginManagement {
             name = 'Jitpack'
             url = 'https://maven.fallenbreath.me/jitpack'
         }
+        maven {
+            name = 'JitpackOrigin'
+            url = 'https://jitpack.io'
+        }
         mavenCentral()
         gradlePluginPortal()
     }
@@ -15,7 +19,12 @@ pluginManagement {
         eachPlugin {
             switch (requested.id.id) {
                 case 'com.replaymod.preprocess': {
-                    useModule "com.github.Fallen-Breath:preprocessor:$requested.version"
+                    useModule "com.github.ReplayMod:preprocessor:$requested.version"
+                    break
+                }
+                case 'net.fabricmc.fabric-loom':
+                case 'net.fabricmc.fabric-loom-remap': {
+                    useModule "net.fabricmc:fabric-loom:${requested.version}"
                     break
                 }
             }

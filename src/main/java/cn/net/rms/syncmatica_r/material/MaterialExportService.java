@@ -209,7 +209,11 @@ public final class MaterialExportService {
         if (key == null) {
             return ItemStack.EMPTY;
         }
+        //#if MC >= 260100
+        //$$ final Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(key.itemId());
+        //#else
         final Item item = net.minecraft.util.registry.Registry.ITEM.get(key.itemId());
+        //#endif
         if (item == Items.AIR) {
             return ItemStack.EMPTY;
         }
@@ -228,7 +232,11 @@ public final class MaterialExportService {
         }
         final String message = StringUtils.translate(key, args);
         //#if MC >= 12001
+        //#if MC >= 260100
+        //$$ chat.addClientSystemMessage(Component.literal(message));
+        //#else
         //$$ chat.addMessage(Text.literal(message));
+        //#endif
         //#else
         chat.addMessage(new LiteralText(message));
         //#endif

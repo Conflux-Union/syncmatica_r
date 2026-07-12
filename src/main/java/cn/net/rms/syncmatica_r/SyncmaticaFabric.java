@@ -32,8 +32,13 @@ public final class SyncmaticaFabric implements ModInitializer {
 
 //#if MC >= 12005
 //$$     private static void registerPayloads() {
+//#if MC >= 260100
+//$$         PayloadTypeRegistry.clientboundPlay().register(SyncmaticaPayload.PACKET_ID, SyncmaticaPayload.CODEC);
+//$$         PayloadTypeRegistry.serverboundPlay().register(SyncmaticaPayload.PACKET_ID, SyncmaticaPayload.CODEC);
+//#else
 //$$         PayloadTypeRegistry.playS2C().register(SyncmaticaPayload.PACKET_ID, SyncmaticaPayload.CODEC);
 //$$         PayloadTypeRegistry.playC2S().register(SyncmaticaPayload.PACKET_ID, SyncmaticaPayload.CODEC);
+//#endif
 //$$     }
 //#endif
 }

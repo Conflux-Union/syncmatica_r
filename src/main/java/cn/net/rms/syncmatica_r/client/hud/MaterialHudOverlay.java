@@ -13,13 +13,20 @@ import cn.net.rms.syncmatica_r.util.SyncmaticaUtil;
 import com.mojang.blaze3d.systems.RenderSystem;
 import fi.dy.masa.malilib.render.RenderUtils;
 import fi.dy.masa.malilib.util.StringUtils;
+//#if MC >= 260100
+//$$ import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
+//$$ import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+//#else
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+//#endif
 //#if MC >= 12111
 //$$ import fi.dy.masa.malilib.render.GuiContext;
 //#endif
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
+//#if MC < 260100
 import net.minecraft.client.render.item.ItemRenderer;
+//#endif
 import net.minecraft.client.util.math.MatrixStack;
 //#if MC >= 12110
 //$$ import net.minecraft.client.gui.DrawContext;
@@ -75,7 +82,11 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 // Lightweight HUD overlay that surfaces the most blocking stocking tasks.
+//#if MC >= 260100
+//$$ public final class MaterialHudOverlay implements HudElement {
+//#else
 public final class MaterialHudOverlay implements HudRenderCallback {
+//#endif
 
     private static final int MAX_ROWS = 6;
     private static final int PADDING = 6;
@@ -104,7 +115,11 @@ public final class MaterialHudOverlay implements HudRenderCallback {
     }
 
     public void register() {
+//#if MC >= 260100
+//$$         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("syncmatica_r", "material_hud"), this);
+//#else
         HudRenderCallback.EVENT.register(this);
+//#endif
     }
 
     public void setHudScale(final double scale) {
@@ -414,7 +429,12 @@ public final class MaterialHudOverlay implements HudRenderCallback {
                 && !rows.isEmpty();
     }
 
-//#if MC >= 12005
+//#if MC >= 260100
+//$$     @Override
+//$$     public void extractRenderState(final GuiGraphicsExtractor drawContext, final DeltaTracker tickCounter) {
+//$$         render(null, drawContext);
+//$$     }
+//#elseif MC >= 12005
 //$$     @Override
 //$$     public void onHudRender(final DrawContext drawContext, final RenderTickCounter tickCounter) {
 //$$         render(null, drawContext);
@@ -512,7 +532,10 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         if (text == null || text.isEmpty()) {
             return;
         }
-//#if MC >= 12001
+//#if MC >= 260100
+//$$         final GuiContext ctx = GuiContext.fromGuiGraphics((GuiGraphicsExtractor) Objects.requireNonNull(drawContext));
+//$$         ctx.drawString(renderer, text, x, y, color, true);
+//#elseif MC >= 12001
 //$$         ((DrawContext) Objects.requireNonNull(drawContext)).drawText(renderer, text, x, y, color, true);
 //#else
         renderer.drawWithShadow(Objects.requireNonNull(matrices), text, x, y, color);
@@ -527,7 +550,9 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         if (key == null) {
             return ItemStack.EMPTY;
         }
-        //#if MC >= 12001
+        //#if MC >= 260100
+        //$$ final Item item = BuiltInRegistries.ITEM.getValue(key.itemId());
+        //#elseif MC >= 12001
         //$$ final Item item = Registries.ITEM.get(key.itemId());
         //#else
         final Item item = Registry.ITEM.get(key.itemId());
@@ -556,7 +581,11 @@ public final class MaterialHudOverlay implements HudRenderCallback {
     }
 
     private String formatMissingVerboseText(final int totalMissing, final ItemStack stack) {
+//#if MC >= 260100
+//$$         final int stackSize = stack.isEmpty() ? 64 : Math.max(1, stack.getMaxStackSize());
+//#else
         final int stackSize = stack.isEmpty() ? 64 : Math.max(1, stack.getMaxCount());
+//#endif
         final int perBox = 27 * stackSize;
         final int boxes = totalMissing / perBox;
         final int remAfterBoxes = totalMissing - boxes * perBox;
@@ -576,10 +605,15 @@ public final class MaterialHudOverlay implements HudRenderCallback {
             return;
         }
         final MinecraftClient client = MinecraftClient.getInstance();
+//#if MC < 260100
         final ItemRenderer renderer = client.getItemRenderer();
+//#endif
         final TextRenderer textRenderer = client.textRenderer;
 
-//#if MC >= 12001
+//#if MC >= 260100
+//$$         drawContext.item(stack, iconX, iconY);
+//$$         drawContext.itemDecorations(textRenderer, stack, iconX, iconY);
+//#elseif MC >= 12001
 //$$         drawContext.drawItem(stack, iconX, iconY);
 //$$         drawContext.drawItemInSlot(textRenderer, stack, iconX, iconY);
 //#else

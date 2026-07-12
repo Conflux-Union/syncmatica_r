@@ -59,7 +59,11 @@ public final class InventoryScanner {
 //$$             final ContainerComponent container = stack.getOrDefault(DataComponentTypes.CONTAINER, ContainerComponent.DEFAULT);
 //$$             if (!container.equals(ContainerComponent.DEFAULT)) {
 //$$                 hasShulkerContents = true;
+//#if MC >= 260100
+//$$                 for (final ItemStack item : (Iterable<ItemStack>) container.nonEmptyItemCopyStream()::iterator) {
+//#else
 //$$                 for (final ItemStack item : container.iterateNonEmpty()) {
+//#endif
 //$$                     final Identifier nestedItemId = Registries.ITEM.getId(item.getItem());
 //$$                     final MaterialKey nestedKey = new MaterialKey(nestedItemId, "");
 //$$                     totals.merge(nestedKey, item.getCount(), Integer::sum);

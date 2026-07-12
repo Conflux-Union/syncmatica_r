@@ -15,7 +15,9 @@ import fi.dy.masa.malilib.render.RenderUtils;
 import io.netty.buffer.Unpooled;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
+//#if MC < 260100
 import net.minecraft.client.render.item.ItemRenderer;
+//#endif
 import net.minecraft.client.util.math.MatrixStack;
 //#if MC >= 12001
 //$$ import net.minecraft.client.gui.DrawContext;
@@ -313,7 +315,9 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         if (key == null) {
             return ItemStack.EMPTY;
         }
-        //#if MC >= 12001
+        //#if MC >= 260100
+        //$$ final Item item = BuiltInRegistries.ITEM.getValue(key.itemId());
+        //#elseif MC >= 12001
         //$$ final Item item = Registries.ITEM.get(key.itemId());
         //#else
         final Item item = Registry.ITEM.get(key.itemId());
@@ -332,9 +336,12 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
 //#endif
     ) {
         final MinecraftClient client = MinecraftClient.getInstance();
+//#if MC >= 260100
+//$$         drawContext.item(stack, iconX, iconY);
+//$$         drawContext.itemDecorations(client.font, stack, iconX, iconY);
+//#else
         final ItemRenderer itemRenderer = client.getItemRenderer();
         final TextRenderer textRenderer = client.textRenderer;
-
 //#if MC >= 12001
 //$$         drawContext.drawItem(stack, iconX, iconY);
 //$$         drawContext.drawItemInSlot(textRenderer, stack, iconX, iconY);
@@ -343,6 +350,7 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         itemRenderer.renderInGui(stack, iconX, iconY);
         itemRenderer.renderGuiItemOverlay(textRenderer, stack, iconX, iconY);
         RenderSystem.disableDepthTest();
+//#endif
 //#endif
     }
 
@@ -363,7 +371,11 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         final int totalMissing = Math.max(0, material.getAmountMissing());
         final ItemStack stack = resolveDisplayStack(material.getKey());
 
+//#if MC >= 260100
+//$$         final int stackSize = stack.isEmpty() ? 64 : Math.max(1, stack.getMaxStackSize());
+//#else
         final int stackSize = stack.isEmpty() ? 64 : Math.max(1, stack.getMaxCount());
+//#endif
         final int perShulker = 27 * stackSize;
 
         final int boxes = totalMissing / perShulker;

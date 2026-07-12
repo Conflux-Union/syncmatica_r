@@ -55,7 +55,11 @@ public class SyncmaticaClient implements ClientModInitializer {
             warningDescription = new TranslatableText("syncmatica_r.update.toast.integrity_warning");
             //#endif
             //#if MC >= 12005
-            client.player.sendMessage(warningDescription, false);
+            //#if MC >= 260100
+            //$$ client.player.sendSystemMessage(warningDescription);
+            //#else
+            //$$ client.player.sendMessage(warningDescription, false);
+            //#endif
             //#elseif MC >= 12001
             SystemToast.add(client.getToastManager(), SystemToast.Type.TUTORIAL_HINT, warningTitle, warningDescription);
             //#else
@@ -78,7 +82,11 @@ public class SyncmaticaClient implements ClientModInitializer {
         description = new TranslatableText("syncmatica_r.update.toast.description", localVersion, remoteVersion);
         //#endif
         //#if MC >= 12005
+        //#if MC >= 260100
+        //$$ client.player.sendSystemMessage(description);
+        //#else
         //$$ client.player.sendMessage(description, false);
+        //#endif
         //#elseif MC >= 12001
         //$$ SystemToast.add(client.getToastManager(), SystemToast.Type.TUTORIAL_HINT, title, description);
         //#else

@@ -1,15 +1,21 @@
 import com.replaymod.gradle.preprocess.Node
 
 plugins {
-    id 'fabric-loom' version '1.14-SNAPSHOT' apply false
-    id 'com.replaymod.preprocess' version 'd452ef7612'
+    id 'net.fabricmc.fabric-loom' version '1.17-SNAPSHOT' apply false
+    id 'net.fabricmc.fabric-loom-remap' version '1.17-SNAPSHOT' apply false
+    id 'com.replaymod.preprocess' version '221276c7d4'
+    id 'com.gradleup.shadow' version '9.0.0-beta4' apply false
     id "maven-publish"
 }
 
 preprocess {
     strictExtraMappings = false
     final ArrayList<Node> versions = []
-    file('versions').eachDir { versions << createNode(it.name, it.name.split(/\./).with { String[] string -> (string[0] + string[1].padLeft(2, '0') + string[2].padLeft(2, '0')).toInteger() }, '') }
+    file('versions').eachDir {
+        def parts = it.name.split(/\./)
+        def mcNum = (parts[0] + parts[1].padLeft(2, '0') + (parts.length > 2 ? parts[2].padLeft(2, '0') : '00')).toInteger()
+        versions << createNode(it.name, mcNum, mcNum >= 260100 ? null : '')
+    }
     versions.sort { it.mcVersion }
     for (int i = 0; i < versions.size() - 1; ++i) {
         versions[i].link versions[i + 1], file("versions/mapping-${versions[i].project}-${versions[i + 1].project}.txt")
