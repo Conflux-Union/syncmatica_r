@@ -8,7 +8,6 @@ import com.google.gson.JsonPrimitive;
 import fi.dy.masa.litematica.schematic.LitematicaSchematic;
 import fi.dy.masa.litematica.schematic.placement.SchematicPlacement;
 import fi.dy.masa.litematica.schematic.placement.SchematicPlacementManager;
-import fi.dy.masa.malilib.util.JsonUtils;
 import net.minecraft.util.math.BlockPos;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -31,7 +30,7 @@ public abstract class MixinSchematicPlacement implements IIDContainer, MovingFin
 
     @Inject(method = "fromJson", at = @At("RETURN"), remap = false, cancellable = true)
     private static void loadSyncmatic(final JsonObject obj, final CallbackInfoReturnable<SchematicPlacement> cir) {
-        if (JsonUtils.hasString(obj, "syncmatica_uuid")) {
+        if (obj.get("syncmatica_uuid") instanceof JsonPrimitive) {
             final SchematicPlacement newInstance = cir.getReturnValue();
             if (newInstance != null) {
                 ((IIDContainer) newInstance).setServerId(UUID.fromString(obj.get("syncmatica_uuid").getAsString()));
