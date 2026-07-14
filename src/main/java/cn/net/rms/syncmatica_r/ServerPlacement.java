@@ -3,6 +3,8 @@ package cn.net.rms.syncmatica_r;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
 import cn.net.rms.syncmatica_r.extended_core.SubRegionData;
 import cn.net.rms.syncmatica_r.material.*;
+import cn.net.rms.syncmatica_r.schematic.SchematicPeek;
+import cn.net.rms.syncmatica_r.schematic.SchematicPeeker;
 import cn.net.rms.syncmatica_r.util.SyncmaticaUtil;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
@@ -19,6 +21,10 @@ public class ServerPlacement {
     private final UUID id;
 
     private final String fileName;
+    private String displayName;
+    private int litematicVersion = SchematicPeek.UNKNOWN_VERSION;
+    private int dataVersion = SchematicPeek.UNKNOWN_VERSION;
+    private boolean metadataDirty;
     private final UUID hashValue;
     private final SyncmaticaMaterialList materialList = new SyncmaticaMaterialList();
     private final MaterialProgressState materialProgress = new MaterialProgressState();
@@ -79,6 +85,17 @@ public class ServerPlacement {
 
             final ServerPlacement newPlacement = new ServerPlacement(id, name, hashValue, owner);
 
+            if (obj.has("display_name")) {
+                newPlacement.displayName = obj.get("display_name").getAsString();
+            }
+            if (obj.has("litematicVersion")) {
+                newPlacement.litematicVersion = obj.get("litematicVersion").getAsInt();
+            }
+            if (obj.has("dataVersion")) {
+                newPlacement.dataVersion = obj.get("dataVersion").getAsInt();
+            }
+            enrichFromLocalFile(newPlacement, context);
+
             final ServerPosition pos = ServerPosition.fromJson(obj.get("origin").getAsJsonObject());
             if (pos == null) {
                 return null;
@@ -123,12 +140,74 @@ public class ServerPlacement {
         return null;
     }
 
+    /**
+     * Server placements loaded from disk may predate the display-name and
+     * schematic-version features; fill the missing metadata from the stored
+     * litematic file so old data is upgraded without a re-share.
+     */
+    private static void enrichFromLocalFile(final ServerPlacement placement, final Context context) {
+        if (context == null || !context.isServer()) {
+            return;
+        }
+        final boolean missingName = placement.displayName == null || placement.displayName.isEmpty();
+        final boolean missingVersion = placement.litematicVersion <= SchematicPeek.UNKNOWN_VERSION
+                || placement.dataVersion <= SchematicPeek.UNKNOWN_VERSION;
+        if (!missingName && !missingVersion) {
+            return;
+        }
+        final File litematic = new File(context.getLitematicFolder(), placement.hashValue.toString() + ".litematic");
+        final SchematicPeek peek = SchematicPeeker.peek(litematic);
+        if (peek == null) {
+            return;
+        }
+        if (missingName && peek.hasName()) {
+            placement.displayName = peek.getName();
+            placement.metadataDirty = true;
+        }
+        if (missingVersion) {
+            placement.litematicVersion = peek.getLitematicVersion();
+            placement.dataVersion = peek.getDataVersion();
+            placement.metadataDirty = true;
+        }
+    }
+
     public UUID getId() {
         return id;
     }
 
     public String getName() {
+        return displayName == null || displayName.isEmpty() ? fileName : displayName;
+    }
+
+    public String getFileName() {
         return fileName;
+    }
+
+    public void setDisplayName(final String displayName) {
+        this.displayName = displayName;
+    }
+
+    public int getLitematicVersion() {
+        return litematicVersion;
+    }
+
+    public int getDataVersion() {
+        return dataVersion;
+    }
+
+    public void setVersion(final int litematicVersion, final int dataVersion) {
+        this.litematicVersion = litematicVersion;
+        this.dataVersion = dataVersion;
+    }
+
+    /**
+     * Returns whether metadata was corrected during deserialization and clears
+     * the marker; used by SyncmaticManager to persist the corrected state.
+     */
+    public boolean consumeMetadataDirty() {
+        final boolean dirty = metadataDirty;
+        metadataDirty = false;
+        return dirty;
     }
 
     public UUID getHash() {
@@ -259,7 +338,15 @@ public class ServerPlacement {
         obj.add("id", new JsonPrimitive(id.toString()));
 
         obj.add("file_name", new JsonPrimitive(fileName));
+        obj.add("display_name", new JsonPrimitive(getName()));
         obj.add("hash", new JsonPrimitive(hashValue.toString()));
+
+        if (litematicVersion > SchematicPeek.UNKNOWN_VERSION) {
+            obj.add("litematicVersion", new JsonPrimitive(litematicVersion));
+        }
+        if (dataVersion > SchematicPeek.UNKNOWN_VERSION) {
+            obj.add("dataVersion", new JsonPrimitive(dataVersion));
+        }
 
         obj.add("origin", origin.toJson());
         obj.add("rotation", new JsonPrimitive(rotation.name()));

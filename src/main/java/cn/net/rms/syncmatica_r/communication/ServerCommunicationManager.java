@@ -8,6 +8,8 @@ import cn.net.rms.syncmatica_r.communication.MessageType;
 import cn.net.rms.syncmatica_r.communication.exchange.FeatureExchange;
 import cn.net.rms.syncmatica_r.communication.exchange.ShareLitematicExchange;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
+import cn.net.rms.syncmatica_r.schematic.SchematicPeek;
+import cn.net.rms.syncmatica_r.schematic.SchematicPeeker;
 import cn.net.rms.syncmatica_r.util.IdentifierUtil;
 import cn.net.rms.syncmatica_r.util.SyncmaticaUtil;
 import com.mojang.authlib.GameProfile;
@@ -314,15 +316,39 @@ public class ServerCommunicationManager extends CommunicationManager {
     }
 
     private void addPlacement(final ExchangeTarget t, final ServerPlacement placement) {
+        if (!registerNewPlacement(placement)) {
+            cancelShare(t, placement);
+        }
+    }
+
+    public boolean registerNewPlacement(final ServerPlacement placement) {
         if (context.getSyncmaticManager().getPlacement(placement.getId()) != null
                 || context.getSyncmaticManager().getAll().size() >= ProtocolLimits.MAX_SERVER_PLACEMENTS) {
-            cancelShare(t, placement);
-            return;
+            return false;
         }
+        applyAuthoritativeMetadata(placement);
         context.getSyncmaticManager().addPlacement(placement);
         for (final ExchangeTarget target : broadcastTargets) {
             sendMetaData(placement, target);
         }
+        return true;
+    }
+
+    /**
+     * The stored litematic file is the source of truth for display name and
+     * schematic versions; client-supplied values are only kept when the file
+     * cannot be peeked.
+     */
+    private void applyAuthoritativeMetadata(final ServerPlacement placement) {
+        final File litematic = context.getFileStorage().getLocalLitematic(placement);
+        final SchematicPeek peek = SchematicPeeker.peek(litematic);
+        if (peek == null) {
+            return;
+        }
+        if (peek.hasName()) {
+            placement.setDisplayName(peek.getName());
+        }
+        placement.setVersion(peek.getLitematicVersion(), peek.getDataVersion());
     }
 
     private void cancelShare(final ExchangeTarget source, final ServerPlacement placement) {

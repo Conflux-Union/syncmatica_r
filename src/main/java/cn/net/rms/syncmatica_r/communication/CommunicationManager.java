@@ -91,10 +91,13 @@ public abstract class CommunicationManager {
     public void putMetaData(final ServerPlacement metaData, final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
         buf.writeUuid(metaData.getId());
 
-        buf.writeString(SyncmaticaUtil.sanitizeFileName(metaData.getName()), ProtocolLimits.MAX_FILE_NAME_LENGTH);
+        buf.writeString(SyncmaticaUtil.sanitizeFileName(metaData.getFileName()), ProtocolLimits.MAX_FILE_NAME_LENGTH);
         buf.writeUuid(metaData.getHash());
 
         final FeatureSet targetFeatures = exchangeTarget.getFeatureSet();
+        if (targetFeatures != null && targetFeatures.hasFeature(Feature.DISPLAY_NAME)) {
+            buf.writeString(sanitizeDisplayName(metaData.getName()), ProtocolLimits.MAX_DISPLAY_NAME_LENGTH);
+        }
         if (targetFeatures != null && targetFeatures.hasFeature(Feature.CORE_EX)) {
             buf.writeUuid(metaData.getOwner().uuid);
             buf.writeString(metaData.getOwner().getName(), ProtocolLimits.MAX_PLAYER_NAME_LENGTH);
@@ -104,6 +107,10 @@ public abstract class CommunicationManager {
                 buf.writeLong(metaData.getCreatedAtMillis());
                 buf.writeLong(metaData.getLastModifiedAtMillis());
             }
+        }
+        if (targetFeatures != null && targetFeatures.hasFeature(Feature.VERSION)) {
+            buf.writeVarInt(metaData.getLitematicVersion());
+            buf.writeVarInt(metaData.getDataVersion());
         }
 
         putPositionData(metaData, buf, exchangeTarget);
@@ -161,6 +168,11 @@ public abstract class CommunicationManager {
         final boolean hasCoreEx = targetFeatures != null && targetFeatures.hasFeature(Feature.CORE_EX);
         final boolean hasTimestamps = hasCoreEx && supportsTimestamps(exchangeTarget);
 
+        String displayName = null;
+        if (targetFeatures != null && targetFeatures.hasFeature(Feature.DISPLAY_NAME)) {
+            displayName = sanitizeDisplayName(buf.readString());
+        }
+
         if (hasCoreEx) {
             final UUID ownerId = buf.readUuid();
             final String ownerName = buf.readString(ProtocolLimits.MAX_PLAYER_NAME_LENGTH);
@@ -175,9 +187,15 @@ public abstract class CommunicationManager {
 
         final ServerPlacement placement = new ServerPlacement(id, fileName, hash, owner);
         placement.setLastModifiedBy(lastModifiedBy);
+        if (displayName != null && !displayName.isEmpty()) {
+            placement.setDisplayName(displayName);
+        }
         if (hasTimestamps && buf.readableBytes() >= Long.BYTES * 2) {
             placement.setCreatedAtMillis(buf.readLong());
             placement.setLastModifiedAtMillis(buf.readLong());
+        }
+        if (targetFeatures != null && targetFeatures.hasFeature(Feature.VERSION)) {
+            placement.setVersion(buf.readVarInt(), buf.readVarInt());
         }
 
         receivePositionData(placement, buf, exchangeTarget);
@@ -458,6 +476,29 @@ public abstract class CommunicationManager {
 
     protected Collection<ExchangeTarget> getTickTargets() {
         return broadcastTargets;
+    }
+
+    /**
+     * Display names travel unbounded from legacy syncmatica peers; strip
+     * control characters and clamp to the local storage limit.
+     */
+    protected static String sanitizeDisplayName(final String rawName) {
+        if (rawName == null) {
+            return "";
+        }
+        final StringBuilder cleaned = new StringBuilder();
+        for (int i = 0; i < rawName.length();) {
+            final int c = rawName.codePointAt(i);
+            i += Character.charCount(c);
+            if (Character.isISOControl(c)) {
+                continue;
+            }
+            if (cleaned.length() + Character.charCount(c) > ProtocolLimits.MAX_DISPLAY_NAME_LENGTH) {
+                break;
+            }
+            cleaned.appendCodePoint(c);
+        }
+        return cleaned.toString().trim();
     }
 
     protected boolean supportsTimestamps(final ExchangeTarget exchangeTarget) {

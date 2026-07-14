@@ -11,7 +11,9 @@ public enum Feature {
     MATERIAL_PROGRESS,
     MATERIAL_CLAIMS,
     CORE_EX,
-    TIMESTAMPS;
+    TIMESTAMPS,
+    VERSION,
+    DISPLAY_NAME;
 
     public static Feature fromString(final String s) {
         for (final Feature f : Feature.values()) {

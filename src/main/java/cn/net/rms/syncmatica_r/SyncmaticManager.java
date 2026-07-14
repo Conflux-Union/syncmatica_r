@@ -382,6 +382,10 @@ public class SyncmaticManager {
                     if (context.getMaterialService() != null) {
                         context.getMaterialService().attachPlacement(placement);
                     }
+                    if (placement.consumeMetadataDirty()) {
+                        dirtyPlacements.add(placement.getId());
+                        markDirty();
+                    }
                     loaded = true;
                 } catch (final Exception exception) {
                     LogManager.getLogger(SyncmaticManager.class).warn("Failed to load placement file {}", file.getName(), exception);

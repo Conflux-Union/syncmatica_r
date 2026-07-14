@@ -15,6 +15,7 @@ public final class ProtocolLimits {
     public static final int MAX_FEATURE_STRING_LENGTH = 2_048;
     public static final int MAX_VERSION_LENGTH = 64;
     public static final int MAX_FILE_NAME_LENGTH = 255;
+    public static final int MAX_DISPLAY_NAME_LENGTH = 255;
     public static final int MAX_DIMENSION_ID_LENGTH = 256;
     public static final int MAX_SUBREGION_NAME_LENGTH = 128;
     public static final int MAX_PLAYER_NAME_LENGTH = 64;

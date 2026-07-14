@@ -4,6 +4,8 @@ import cn.net.rms.syncmatica_r.ServerPlacement;
 import cn.net.rms.syncmatica_r.ServerPosition;
 import cn.net.rms.syncmatica_r.litematica.LitematicManager;
 import cn.net.rms.syncmatica_r.litematica.ScreenHelper;
+import cn.net.rms.syncmatica_r.schematic.Schema;
+import cn.net.rms.syncmatica_r.schematic.SchematicPeek;
 import com.google.common.collect.ImmutableList;
 import fi.dy.masa.litematica.gui.Icons;
 import fi.dy.masa.malilib.gui.GuiBase;
@@ -126,7 +128,7 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
         final int textColor = 0xC0C0C0C0;
         final int valueColor = 0xFFFFFFFF;
 
-        String str = StringUtils.translate("syncmatica_r.gui.label.placement_info.file_name");
+        String str = StringUtils.translate("syncmatica_r.gui.label.placement_info.display_name");
 //#if MC >= 12111
 //$$         drawString(guiContext, str, x, y, textColor);
 //#elseif MC >= 12001
@@ -141,6 +143,24 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
 //$$         drawString(drawContext, placement.getName(), x + 4, y, valueColor);
 //#else
         drawString(matrixStack, placement.getName(), x + 4, y, valueColor);
+//#endif
+        y += 12;
+
+        str = StringUtils.translate("syncmatica_r.gui.label.placement_info.file_name");
+//#if MC >= 12111
+//$$         drawString(guiContext, str, x, y, textColor);
+//#elseif MC >= 12001
+//$$         drawString(drawContext, str, x, y, textColor);
+//#else
+        drawString(matrixStack, str, x, y, textColor);
+//#endif
+        y += 12;
+//#if MC >= 12111
+//$$         drawString(guiContext, placement.getFileName(), x + 4, y, valueColor);
+//#elseif MC >= 12001
+//$$         drawString(drawContext, placement.getFileName(), x + 4, y, valueColor);
+//#else
+        drawString(matrixStack, placement.getFileName(), x + 4, y, valueColor);
 //#endif
         y += 12;
 
@@ -254,6 +274,32 @@ public class WidgetListSyncmaticaServerPlacement extends WidgetListBase<ServerPl
 //#else
         drawString(matrixStack, lastEdited, x + 4, y, valueColor);
 //#endif
+
+        final int litematicVersion = placement.getLitematicVersion();
+        final int dataVersion = placement.getDataVersion();
+        if (litematicVersion > SchematicPeek.UNKNOWN_VERSION && dataVersion > SchematicPeek.UNKNOWN_VERSION) {
+            y += 12;
+            str = StringUtils.translate("syncmatica_r.gui.label.placement_info.version", litematicVersion);
+//#if MC >= 12111
+//$$             drawString(guiContext, str, x, y, textColor);
+//#elseif MC >= 12001
+//$$             drawString(drawContext, str, x, y, textColor);
+//#else
+            drawString(matrixStack, str, x, y, textColor);
+//#endif
+            final String schemaName = Schema.getVersionString(dataVersion);
+            if (schemaName != null) {
+                y += 12;
+                str = StringUtils.translate("syncmatica_r.gui.label.placement_info.schema", schemaName, dataVersion);
+//#if MC >= 12111
+//$$                 drawString(guiContext, str, x, y, textColor);
+//#elseif MC >= 12001
+//$$                 drawString(drawContext, str, x, y, textColor);
+//#else
+                drawString(matrixStack, str, x, y, textColor);
+//#endif
+            }
+        }
     }
 
     @Override

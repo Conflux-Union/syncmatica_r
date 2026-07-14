@@ -7,6 +7,8 @@ import cn.net.rms.syncmatica_r.extended_core.SubRegionPlacementModification;
 import cn.net.rms.syncmatica_r.litematica.MovingFinisher;
 import cn.net.rms.syncmatica_r.litematica_mixin.MixinSchematicPlacementManager;
 import cn.net.rms.syncmatica_r.litematica_mixin.MixinSubregionPlacement;
+import cn.net.rms.syncmatica_r.schematic.SchematicPeek;
+import cn.net.rms.syncmatica_r.schematic.SchematicPeeker;
 import fi.dy.masa.litematica.data.DataManager;
 import fi.dy.masa.litematica.data.SchematicHolder;
 import fi.dy.masa.litematica.schematic.LitematicaSchematic;
@@ -154,6 +156,13 @@ public class LitematicManager {
 //#endif
 
             final ServerPlacement placement = new ServerPlacement(UUID.randomUUID(), placementFile, owner);
+            final SchematicPeek peek = SchematicPeeker.peek(placementFile);
+            if (peek != null) {
+                if (peek.hasName()) {
+                    placement.setDisplayName(peek.getName());
+                }
+                placement.setVersion(peek.getLitematicVersion(), peek.getDataVersion());
+            }
 
             final String dimension = getPlayerDimension();
             placement.move(dimension, schem.getOrigin(), schem.getRotation(), schem.getMirror());
