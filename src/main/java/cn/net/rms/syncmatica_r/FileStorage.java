@@ -5,11 +5,15 @@ import cn.net.rms.syncmatica_r.util.SyncmaticaUtil;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Map;
 import java.util.UUID;
 import java.util.WeakHashMap;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class FileStorage implements IFileStorage {
+    private static final Logger LOGGER = LogManager.getLogger(FileStorage.class);
 
     private final Map<ServerPlacement, Long> buffer = new WeakHashMap<>();
     private Context context = null;
@@ -61,12 +65,16 @@ public class FileStorage implements IFileStorage {
         }
         final File file = getSchematicPath(placement);
         if (file.exists()) {
-            file.delete();
+            if (!file.delete()) {
+                throw new IllegalStateException("Failed to replace litematic file " + file.getAbsolutePath());
+            }
         }
         try {
-            file.createNewFile();
+            if (!file.createNewFile()) {
+                throw new IOException("Failed to create litematic file " + file.getAbsolutePath());
+            }
         } catch (final IOException e) {
-            e.printStackTrace();
+            throw new IllegalStateException("Failed to create litematic file " + file.getAbsolutePath(), e);
         }
         return file;
     }
@@ -95,6 +103,30 @@ public class FileStorage implements IFileStorage {
         if (context.isServer()) {
             return new File(litematicPath, placement.getHash().toString() + ".litematic");
         }
-        return new File(litematicPath, placement.getName() + ".litematic");
+        final File preferred = new File(litematicPath, placement.getId().toString() + ".litematic");
+        if (preferred.exists()) {
+            return preferred;
+        }
+        final String legacyName = SyncmaticaUtil.sanitizeFileName(placement.getName());
+        final File legacy = new File(litematicPath, legacyName + ".litematic");
+        if (!legacy.isFile() || !placement.getHash().equals(checksum(legacy))) {
+            return preferred;
+        }
+        try {
+            Files.move(legacy.toPath(), preferred.toPath());
+            return preferred;
+        } catch (final IOException exception) {
+            LOGGER.warn("Failed to migrate legacy litematic file {}", legacy.getAbsolutePath(), exception);
+            return legacy;
+        }
+    }
+
+    private UUID checksum(final File file) {
+        try {
+            return SyncmaticaUtil.createChecksum(new FileInputStream(file));
+        } catch (final Exception exception) {
+            LOGGER.warn("Failed to checksum litematic file {}", file.getAbsolutePath(), exception);
+            return null;
+        }
     }
 }

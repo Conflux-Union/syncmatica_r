@@ -4,6 +4,7 @@ import cn.net.rms.syncmatica_r.Context;
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
 import cn.net.rms.syncmatica_r.communication.FeatureSet;
 import cn.net.rms.syncmatica_r.communication.PacketType;
+import cn.net.rms.syncmatica_r.communication.ProtocolLimits;
 import cn.net.rms.syncmatica_r.communication.exchange.AbstractExchange;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.PacketByteBuf;
@@ -28,7 +29,7 @@ public abstract class FeatureExchange extends AbstractExchange {
         if (type == PacketType.FEATURE_REQUEST) {
             sendFeatures();
         } else if (type == PacketType.FEATURE) {
-            final FeatureSet fs = FeatureSet.fromString(packetBuf.readString(32767));
+            final FeatureSet fs = FeatureSet.fromString(packetBuf.readString(ProtocolLimits.MAX_FEATURE_STRING_LENGTH));
             getPartner().setFeatureSet(fs);
             onFeatureSetReceive();
         }
@@ -45,7 +46,7 @@ public abstract class FeatureExchange extends AbstractExchange {
     private void sendFeatures() {
         final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
         final FeatureSet fs = getContext().getFeatureSet();
-        buf.writeString(fs.toString(), 32767);
+        buf.writeString(fs.toString(), ProtocolLimits.MAX_FEATURE_STRING_LENGTH);
         getPartner().sendPacket(PacketType.FEATURE.toIdentifier(getPartner().getProtocolFlavor()), buf, getContext());
     }
 }

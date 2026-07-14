@@ -24,8 +24,11 @@ import java.io.File;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public abstract class CommunicationManager {
+    private static final Logger LOGGER = LogManager.getLogger(CommunicationManager.class);
     protected static final BlockRotation[] rotOrdinals = BlockRotation.values();
     protected static final BlockMirror[] mirOrdinals = BlockMirror.values();
     protected final Collection<ExchangeTarget> broadcastTargets;
@@ -44,22 +47,34 @@ public abstract class CommunicationManager {
     }
 
     public void onPacket(final ExchangeTarget source, final Identifier id, final PacketByteBuf packetBuf) {
+        if (source == null || id == null || packetBuf == null || !handlePacket(id)) {
+            return;
+        }
+        if (packetBuf.readableBytes() > ProtocolLimits.MAX_PACKET_BYTES) {
+            LOGGER.debug("Rejected oversized Syncmatica_r packet {} with {} bytes", id, packetBuf.readableBytes());
+            return;
+        }
         context.getDebugService().logReceivePacket(id);
-        Exchange handler = null;
-        final Collection<Exchange> potentialMessageTarget = source.getExchanges();
-        if (potentialMessageTarget != null) {
-            for (final Exchange target : potentialMessageTarget) {
-                if (target.checkPacket(id, packetBuf)) {
-                    target.handle(id, packetBuf);
-                    handler = target;
-                    break;
+        try {
+            Exchange handler = null;
+            final Collection<Exchange> potentialMessageTarget = source.getExchanges();
+            if (potentialMessageTarget != null) {
+                for (final Exchange target : potentialMessageTarget) {
+                    if (target.checkPacket(id, packetBuf)) {
+                        target.handle(id, packetBuf);
+                        target.markActivity();
+                        handler = target;
+                        break;
+                    }
                 }
             }
-        }
-        if (handler == null) {
-            handle(source, id, packetBuf);
-        } else if (handler.isFinished()) {
-            notifyClose(handler);
+            if (handler == null) {
+                handle(source, id, packetBuf);
+            } else if (handler.isFinished()) {
+                notifyClose(handler);
+            }
+        } catch (final RuntimeException exception) {
+            LOGGER.debug("Rejected malformed Syncmatica_r packet {} from {}", id, source.getPersistentName(), exception);
         }
     }
 
@@ -76,15 +91,15 @@ public abstract class CommunicationManager {
     public void putMetaData(final ServerPlacement metaData, final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
         buf.writeUuid(metaData.getId());
 
-        buf.writeString(SyncmaticaUtil.sanitizeFileName(metaData.getName()));
+        buf.writeString(SyncmaticaUtil.sanitizeFileName(metaData.getName()), ProtocolLimits.MAX_FILE_NAME_LENGTH);
         buf.writeUuid(metaData.getHash());
 
         final FeatureSet targetFeatures = exchangeTarget.getFeatureSet();
         if (targetFeatures != null && targetFeatures.hasFeature(Feature.CORE_EX)) {
             buf.writeUuid(metaData.getOwner().uuid);
-            buf.writeString(metaData.getOwner().getName());
+            buf.writeString(metaData.getOwner().getName(), ProtocolLimits.MAX_PLAYER_NAME_LENGTH);
             buf.writeUuid(metaData.getLastModifiedBy().uuid);
-            buf.writeString(metaData.getLastModifiedBy().getName());
+            buf.writeString(metaData.getLastModifiedBy().getName(), ProtocolLimits.MAX_PLAYER_NAME_LENGTH);
             if (supportsTimestamps(exchangeTarget)) {
                 buf.writeLong(metaData.getCreatedAtMillis());
                 buf.writeLong(metaData.getLastModifiedAtMillis());
@@ -97,7 +112,7 @@ public abstract class CommunicationManager {
 
     public void putPositionData(final ServerPlacement metaData, final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
         buf.writeBlockPos(metaData.getPosition());
-        buf.writeString(metaData.getDimension());
+        buf.writeString(metaData.getDimension(), ProtocolLimits.MAX_DIMENSION_ID_LENGTH);
 
         buf.writeInt(metaData.getRotation().ordinal());
         buf.writeInt(metaData.getMirror().ordinal());
@@ -111,10 +126,15 @@ public abstract class CommunicationManager {
             }
 
             final Collection<SubRegionPlacementModification> regionData = metaData.getSubRegionData().getModificationData().values();
-            buf.writeInt(regionData.size());
+            final int regionCount = Math.min(regionData.size(), ProtocolLimits.MAX_SUBREGIONS);
+            buf.writeInt(regionCount);
 
+            int written = 0;
             for (final SubRegionPlacementModification subPlacement : regionData) {
-                buf.writeString(subPlacement.name);
+                if (written++ >= regionCount) {
+                    break;
+                }
+                buf.writeString(subPlacement.name, ProtocolLimits.MAX_SUBREGION_NAME_LENGTH);
                 buf.writeBlockPos(subPlacement.position);
                 buf.writeInt(subPlacement.rotation.ordinal());
                 buf.writeInt(subPlacement.mirror.ordinal());
@@ -129,7 +149,10 @@ public abstract class CommunicationManager {
     public ServerPlacement receiveMetaData(final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
         final UUID id = buf.readUuid();
 
-        final String fileName = SyncmaticaUtil.sanitizeFileName(buf.readString(32767));
+        final String fileName = SyncmaticaUtil.sanitizeFileName(buf.readString(ProtocolLimits.MAX_FILE_NAME_LENGTH));
+        if (fileName.isEmpty()) {
+            throw new IllegalArgumentException("Placement file name is empty");
+        }
         final UUID hash = buf.readUuid();
 
         PlayerIdentifier owner = PlayerIdentifier.MISSING_PLAYER;
@@ -139,15 +162,15 @@ public abstract class CommunicationManager {
         final boolean hasTimestamps = hasCoreEx && supportsTimestamps(exchangeTarget);
 
         if (hasCoreEx) {
-            final PlayerIdentifierProvider provider = context.getPlayerIdentifierProvider();
-            owner = provider.createOrGet(
-                    buf.readUuid(),
-                    buf.readString(32767)
-            );
-            lastModifiedBy = provider.createOrGet(
-                    buf.readUuid(),
-                    buf.readString(32767)
-            );
+            final UUID ownerId = buf.readUuid();
+            final String ownerName = buf.readString(ProtocolLimits.MAX_PLAYER_NAME_LENGTH);
+            final UUID modifierId = buf.readUuid();
+            final String modifierName = buf.readString(ProtocolLimits.MAX_PLAYER_NAME_LENGTH);
+            if (!context.isServer()) {
+                final PlayerIdentifierProvider provider = context.getPlayerIdentifierProvider();
+                owner = provider.createOrGet(ownerId, ownerName);
+                lastModifiedBy = provider.createOrGet(modifierId, modifierName);
+            }
         }
 
         final ServerPlacement placement = new ServerPlacement(id, fileName, hash, owner);
@@ -164,38 +187,59 @@ public abstract class CommunicationManager {
     }
 
     public void receivePositionData(final ServerPlacement placement, final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
+        applyPositionData(placement, readPositionData(buf, exchangeTarget));
+    }
+
+    public void receiveModificationData(final ServerPlacement placement, final PacketByteBuf buf,
+                                        final ExchangeTarget exchangeTarget) {
+        final PositionData positionData = readPositionData(buf, exchangeTarget);
+        receiveMaterialProgress(placement, buf, exchangeTarget);
+        if (context.isServer() && buf.isReadable()) {
+            throw new IllegalArgumentException("Unexpected trailing modification data");
+        }
+        applyPositionData(placement, positionData);
+    }
+
+    private PositionData readPositionData(final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
 
         final BlockPos pos = buf.readBlockPos();
-        final String dimensionId = buf.readString(32767);
-        final BlockRotation rot = rotOrdinals[buf.readInt()];
-        final BlockMirror mir = mirOrdinals[buf.readInt()];
+        final String dimensionId = buf.readString(ProtocolLimits.MAX_DIMENSION_ID_LENGTH);
+        final BlockRotation rot = rotOrdinals[ProtocolLimits.requireIndex(buf.readInt(), rotOrdinals.length, "rotation")];
+        final BlockMirror mir = mirOrdinals[ProtocolLimits.requireIndex(buf.readInt(), mirOrdinals.length, "mirror")];
 
-        if (placement != null) {
-            placement.move(dimensionId, pos, rot, mir);
+        final FeatureSet featureSet = exchangeTarget.getFeatureSet();
+        final boolean hasSubRegionData = featureSet != null && featureSet.hasFeature(Feature.CORE_EX);
+        final List<SubRegionPlacementModification> modifications = new ArrayList<>();
+        if (hasSubRegionData) {
+
+            final int limit = ProtocolLimits.requireCount(buf.readInt(), ProtocolLimits.MAX_SUBREGIONS, "subregion count");
+            for (int i = 0; i < limit; i++) {
+                modifications.add(new SubRegionPlacementModification(
+                        buf.readString(ProtocolLimits.MAX_SUBREGION_NAME_LENGTH),
+                        buf.readBlockPos(),
+                        rotOrdinals[ProtocolLimits.requireIndex(buf.readInt(), rotOrdinals.length, "subregion rotation")],
+                        mirOrdinals[ProtocolLimits.requireIndex(buf.readInt(), mirOrdinals.length, "subregion mirror")]
+                ));
+            }
         }
+        return new PositionData(pos, dimensionId, rot, mir, modifications, hasSubRegionData);
+    }
 
-        if (exchangeTarget.getFeatureSet().hasFeature(Feature.CORE_EX)) {
-
-            final int limit = buf.readInt();
-            if (placement != null) {
-                final SubRegionData subRegionData = placement.getSubRegionData();
-                subRegionData.reset();
-                for (int i = 0; i < limit; i++) {
-                    subRegionData.modify(
-                            buf.readString(32767),
-                            buf.readBlockPos(),
-                            rotOrdinals[buf.readInt()],
-                            mirOrdinals[buf.readInt()]
-                    );
-                }
-            } else {
-                for (int i = 0; i < limit; i++) {
-
-                    buf.readString(32767);
-                    buf.readBlockPos();
-                    buf.readInt();
-                    buf.readInt();
-                }
+    private void applyPositionData(final ServerPlacement placement, final PositionData positionData) {
+        if (placement == null) {
+            return;
+        }
+        placement.move(
+                positionData.dimensionId,
+                positionData.position,
+                positionData.rotation,
+                positionData.mirror
+        );
+        if (positionData.hasSubRegionData) {
+            final SubRegionData subRegionData = placement.getSubRegionData();
+            subRegionData.reset();
+            for (final SubRegionPlacementModification modification : positionData.modifications) {
+                subRegionData.modify(modification);
             }
         }
     }
@@ -213,36 +257,46 @@ public abstract class CommunicationManager {
                 && context.getMaterialService() != null
                 && context.getMaterialService().isEnabled();
         final Collection<MaterialProgressEntry> entries = canSend ? placement.getMaterialProgress().getEntries() : Collections.emptyList();
-        buf.writeInt(entries.size());
+        final int entryCount = Math.min(entries.size(), ProtocolLimits.MAX_MATERIAL_ENTRIES);
+        buf.writeInt(entryCount);
         if (!canSend) {
             return;
         }
+        int written = 0;
         for (final MaterialProgressEntry entry : entries) {
-            buf.writeString(entry.getKey().itemId().toString());
-            buf.writeString(entry.getKey().variant());
+            if (written++ >= entryCount) {
+                break;
+            }
+            buf.writeString(entry.getKey().itemId().toString(), ProtocolLimits.MAX_ITEM_ID_LENGTH);
+            buf.writeString(entry.getKey().variant(), ProtocolLimits.MAX_VARIANT_LENGTH);
             buf.writeInt(entry.getRequiredAmount());
             buf.writeInt(entry.getStockingSupplied());
             if (sendClaims) {
                 final java.util.Collection<cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier> claimers = entry.getClaimants();
-                buf.writeInt(claimers.size());
+                final int claimantCount = Math.min(claimers.size(), ProtocolLimits.MAX_CLAIMANTS_PER_MATERIAL);
+                buf.writeInt(claimantCount);
+                int claimantsWritten = 0;
                 for (final cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier p : claimers) {
+                    if (claimantsWritten++ >= claimantCount) {
+                        break;
+                    }
                     buf.writeUuid(p.uuid);
-                    buf.writeString(p.getName());
+                    buf.writeString(p.getName(), ProtocolLimits.MAX_PLAYER_NAME_LENGTH);
                 }
             }
         }
     }
 
     private void skipMaterialEntry(final PacketByteBuf buf, final boolean readClaims) {
-        buf.readString(32767);
-        buf.readString(32767);
+        buf.readString(ProtocolLimits.MAX_ITEM_ID_LENGTH);
+        buf.readString(ProtocolLimits.MAX_VARIANT_LENGTH);
         buf.readInt();
         buf.readInt();
         if (readClaims) {
-            final int claimantCount = buf.readInt();
+            final int claimantCount = ProtocolLimits.requireCount(buf.readInt(), ProtocolLimits.MAX_CLAIMANTS_PER_MATERIAL, "claimant count");
             for (int i = 0; i < claimantCount; i++) {
                 buf.readUuid();
-                buf.readString(32767);
+                buf.readString(ProtocolLimits.MAX_PLAYER_NAME_LENGTH);
             }
         }
     }
@@ -262,7 +316,7 @@ public abstract class CommunicationManager {
             }
             return;
         }
-        final int total = buf.readInt();
+        final int total = ProtocolLimits.requireCount(buf.readInt(), ProtocolLimits.MAX_MATERIAL_ENTRIES, "material count");
         if (total <= 0) {
             if (!context.isServer() && placement != null) {
                 placement.getMaterialProgress().clear();
@@ -286,20 +340,20 @@ public abstract class CommunicationManager {
         final MaterialProgressState snapshot = new MaterialProgressState();
         for (int i = 0; i < total; i++) {
 //#if MC >= 12005
-//$$             final MaterialKey key = new MaterialKey(Identifier.of(buf.readString(32767)), buf.readString(32767));
+//$$             final MaterialKey key = new MaterialKey(Identifier.of(buf.readString(ProtocolLimits.MAX_ITEM_ID_LENGTH)), buf.readString(ProtocolLimits.MAX_VARIANT_LENGTH));
 //#else
-            final MaterialKey key = new MaterialKey(new Identifier(buf.readString(32767)), buf.readString(32767));
+            final MaterialKey key = new MaterialKey(new Identifier(buf.readString(ProtocolLimits.MAX_ITEM_ID_LENGTH)), buf.readString(ProtocolLimits.MAX_VARIANT_LENGTH));
 //#endif
             final int required = buf.readInt();
             final MaterialProgressEntry entry = snapshot.getOrCreate(key, required);
             entry.setStockingSupplied(buf.readInt());
             if (readClaims) {
                 entry.clearClaimants();
-                final int cc = buf.readInt();
+                final int cc = ProtocolLimits.requireCount(buf.readInt(), ProtocolLimits.MAX_CLAIMANTS_PER_MATERIAL, "claimant count");
                 final cn.net.rms.syncmatica_r.extended_core.PlayerIdentifierProvider provider = context.getPlayerIdentifierProvider();
                 for (int c = 0; c < cc; c++) {
                     final java.util.UUID id = buf.readUuid();
-                    final String name = buf.readString(32767);
+                    final String name = buf.readString(ProtocolLimits.MAX_PLAYER_NAME_LENGTH);
                     entry.addClaimer(provider.createOrGet(id, name));
                 }
             }
@@ -323,7 +377,11 @@ public abstract class CommunicationManager {
     }
 
     public void setDownloadState(final ServerPlacement syncmatic, final boolean b) {
-        downloadState.put(syncmatic.getHash(), b);
+        if (b) {
+            downloadState.put(syncmatic.getHash(), true);
+        } else {
+            downloadState.remove(syncmatic.getHash());
+        }
     }
 
     public boolean getDownloadState(final ServerPlacement syncmatic) {
@@ -331,11 +389,18 @@ public abstract class CommunicationManager {
     }
 
     public void setModifier(final ServerPlacement syncmatic, final Exchange exchange) {
-        modifyState.put(syncmatic.getHash(), exchange);
+        if (syncmatic == null) {
+            return;
+        }
+        if (exchange == null) {
+            modifyState.remove(syncmatic.getId());
+        } else {
+            modifyState.put(syncmatic.getId(), exchange);
+        }
     }
 
     public Exchange getModifier(final ServerPlacement syncmatic) {
-        return modifyState.get(syncmatic.getHash());
+        return syncmatic == null ? null : modifyState.get(syncmatic.getId());
     }
 
     public void startExchange(final Exchange newExchange) {
@@ -346,6 +411,11 @@ public abstract class CommunicationManager {
     }
 
     protected void startExchangeUnchecked(final Exchange newExchange) {
+        if (newExchange.getPartner().getExchanges().size() >= ProtocolLimits.MAX_ACTIVE_EXCHANGES) {
+            newExchange.close(true);
+            handleExchange(newExchange);
+            return;
+        }
         newExchange.getPartner().getExchanges().add(newExchange);
         newExchange.init();
         if (newExchange.isFinished()) {
@@ -366,6 +436,30 @@ public abstract class CommunicationManager {
         handleExchange(e);
     }
 
+    public void tick() {
+        final long now = System.currentTimeMillis();
+        for (final ExchangeTarget target : new ArrayList<>(getTickTargets())) {
+            final Collection<Exchange> exchanges = target.getExchanges();
+            if (exchanges == null || exchanges.isEmpty()) {
+                continue;
+            }
+            final List<Exchange> expired = new ArrayList<>();
+            for (final Exchange exchange : exchanges) {
+                if (exchange.isTimedOut(now)) {
+                    expired.add(exchange);
+                }
+            }
+            for (final Exchange exchange : expired) {
+                exchange.close(true);
+                notifyClose(exchange);
+            }
+        }
+    }
+
+    protected Collection<ExchangeTarget> getTickTargets() {
+        return broadcastTargets;
+    }
+
     protected boolean supportsTimestamps(final ExchangeTarget exchangeTarget) {
         final FeatureSet localFeatures = context != null ? context.getFeatureSet() : null;
         final FeatureSet partnerFeatures = exchangeTarget.getFeatureSet();
@@ -373,5 +467,26 @@ public abstract class CommunicationManager {
                 && partnerFeatures != null
                 && localFeatures.hasFeature(Feature.TIMESTAMPS)
                 && partnerFeatures.hasFeature(Feature.TIMESTAMPS);
+    }
+
+    private static final class PositionData {
+        private final BlockPos position;
+        private final String dimensionId;
+        private final BlockRotation rotation;
+        private final BlockMirror mirror;
+        private final List<SubRegionPlacementModification> modifications;
+        private final boolean hasSubRegionData;
+
+        private PositionData(final BlockPos position, final String dimensionId,
+                             final BlockRotation rotation, final BlockMirror mirror,
+                             final List<SubRegionPlacementModification> modifications,
+                             final boolean hasSubRegionData) {
+            this.position = position;
+            this.dimensionId = dimensionId;
+            this.rotation = rotation;
+            this.mirror = mirror;
+            this.modifications = modifications;
+            this.hasSubRegionData = hasSubRegionData;
+        }
     }
 }

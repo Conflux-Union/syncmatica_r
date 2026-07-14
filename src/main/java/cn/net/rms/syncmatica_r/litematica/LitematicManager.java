@@ -89,7 +89,13 @@ public class LitematicManager {
 
         final BlockPos origin = placement.getPosition();
 
-        final SchematicPlacement litematicaPlacement = SchematicPlacement.createFor(schematic, origin, file.getName(), true, true);
+        final SchematicPlacement litematicaPlacement = SchematicPlacement.createFor(
+                schematic,
+                origin,
+                placement.getName(),
+                true,
+                true
+        );
         rendering.put(placement, litematicaPlacement);
         ((IIDContainer) litematicaPlacement).setServerId(placement.getId());
         if (litematicaPlacement.isLocked()) {

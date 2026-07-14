@@ -8,6 +8,7 @@ import cn.net.rms.syncmatica_r.communication.MessageType;
 import cn.net.rms.syncmatica_r.communication.exchange.FeatureExchange;
 import cn.net.rms.syncmatica_r.communication.exchange.ShareLitematicExchange;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
+import cn.net.rms.syncmatica_r.util.IdentifierUtil;
 import cn.net.rms.syncmatica_r.util.SyncmaticaUtil;
 import com.mojang.authlib.GameProfile;
 import io.netty.buffer.Unpooled;
@@ -21,19 +22,20 @@ import net.minecraft.text.LiteralText;
 //#endif
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
+import me.lucko.fabric.api.permissions.v0.Permissions;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.*;
 
 public class ServerCommunicationManager extends CommunicationManager {
 
     private static final Logger LOGGER = LogManager.getLogger(ServerCommunicationManager.class);
 
-    private final Map<UUID, List<ServerPlacement>> downloadingFile = new HashMap<>();
+    private final Map<UUID, List<PendingShare>> downloadingFile = new HashMap<>();
     private final Map<ExchangeTarget, ServerPlayerEntity> playerMap = new HashMap<>();
 
     public ServerCommunicationManager() {
@@ -54,15 +56,16 @@ public class ServerCommunicationManager extends CommunicationManager {
     }
 
     public GameProfile getGameProfile(final ExchangeTarget exchangeTarget) {
-        return playerMap.get(exchangeTarget).getGameProfile();
+        final ServerPlayerEntity player = playerMap.get(exchangeTarget);
+        return player == null ? null : player.getGameProfile();
     }
 
     public void sendMessage(final ExchangeTarget client, final MessageType type, final String identifier) {
         final FeatureSet featureSet = client.getFeatureSet();
         if (featureSet != null && featureSet.hasFeature(Feature.MESSAGE)) {
             final PacketByteBuf newPacketBuf = new PacketByteBuf(Unpooled.buffer());
-            newPacketBuf.writeString(type.toString());
-            newPacketBuf.writeString(identifier);
+            newPacketBuf.writeString(type.toString(), 32);
+            newPacketBuf.writeString(identifier, ProtocolLimits.MAX_MESSAGE_LENGTH);
             client.sendPacket(PacketType.MESSAGE.toIdentifier(client.getProtocolFlavor()), newPacketBuf, context);
         } else if (playerMap.containsKey(client)) {
             final ServerPlayerEntity player = playerMap.get(client);
@@ -81,16 +84,13 @@ public class ServerCommunicationManager extends CommunicationManager {
     public void onPlayerLeave(final ExchangeTarget oldPlayer) {
         final Collection<Exchange> potentialMessageTarget = oldPlayer.getExchanges();
         if (potentialMessageTarget != null) {
-            for (final Exchange target : potentialMessageTarget) {
+            for (final Exchange target : new ArrayList<>(potentialMessageTarget)) {
                 target.close(false);
-                handleExchange(target);
+                notifyClose(target);
             }
         }
         broadcastTargets.remove(oldPlayer);
         playerMap.remove(oldPlayer);
-        if (context != null && context.getQuotaService() != null) {
-            context.getQuotaService().clearProgressFor(oldPlayer);
-        }
     }
 
     @Override
@@ -100,6 +100,9 @@ public class ServerCommunicationManager extends CommunicationManager {
             return;
         }
         final PacketType type = PacketType.fromIdentifier(id);
+        if (type == null || !broadcastTargets.contains(source)) {
+            return;
+        }
         if (type == PacketType.REQUEST_LITEMATIC) {
             final UUID syncmaticaId = packetBuf.readUuid();
             final ServerPlacement placement = context.getSyncmaticManager().getPlacement(syncmaticaId);
@@ -110,7 +113,7 @@ public class ServerCommunicationManager extends CommunicationManager {
             final UploadExchange upload;
             try {
                 upload = new UploadExchange(placement, toUpload, source, context);
-            } catch (final FileNotFoundException e) {
+            } catch (final IOException e) {
 
                 e.printStackTrace();
                 return;
@@ -119,6 +122,14 @@ public class ServerCommunicationManager extends CommunicationManager {
             return;
         }
         if (type == PacketType.REGISTER_METADATA) {
+            if (!canShare(source)) {
+                sendMessage(source, MessageType.ERROR, "syncmatica_r.error.permission_denied");
+                return;
+            }
+            if (context.getSyncmaticManager().getAll().size() >= ProtocolLimits.MAX_SERVER_PLACEMENTS) {
+                sendMessage(source, MessageType.ERROR, "syncmatica_r.error.too_many_placements");
+                return;
+            }
             final ServerPlacement placement = receiveMetaData(packetBuf, source);
             if (context.getSyncmaticManager().getPlacement(placement.getId()) != null) {
                 cancelShare(source, placement);
@@ -128,21 +139,32 @@ public class ServerCommunicationManager extends CommunicationManager {
 
             final GameProfile profile = playerMap.get(source).getGameProfile();
             final PlayerIdentifier playerIdentifier = context.getPlayerIdentifierProvider().createOrGet(profile);
-            if (!placement.getOwner().equals(playerIdentifier)) {
-                placement.setOwner(playerIdentifier);
-                placement.setLastModifiedBy(playerIdentifier);
-            }
+            placement.setOwner(playerIdentifier);
+            placement.setLastModifiedBy(playerIdentifier);
+            final long now = System.currentTimeMillis();
+            placement.setCreatedAtMillis(now);
+            placement.setLastModifiedAtMillis(now);
 
-            if (!context.getFileStorage().getLocalState(placement).isLocalFileReady()) {
+            final LocalLitematicState localState = context.getFileStorage().getLocalState(placement);
+            if (!localState.isLocalFileReady()) {
 
-                if (context.getFileStorage().getLocalState(placement) == LocalLitematicState.DOWNLOADING_LITEMATIC) {
-                    downloadingFile.computeIfAbsent(placement.getHash(), key -> new ArrayList<>()).add(placement);
+                if (localState == LocalLitematicState.DOWNLOADING_LITEMATIC) {
+                    final List<PendingShare> pending = downloadingFile.computeIfAbsent(
+                            placement.getHash(),
+                            key -> new ArrayList<>()
+                    );
+                    if (pending.size() >= ProtocolLimits.MAX_ACTIVE_EXCHANGES) {
+                        cancelShare(source, placement);
+                        return;
+                    }
+                    pending.add(new PendingShare(source, placement));
                     return;
                 }
                 try {
                     download(placement, source);
                 } catch (final Exception e) {
-                    e.printStackTrace();
+                    LOGGER.warn("Failed to start litematic download from {}", source.getPersistentName(), e);
+                    cancelShare(source, placement);
                 }
 
                 return;
@@ -155,41 +177,56 @@ public class ServerCommunicationManager extends CommunicationManager {
         if (type == PacketType.REMOVE_SYNCMATIC) {
             final UUID placementId = packetBuf.readUuid();
             final ServerPlacement placement = context.getSyncmaticManager().getPlacement(placementId);
-                if (placement != null) {
-                    final Exchange modifier = getModifier(placement);
-                    if (modifier != null) {
-                        modifier.close(true);
-                        notifyClose(modifier);
-                    }
-                    context.getSyncmaticManager().removePlacement(placement);
-                    for (final ExchangeTarget client : broadcastTargets) {
-                        final PacketByteBuf newPacketBuf = new PacketByteBuf(Unpooled.buffer());
-                        newPacketBuf.writeUuid(placement.getId());
-                        client.sendPacket(PacketType.REMOVE_SYNCMATIC.toIdentifier(client.getProtocolFlavor()), newPacketBuf, context);
-                    }
+            if (placement != null && canManage(source, placement)) {
+                final Exchange modifier = getModifier(placement);
+                if (modifier != null) {
+                    modifier.close(true);
+                    notifyClose(modifier);
                 }
+                context.getSyncmaticManager().removePlacement(placement);
+                for (final ExchangeTarget client : broadcastTargets) {
+                    final PacketByteBuf newPacketBuf = new PacketByteBuf(Unpooled.buffer());
+                    newPacketBuf.writeUuid(placement.getId());
+                    client.sendPacket(PacketType.REMOVE_SYNCMATIC.toIdentifier(client.getProtocolFlavor()), newPacketBuf, context);
+                }
+            } else if (placement != null) {
+                sendMessage(source, MessageType.ERROR, "syncmatica_r.error.permission_denied");
+            }
+            return;
         }
         if (type == PacketType.MODIFY_REQUEST) {
             final UUID placementId = packetBuf.readUuid();
+            final ServerPlacement placement = context.getSyncmaticManager().getPlacement(placementId);
+            if (placement == null || !canManage(source, placement)) {
+                sendMessage(source, MessageType.ERROR, "syncmatica_r.error.permission_denied");
+                denyModification(source, placementId);
+                return;
+            }
             final ModifyExchangeServer modifier = new ModifyExchangeServer(placementId, source, context);
             startExchange(modifier);
+            return;
         }
         if (type == PacketType.MATERIAL_CLAIM_TOGGLE) {
             final UUID placementId = packetBuf.readUuid();
-            final String itemId = packetBuf.readString(32767);
-            final String variant = packetBuf.readString(32767);
+            final String itemId = packetBuf.readString(ProtocolLimits.MAX_ITEM_ID_LENGTH);
+            final String variant = packetBuf.readString(ProtocolLimits.MAX_VARIANT_LENGTH);
             final ServerPlacement placement = context.getSyncmaticManager().getPlacement(placementId);
-            if (placement == null) {
+            if (placement == null || context.getMaterialService() == null || !context.getMaterialService().isEnabled()) {
                 return;
             }
-//#if MC >= 12005
-//$$             final cn.net.rms.syncmatica_r.material.MaterialKey key = new cn.net.rms.syncmatica_r.material.MaterialKey(net.minecraft.util.Identifier.of(itemId), variant);
-//#else
-            final cn.net.rms.syncmatica_r.material.MaterialKey key = new cn.net.rms.syncmatica_r.material.MaterialKey(new net.minecraft.util.Identifier(itemId), variant);
-//#endif
-            final cn.net.rms.syncmatica_r.material.MaterialProgressEntry entry = placement.getMaterialProgress().getOrCreate(key, 0);
             final net.minecraft.server.network.ServerPlayerEntity player = playerMap.get(source);
-            if (player == null) {
+            if (player == null || !Permissions.check(player, PlacementAccessPolicy.CLAIM_PERMISSION, true)) {
+                sendMessage(source, MessageType.ERROR, "syncmatica_r.error.permission_denied");
+                return;
+            }
+            final java.util.Optional<net.minecraft.util.Identifier> parsedItemId = IdentifierUtil.tryParse(itemId);
+            if (!parsedItemId.isPresent()) {
+                return;
+            }
+            final cn.net.rms.syncmatica_r.material.MaterialKey key =
+                    new cn.net.rms.syncmatica_r.material.MaterialKey(parsedItemId.get(), variant);
+            final cn.net.rms.syncmatica_r.material.MaterialProgressEntry entry = placement.getMaterialProgress().get(key);
+            if (entry == null || entry.getRequiredAmount() <= 0) {
                 return;
             }
             final cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier pid = context.getPlayerIdentifierProvider().createOrGet(player.getGameProfile());
@@ -211,6 +248,7 @@ public class ServerCommunicationManager extends CommunicationManager {
             placement.touchModified(System.currentTimeMillis());
             context.getSyncmaticManager().updateServerPlacement(placement);
             broadcastPlacementUpdate(placement);
+            return;
         }
     }
 
@@ -222,15 +260,15 @@ public class ServerCommunicationManager extends CommunicationManager {
             if (exchange.isSuccessful()) {
                 addPlacement(exchange.getPartner(), p);
                 if (downloadingFile.containsKey(p.getHash())) {
-                    for (final ServerPlacement placement : downloadingFile.get(p.getHash())) {
-                        addPlacement(exchange.getPartner(), placement);
+                    for (final PendingShare pending : downloadingFile.get(p.getHash())) {
+                        addPlacement(pending.source, pending.placement);
                     }
                 }
             } else {
                 cancelShare(exchange.getPartner(), p);
                 if (downloadingFile.containsKey(p.getHash())) {
-                    for (final ServerPlacement placement : downloadingFile.get(p.getHash())) {
-                        cancelShare(exchange.getPartner(), placement);
+                    for (final PendingShare pending : downloadingFile.get(p.getHash())) {
+                        cancelShare(pending.source, pending.placement);
                     }
                 }
             }
@@ -258,7 +296,7 @@ public class ServerCommunicationManager extends CommunicationManager {
                 putMaterialData(placement, buf, client);
                 if (clientFeatures.hasFeature(Feature.CORE_EX)) {
                     buf.writeUuid(placement.getLastModifiedBy().uuid);
-                    buf.writeString(placement.getLastModifiedBy().getName());
+                    buf.writeString(placement.getLastModifiedBy().getName(), ProtocolLimits.MAX_PLAYER_NAME_LENGTH);
                     if (supportsTimestamps(client)) {
                         buf.writeLong(placement.getLastModifiedAtMillis());
                     }
@@ -276,7 +314,8 @@ public class ServerCommunicationManager extends CommunicationManager {
     }
 
     private void addPlacement(final ExchangeTarget t, final ServerPlacement placement) {
-        if (context.getSyncmaticManager().getPlacement(placement.getId()) != null) {
+        if (context.getSyncmaticManager().getPlacement(placement.getId()) != null
+                || context.getSyncmaticManager().getAll().size() >= ProtocolLimits.MAX_SERVER_PLACEMENTS) {
             cancelShare(t, placement);
             return;
         }
@@ -284,7 +323,6 @@ public class ServerCommunicationManager extends CommunicationManager {
         for (final ExchangeTarget target : broadcastTargets) {
             sendMetaData(placement, target);
         }
-        broadcastPlacementUpdate(placement);
     }
 
     private void cancelShare(final ExchangeTarget source, final ServerPlacement placement) {
@@ -293,11 +331,51 @@ public class ServerCommunicationManager extends CommunicationManager {
         source.sendPacket(PacketType.CANCEL_SHARE.toIdentifier(source.getProtocolFlavor()), packetByteBuf, context);
     }
 
+    private void denyModification(final ExchangeTarget source, final UUID placementId) {
+        final PacketByteBuf packetByteBuf = new PacketByteBuf(Unpooled.buffer());
+        packetByteBuf.writeUuid(placementId);
+        source.sendPacket(PacketType.MODIFY_REQUEST_DENY.toIdentifier(source.getProtocolFlavor()), packetByteBuf, context);
+    }
+
+    private boolean canShare(final ExchangeTarget source) {
+        final ServerPlayerEntity player = playerMap.get(source);
+        return player != null && Permissions.check(player, PlacementAccessPolicy.SHARE_PERMISSION, true);
+    }
+
+    private boolean canManage(final ExchangeTarget source, final ServerPlacement placement) {
+        final ServerPlayerEntity player = playerMap.get(source);
+        if (player == null || placement == null || placement.getOwner() == null) {
+            return false;
+        }
+        final UUID playerId = SyncmaticaUtil.getProfileId(player.getGameProfile());
+        final boolean elevated = Permissions.check(
+                player,
+                PlacementAccessPolicy.MANAGE_PERMISSION,
+                PlacementAccessPolicy.MANAGE_PERMISSION_LEVEL
+        );
+        return PlacementAccessPolicy.canManage(playerId, placement.getOwner().uuid, elevated);
+    }
+
+    @Override
+    protected Collection<ExchangeTarget> getTickTargets() {
+        return playerMap.keySet();
+    }
+
     private void sendPlayerNotification(final ServerPlayerEntity player, final String message) {
 //#if MC >= 12001
 //$$         player.sendMessageToClient(Text.literal(message), false);
 //#else
         player.sendSystemMessage(new LiteralText(message), Util.NIL_UUID);
 //#endif
+    }
+
+    private static final class PendingShare {
+        private final ExchangeTarget source;
+        private final ServerPlacement placement;
+
+        private PendingShare(final ExchangeTarget source, final ServerPlacement placement) {
+            this.source = source;
+            this.placement = placement;
+        }
     }
 }

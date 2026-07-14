@@ -41,8 +41,16 @@ public class ExchangeTarget {
         persistentName = client.player.getUuidAsString();
     }
 
+    ExchangeTarget(final String persistentName) {
+        this.persistentName = persistentName;
+    }
+
     public void sendPacket(final Identifier id, final PacketByteBuf packetBuf, final Context context) {
         context.getDebugService().logSendPacket(id, persistentName);
+        if (packetBuf == null || packetBuf.readableBytes() > ProtocolLimits.MAX_PACKET_BYTES) {
+            LOGGER.warn("Refusing to send oversized Syncmatica_r packet {} to {}", id, persistentName);
+            return;
+        }
         try {
             if (server == null) {
 //#if MC >= 12005

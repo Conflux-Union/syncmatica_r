@@ -1,6 +1,7 @@
 package cn.net.rms.syncmatica_r.util;
 
 import cn.net.rms.syncmatica_r.material.MaterialKey;
+import cn.net.rms.syncmatica_r.communication.ProtocolLimits;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
@@ -29,7 +30,6 @@ import java.util.Optional;
  * Handles nested containers (shulker boxes, etc.) with depth limiting.
  */
 public final class InventoryScanner {
-    private static final int MAX_SHULKER_NESTING_DEPTH = 10;
     private static final Logger LOGGER = LogManager.getLogger(InventoryScanner.class);
 
     private InventoryScanner() {
@@ -66,7 +66,7 @@ public final class InventoryScanner {
 //#endif
 //$$                     final Identifier nestedItemId = Registries.ITEM.getId(item.getItem());
 //$$                     final MaterialKey nestedKey = new MaterialKey(nestedItemId, "");
-//$$                     totals.merge(nestedKey, item.getCount(), Integer::sum);
+//$$                     mergeCount(totals, nestedKey, item.getCount());
 //$$                 }
 //$$             }
 //#elseif MC >= 12005
@@ -96,7 +96,7 @@ public final class InventoryScanner {
 
         if (!hasShulkerContents) {
             final MaterialKey key = new MaterialKey(itemId, "");
-            totals.merge(key, stack.getCount(), Integer::sum);
+            mergeCount(totals, key, stack.getCount());
         }
     }
 
@@ -108,7 +108,7 @@ public final class InventoryScanner {
      * @param depth    current nesting depth (for recursion limiting)
      */
     public static void scanShulkerBoxContents(final NbtList itemsNbt, final Map<MaterialKey, Integer> totals, final int depth) {
-        if (depth > MAX_SHULKER_NESTING_DEPTH) {
+        if (!ProtocolLimits.isNestedContainerDepthAllowed(depth)) {
             LOGGER.warn("Shulker box nesting depth exceeded limit ({}), skipping further scanning", depth);
             return;
         }
@@ -146,8 +146,16 @@ public final class InventoryScanner {
 
             if (!hasNestedContents) {
                 final MaterialKey itemKey = new MaterialKey(itemId.get(), "");
-                totals.merge(itemKey, count, Integer::sum);
+                mergeCount(totals, itemKey, count);
             }
         }
+    }
+
+    static void mergeCount(final Map<MaterialKey, Integer> totals, final MaterialKey key, final int amount) {
+        if (totals == null || key == null || amount <= 0) {
+            return;
+        }
+        final long current = totals.getOrDefault(key, 0);
+        totals.put(key, (int) Math.min(Integer.MAX_VALUE, current + amount));
     }
 }

@@ -33,8 +33,7 @@ public class ModifyExchangeServer extends AbstractExchange {
         packetBuf.readUuid();
         final PacketType type = PacketType.fromIdentifier(id);
         if (type == PacketType.MODIFY_FINISH) {
-            getContext().getCommunicationManager().receivePositionData(placement, packetBuf, getPartner());
-            getContext().getCommunicationManager().receiveMaterialData(placement, packetBuf, getPartner());
+            getContext().getCommunicationManager().receiveModificationData(placement, packetBuf, getPartner());
 
             final PlayerIdentifier identifier = getContext().getPlayerIdentifierProvider().createOrGet(
                     getPartner()

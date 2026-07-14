@@ -80,5 +80,13 @@
   "syncmatica_r.gui.button.material.sort": "排序：%s",
   "syncmatica_r.gui.label.material.sort.missing": "缺失数量",
   "syncmatica_r.gui.label.material.sort.name": "名称",
-  "syncmatica_r.gui.button.material.hide_finished": "隐藏已完成：%s"
+  "syncmatica_r.gui.button.material.hide_finished": "隐藏已完成：%s",
+  "syncmatica_r.error.permission_denied": "你没有执行此操作的权限",
+  "syncmatica_r.error.too_many_placements": "服务器共享放置数量已达到上限",
+  "syncmatica_r.error.cancelled_transmit_exceed_limit": "原理图过大，传输已取消",
+  "syncmatica_r.error.cancelled_transmit_exceed_quota": "上传配额已用尽，传输已取消",
+  "syncmatica_r.breaking_change.notice": "Syncmatica_r %s 包含不兼容变更，请阅读迁移文档：",
+  "syncmatica_r.breaking_change.dismiss": "[不再提示]",
+  "syncmatica_r.breaking_change.dismissed": "本消息不会再次显示。",
+  "syncmatica_r.breaking_change.dismiss_failed": "未能保存此设置，本消息以后可能再次显示。"
 }

@@ -3,6 +3,7 @@ package cn.net.rms.syncmatica_r.communication.exchange;
 import cn.net.rms.syncmatica_r.Context;
 import cn.net.rms.syncmatica_r.communication.CommunicationManager;
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
+import cn.net.rms.syncmatica_r.communication.ProtocolLimits;
 import net.minecraft.network.PacketByteBuf;
 
 import java.util.UUID;
@@ -13,6 +14,7 @@ public abstract class AbstractExchange implements Exchange {
     private final Context context;
     private boolean success = false;
     private boolean finished = false;
+    private long lastActivityMillis = System.currentTimeMillis();
 
     protected AbstractExchange(final ExchangeTarget partner, final Context con) {
         this.partner = partner;
@@ -20,6 +22,9 @@ public abstract class AbstractExchange implements Exchange {
     }
 
     protected static boolean checkUUID(final PacketByteBuf sourceBuf, final UUID targetId) {
+        if (sourceBuf.readableBytes() < Long.BYTES * 2 || targetId == null) {
+            return false;
+        }
         final int r = sourceBuf.readerIndex();
         final UUID sourceId = sourceBuf.readUuid();
         sourceBuf.readerIndex(r);
@@ -44,6 +49,16 @@ public abstract class AbstractExchange implements Exchange {
     @Override
     public boolean isSuccessful() {
         return success;
+    }
+
+    @Override
+    public void markActivity() {
+        lastActivityMillis = System.currentTimeMillis();
+    }
+
+    @Override
+    public boolean isTimedOut(final long nowMillis) {
+        return !finished && nowMillis - lastActivityMillis >= ProtocolLimits.EXCHANGE_TIMEOUT_MILLIS;
     }
 
     @Override

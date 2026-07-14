@@ -2,6 +2,7 @@ package cn.net.rms.syncmatica_r.client.hud;
 
 import cn.net.rms.syncmatica_r.Context;
 import cn.net.rms.syncmatica_r.ServerPlacement;
+import cn.net.rms.syncmatica_r.communication.ProtocolLimits;
 import cn.net.rms.syncmatica_r.Syncmatica;
 import cn.net.rms.syncmatica_r.client.HudPreferences;
 import cn.net.rms.syncmatica_r.material.MaterialKey;
@@ -89,6 +90,7 @@ public final class MaterialHudOverlay implements HudRenderCallback {
 //#endif
 
     private static final int MAX_ROWS = 6;
+    private static final int INVENTORY_POLL_INTERVAL_TICKS = 5;
     private static final int PADDING = 6;
     private static final int ROW_HEIGHT = 18;
     private static final int ICON_SIZE = 16;
@@ -106,6 +108,7 @@ public final class MaterialHudOverlay implements HudRenderCallback {
     private double hudScale = 1.0d;
     private int lastInventoryFingerprint;
     private boolean inventoryFingerprintInitialized;
+    private int inventoryPollTicks;
 
     private MaterialHudOverlay() {
     }
@@ -162,6 +165,7 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         needsRefresh = false;
         inventoryFingerprintInitialized = false;
         lastInventoryFingerprint = 0;
+        inventoryPollTicks = 0;
     }
 
     // Snapshot rows are rebuilt lazily to avoid per-frame churn.
@@ -243,6 +247,18 @@ public final class MaterialHudOverlay implements HudRenderCallback {
             inventoryFingerprintInitialized = true;
             needsRefresh = true;
         }
+    }
+
+    public void tick() {
+        if (!HudPreferences.isHudEnabled()) {
+            return;
+        }
+        inventoryPollTicks++;
+        if (inventoryPollTicks < INVENTORY_POLL_INTERVAL_TICKS) {
+            return;
+        }
+        inventoryPollTicks = 0;
+        observeInventoryFingerprint();
     }
 
     private Integer computeInventoryFingerprint() {
@@ -372,6 +388,13 @@ public final class MaterialHudOverlay implements HudRenderCallback {
     }
 
     private int accumulateFingerprintFromNbt(final NbtList itemsNbt, final int seed) {
+        return accumulateFingerprintFromNbt(itemsNbt, seed, 0);
+    }
+
+    private int accumulateFingerprintFromNbt(final NbtList itemsNbt, final int seed, final int depth) {
+        if (itemsNbt == null || !ProtocolLimits.isNestedContainerDepthAllowed(depth)) {
+            return seed;
+        }
         int fingerprint = seed;
         for (int i = 0; i < itemsNbt.size(); i++) {
             final NbtCompound itemNbt = NbtHelper.getCompound(itemsNbt, i);
@@ -402,7 +425,7 @@ public final class MaterialHudOverlay implements HudRenderCallback {
             }
             final NbtList nestedItems = NbtHelper.getList(blockEntityTag, "Items");
             if (nestedItems != null) {
-                fingerprint = accumulateFingerprintFromNbt(nestedItems, fingerprint);
+                fingerprint = accumulateFingerprintFromNbt(nestedItems, fingerprint, depth + 1);
             }
         }
         return fingerprint;
@@ -455,7 +478,6 @@ public final class MaterialHudOverlay implements HudRenderCallback {
         if (!HudPreferences.isHudEnabled()) {
             return;
         }
-        observeInventoryFingerprint();
         if (needsRefresh) {
             refreshSnapshot();
         }

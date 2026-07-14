@@ -6,6 +6,7 @@ import cn.net.rms.syncmatica_r.Syncmatica;
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
 import cn.net.rms.syncmatica_r.communication.FeatureSet;
 import cn.net.rms.syncmatica_r.communication.PacketType;
+import cn.net.rms.syncmatica_r.communication.ProtocolLimits;
 import cn.net.rms.syncmatica_r.communication.exchange.FeatureExchange;
 import cn.net.rms.syncmatica_r.litematica.LitematicManager;
 import io.netty.buffer.Unpooled;
@@ -42,7 +43,7 @@ public class VersionHandshakeClient extends FeatureExchange {
                     revolutionBuf,
                     getContext()
             );
-            final String version = packetBuf.readString(32767);
+            final String version = packetBuf.readString(ProtocolLimits.MAX_VERSION_LENGTH);
             if (!getContext().checkPartnerVersion(version)) {
 
                 LogManager.getLogger(VersionHandshakeClient.class).info("Denying syncmatica_r join due to outdated server with local version {} and server version {}", Syncmatica.getVersion(), version);
@@ -58,7 +59,11 @@ public class VersionHandshakeClient extends FeatureExchange {
                 }
             }
         } else if (type == PacketType.CONFIRM_USER) {
-            final int placementCount = packetBuf.readInt();
+            final int placementCount = ProtocolLimits.requireCount(
+                    packetBuf.readInt(),
+                    ProtocolLimits.MAX_SERVER_PLACEMENTS,
+                    "placement count"
+            );
             for (int i = 0; i < placementCount; i++) {
                 final ServerPlacement p = getManager().receiveMetaData(packetBuf, getPartner());
                 getContext().getSyncmaticManager().addPlacement(p);
@@ -75,7 +80,7 @@ public class VersionHandshakeClient extends FeatureExchange {
     @Override
     public void onFeatureSetReceive() {
         final PacketByteBuf versionBuf = new PacketByteBuf(Unpooled.buffer());
-        versionBuf.writeString(Syncmatica.getVersion());
+        versionBuf.writeString(Syncmatica.getVersion(), ProtocolLimits.MAX_VERSION_LENGTH);
         // Reply on legacy Syncmatica channel for maximum compatibility.
         getPartner().sendPacket(
                 PacketType.REGISTER_VERSION.toIdentifier(

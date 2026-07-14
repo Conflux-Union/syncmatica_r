@@ -43,5 +43,8 @@ public class MixinMinecraftServer {
         if (context != null && context.getSyncmaticManager() != null) {
             context.getSyncmaticManager().tickServer();
         }
+        if (context != null && context.getCommunicationManager() != null) {
+            context.getCommunicationManager().tick();
+        }
     }
 }

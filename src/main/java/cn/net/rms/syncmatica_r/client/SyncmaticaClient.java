@@ -15,9 +15,11 @@ import net.minecraft.text.TranslatableText;
 //#endif
 
 public class SyncmaticaClient implements ClientModInitializer {
+    private static final WorldEntryTracker WORLD_ENTRY_TRACKER = new WorldEntryTracker();
 
     @Override
     public void onInitializeClient() {
+        BreakingChangeNotice.initialize();
         HudPreferences.load();
         MaterialListPreferences.load();
         MaterialHudOverlay.getInstance().setHudScale(HudPreferences.getHudScale());
@@ -30,7 +32,16 @@ public class SyncmaticaClient implements ClientModInitializer {
     }
 
     private static void handleClientTick(final MinecraftClient client) {
-        if (client == null || client.world == null || client.player == null) {
+        MaterialHudOverlay.getInstance().tick();
+        final cn.net.rms.syncmatica_r.Context clientContext = Syncmatica.getContext(Syncmatica.CLIENT_CONTEXT);
+        if (clientContext != null && clientContext.getCommunicationManager() != null) {
+            clientContext.getCommunicationManager().tick();
+        }
+        final boolean inGame = client != null && client.world != null && client.player != null;
+        if (WORLD_ENTRY_TRACKER.update(inGame)) {
+            BreakingChangeNotice.showIfNeeded(client);
+        }
+        if (!inGame) {
             return;
         }
         if (!UpdateConfig.isCheckUpdateEnabled()) {

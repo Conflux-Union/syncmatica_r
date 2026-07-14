@@ -4,6 +4,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.Objects;
+
 public final class StockingAreaDefinition {
     private static final String FIELD_DIMENSION = "dimension";
     private static final String FIELD_MIN_X = "minX";
@@ -59,6 +61,17 @@ public final class StockingAreaDefinition {
         return max;
     }
 
+    public long getVolume() {
+        try {
+            final long x = (long) max.getX() - min.getX() + 1L;
+            final long y = (long) max.getY() - min.getY() + 1L;
+            final long z = (long) max.getZ() - min.getZ() + 1L;
+            return Math.multiplyExact(Math.multiplyExact(x, y), z);
+        } catch (final ArithmeticException exception) {
+            return Long.MAX_VALUE;
+        }
+    }
+
     public JsonObject toJson() {
         final JsonObject json = new JsonObject();
         json.add(FIELD_DIMENSION, new JsonPrimitive(dimensionId));
@@ -69,5 +82,22 @@ public final class StockingAreaDefinition {
         json.add(FIELD_MAX_Y, new JsonPrimitive(max.getY()));
         json.add(FIELD_MAX_Z, new JsonPrimitive(max.getZ()));
         return json;
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof StockingAreaDefinition)) {
+            return false;
+        }
+        final StockingAreaDefinition other = (StockingAreaDefinition) obj;
+        return dimensionId.equals(other.dimensionId) && min.equals(other.min) && max.equals(other.max);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(dimensionId, min, max);
     }
 }

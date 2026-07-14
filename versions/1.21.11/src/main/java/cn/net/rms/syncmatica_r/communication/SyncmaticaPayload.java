@@ -45,6 +45,7 @@ public final class SyncmaticaPayload implements CustomPayload {
     }
 
     private static SyncmaticaPayload decode(final PacketByteBuf buf) {
+        ProtocolLimits.requirePacketSize(buf.readableBytes());
         final Identifier identifier = buf.readIdentifier();
         final byte[] bytes = new byte[buf.readableBytes()];
         buf.readBytes(bytes);
@@ -52,7 +53,7 @@ public final class SyncmaticaPayload implements CustomPayload {
     }
 
     private static byte[] copyRemaining(final PacketByteBuf source) {
-        final byte[] bytes = new byte[source.readableBytes()];
+        final byte[] bytes = new byte[ProtocolLimits.requirePacketSize(source.readableBytes())];
         source.getBytes(source.readerIndex(), bytes);
         return bytes;
     }

@@ -80,5 +80,13 @@
   "syncmatica_r.gui.button.material.sort": "Sort: %s",
   "syncmatica_r.gui.label.material.sort.missing": "Missing",
   "syncmatica_r.gui.label.material.sort.name": "Name",
-  "syncmatica_r.gui.button.material.hide_finished": "Hide Done: %s"
+  "syncmatica_r.gui.button.material.hide_finished": "Hide Done: %s",
+  "syncmatica_r.error.permission_denied": "You do not have permission to perform this action",
+  "syncmatica_r.error.too_many_placements": "The server has reached its shared placement limit",
+  "syncmatica_r.error.cancelled_transmit_exceed_limit": "Transfer cancelled because the schematic is too large",
+  "syncmatica_r.error.cancelled_transmit_exceed_quota": "Transfer cancelled because your upload quota was exceeded",
+  "syncmatica_r.breaking_change.notice": "Syncmatica_r %s includes breaking changes. Read the migration guide:",
+  "syncmatica_r.breaking_change.dismiss": "[Do not show again]",
+  "syncmatica_r.breaking_change.dismissed": "This message will not be shown again.",
+  "syncmatica_r.breaking_change.dismiss_failed": "Failed to save this preference; the message may appear again."
 }

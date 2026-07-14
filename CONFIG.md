@@ -38,7 +38,8 @@ about `debug`. Two additional top-level keys control the optional GitHub update 
     "scan_blocks_per_tick": 2048,
     "include_container_contents": false,
     "max_schematic_megabytes": 64,
-    "max_schematic_blocks": 8000000
+    "max_schematic_blocks": 8000000,
+    "max_stocking_area_blocks": 1000000
   },
   "debug": {
     "doPackageLogging": false
@@ -53,12 +54,14 @@ as a server. The two top-level update keys are ignored on servers.
 
 | Key     | Default   | Range            | Meaning |
 |---------|-----------|------------------|---------|
-| enabled | `false`   | `true` / `false` | When `true`, every upload/download exchange is tracked per player. |
-| limit   | `40000000`| ≥ 0 (bytes)      | Total bytes a player may transfer during the current server uptime. |
+| enabled | `false`   | `true` / `false` | When `true`, schematic uploads received by the server are tracked per player. |
+| limit   | `40000000`| ≥ 0 (bytes)      | Total schematic bytes a player may upload during the current server uptime. |
 
-- Limits apply to each `ExchangeTarget` (player identity). The counter resets when the server shuts down because the
-  service clears its in-memory `progress` map during `shutdown()`.
+- Limits apply to each player identity and count every accepted upload chunk, including transfers that later fail.
+  Disconnecting and reconnecting does not reset the counter; it resets when the server shuts down.
 - Set `enabled` to `false` when bandwidth policing is not needed; the code short-circuits and never records quota data.
+- Independent hard limits still cap each file, each packet, concurrent exchanges, and exchange lifetime when quota
+  accounting is disabled.
 
 ## `materials` — Server Material Tracking
 
@@ -69,17 +72,19 @@ removes material progress/claims from the advertised feature set.
 |----------------------------|----------|------------------|---------|
 | enabled                    | `true`   | —                | Master toggle for material aggregation and syncing. |
 | scan_interval              | `200`    | `20` ticks       | How often the default stocking area is rescanned when idle. |
-| scan_blocks_per_tick       | `2048`   | `64` blocks      | Work budget for each active scan. Higher values finish long schematics faster but cost more CPU per tick. |
+| scan_blocks_per_tick       | `2048`   | `64`–`65,536` blocks | Shared work budget for incremental scans. |
 | include_container_contents | `false`  | —                | When `true`, chests/shulkers inside the schematic contribute their inventories to material counts. |
-| max_schematic_megabytes    | `64`     | `1` MB           | Litematic files larger than this are skipped during requirement extraction to avoid I/O abuse. |
-| max_schematic_blocks       | `8000000`| `1,000,000`      | Upper bound passed to the extractor to avoid decoding unreasonably large block volumes. |
+| max_schematic_megabytes    | `64`     | `1`–`64` MB      | Maximum compressed transfer size and decompressed NBT allocation. |
+| max_schematic_blocks       | `8000000`| `1,000,000`–`64,000,000` | Maximum decoded schematic block volume. |
+| max_stocking_area_blocks   | `1000000`| `1,024`–`64,000,000` | Maximum volume accepted for a stocking area. |
 
 Operational notes:
 
 - `scan_blocks_per_tick` and `scan_interval` work together. Lower them if the server stutters; raise them when scans
   take too long.
-- Both `max_schematic_*` guards prevent players from forcing multi-gigabyte parses. When tripped, the server simply
-  logs a warning and skips requirement extraction for that placement.
+- Schematic extraction runs on a bounded background worker. NBT allocation and block volume are both checked before
+  results are applied on the server thread; nested container traversal stops after 10 levels.
+- Stocking area commands schedule an incremental scan; they no longer scan the entire cuboid during command execution.
 - Changing these settings after the service started requires a full server restart.
 
 ## `debug` — Packet Logging (Client + Server)
@@ -99,6 +104,13 @@ These keys live at the root of the configuration object and are honored only on 
 
 Keep this switch off on production servers; it is noisy and exposes packet metadata in plain logs. Toggle it only while
 diagnosing protocol problems.
+
+## Network permissions
+
+- `syncmatica_r.share`: upload new placements; allowed by default when no provider handles the node.
+- `syncmatica_r.claim`: claim existing material requirements; allowed by default.
+- `syncmatica_r.manage`: modify or delete placements owned by another player; defaults to permission level 2.
+- Placement owners can always modify or delete their own placements.
 
 ## Troubleshooting
 

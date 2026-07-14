@@ -2,6 +2,7 @@ package cn.net.rms.syncmatica_r;
 
 import cn.net.rms.syncmatica_r.communication.CommunicationManager;
 import cn.net.rms.syncmatica_r.communication.FeatureSet;
+import cn.net.rms.syncmatica_r.communication.ProtocolLimits;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifierProvider;
 import cn.net.rms.syncmatica_r.service.*;
 import cn.net.rms.syncmatica_r.service.IServiceConfiguration;
@@ -97,6 +98,12 @@ public class Context {
 
     public MaterialService getMaterialService() {
         return materialService;
+    }
+
+    public long getMaxTransferBytes() {
+        return materialService == null
+                ? ProtocolLimits.DEFAULT_MAX_SCHEMATIC_BYTES
+                : materialService.getMaxSchematicBytes();
     }
 
     public DebugService getDebugService() {

@@ -41,6 +41,10 @@ public class ClientCommunicationManager extends CommunicationManager {
         final PacketType type = PacketType.fromIdentifier(id);
         if (type == PacketType.REGISTER_METADATA) {
             final ServerPlacement placement = receiveMetaData(packetBuf, source);
+            if (context.getSyncmaticManager().getPlacement(placement.getId()) == null
+                    && context.getSyncmaticManager().getAll().size() >= ProtocolLimits.MAX_SERVER_PLACEMENTS) {
+                return;
+            }
             context.getSyncmaticManager().addPlacement(placement);
             return;
         }
@@ -63,15 +67,14 @@ public class ClientCommunicationManager extends CommunicationManager {
         if (type == PacketType.MODIFY) {
             final UUID placementId = packetBuf.readUuid();
             final ServerPlacement toModify = context.getSyncmaticManager().getPlacement(placementId);
-            receivePositionData(toModify, packetBuf, source);
-            receiveMaterialData(toModify, packetBuf, source);
+            receiveModificationData(toModify, packetBuf, source);
             final FeatureSet featureSet = source.getFeatureSet();
             final boolean hasCoreEx = featureSet != null && featureSet.hasFeature(Feature.CORE_EX);
             final boolean hasTimestamps = hasCoreEx && supportsTimestamps(source);
             if (hasCoreEx) {
                 final PlayerIdentifier lastModifiedBy = context.getPlayerIdentifierProvider().createOrGet(
                         packetBuf.readUuid(),
-                        packetBuf.readString(32767)
+                        packetBuf.readString(ProtocolLimits.MAX_PLAYER_NAME_LENGTH)
                 );
                 if (toModify != null) {
                     toModify.setLastModifiedBy(lastModifiedBy);
@@ -94,8 +97,8 @@ public class ClientCommunicationManager extends CommunicationManager {
             return;
         }
         if (type == PacketType.MESSAGE) {
-            final Message.MessageType guiType = mapMessageType(MessageType.valueOf(packetBuf.readString(32767)));
-            final String text = packetBuf.readString(32767);
+            final Message.MessageType guiType = mapMessageType(MessageType.valueOf(packetBuf.readString(32)));
+            final String text = packetBuf.readString(ProtocolLimits.MAX_MESSAGE_LENGTH);
             ScreenHelper.ifPresent(s -> s.addMessage(guiType, text));
             return;
         }

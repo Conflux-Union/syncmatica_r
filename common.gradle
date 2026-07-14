@@ -10,6 +10,7 @@ apply plugin: 'com.gradleup.shadow'
 def javaRelease = mcVersionNumber >= 260100 ? 25 : (mcVersionNumber >= 12100 ? 21 : (mcVersionNumber >= 12000 ? 17 : 16))
 def toolchainVersion = javaRelease >= 17 ? javaRelease : 17
 def preprocessRootProject = rootProject.file("versions/mainProject").text.trim()
+def poiVersion = '5.5.1'
 def fabricPermissionsApiVersion = '0.3.1'
 if (mcVersionNumber >= 260100) {
     fabricPermissionsApiVersion = '0.7.0'
@@ -93,24 +94,24 @@ dependencies {
         runtimeOnly "org.apache.logging.log4j:log4j-core:2.17.2"
     }
 
-    implementation ("org.apache.poi:poi:5.2.5") {
+    implementation ("org.apache.poi:poi:${poiVersion}") {
         exclude group: "org.apache.logging.log4j", module: "log4j-api"
     }
-    shadowInclude ("org.apache.poi:poi:5.2.5") {
+    shadowInclude ("org.apache.poi:poi:${poiVersion}") {
         exclude group: "org.apache.logging.log4j", module: "log4j-api"
     }
-    implementation ("org.apache.poi:poi-ooxml:5.2.5") {
+    implementation ("org.apache.poi:poi-ooxml:${poiVersion}") {
         exclude group: "org.apache.poi", module: "ooxml-schemas"
         exclude group: "org.apache.logging.log4j", module: "log4j-api"
     }
-    shadowInclude ("org.apache.poi:poi-ooxml:5.2.5") {
+    shadowInclude ("org.apache.poi:poi-ooxml:${poiVersion}") {
         exclude group: "org.apache.poi", module: "ooxml-schemas"
         exclude group: "org.apache.logging.log4j", module: "log4j-api"
     }
-    implementation ("org.apache.poi:poi-ooxml-lite:5.2.5") {
+    implementation ("org.apache.poi:poi-ooxml-lite:${poiVersion}") {
         exclude group: "org.apache.logging.log4j", module: "log4j-api"
     }
-    shadowInclude ("org.apache.poi:poi-ooxml-lite:5.2.5") {
+    shadowInclude ("org.apache.poi:poi-ooxml-lite:${poiVersion}") {
         exclude group: "org.apache.logging.log4j", module: "log4j-api"
     }
 }

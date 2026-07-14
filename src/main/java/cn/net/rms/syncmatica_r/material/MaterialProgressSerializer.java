@@ -1,12 +1,13 @@
 package cn.net.rms.syncmatica_r.material;
 
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
+import cn.net.rms.syncmatica_r.communication.ProtocolLimits;
+import cn.net.rms.syncmatica_r.util.IdentifierUtil;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import net.minecraft.util.Identifier;
-import cn.net.rms.syncmatica_r.util.IdentifierUtil;
 
 import java.util.Optional;
 
@@ -50,7 +51,11 @@ public final class MaterialProgressSerializer {
         if (root == null || !root.has("entries")) {
             return;
         }
+        int entryCount = 0;
         for (final JsonElement element : root.getAsJsonArray("entries")) {
+            if (entryCount++ >= ProtocolLimits.MAX_MATERIAL_ENTRIES) {
+                break;
+            }
             if (!element.isJsonObject()) {
                 continue;
             }
@@ -69,7 +74,11 @@ public final class MaterialProgressSerializer {
             }
             if (node.has(FIELD_CLAIMERS)) {
                 entry.clearClaimants();
+                int claimantCount = 0;
                 for (final JsonElement e : node.getAsJsonArray(FIELD_CLAIMERS)) {
+                    if (claimantCount++ >= ProtocolLimits.MAX_CLAIMANTS_PER_MATERIAL) {
+                        break;
+                    }
                     if (e != null && e.isJsonObject()) {
                         entry.addClaimer(provider.fromJson(e.getAsJsonObject()));
                     }

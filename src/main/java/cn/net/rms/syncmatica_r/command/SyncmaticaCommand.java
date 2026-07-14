@@ -81,13 +81,17 @@ public final class SyncmaticaCommand {
         final BlockPos second = BlockPosArgumentType.getBlockPos(context, "pos2");
         final String dimensionId = context.getSource().getWorld().getRegistryKey().getValue().toString();
         final StockingAreaDefinition definition = new StockingAreaDefinition(dimensionId, first, second);
+        if (!materialService.isStockingAreaAllowed(definition)) {
+            context.getSource().sendError(literal("Stocking area exceeds the configured block limit"));
+            return 0;
+        }
         materialService.setStockingArea(placement.get(), definition);
 
         materialService.scanNow(context.getSource().getServer(), placement.get());
 //#if MC >= 12001
-//$$         context.getSource().sendFeedback(() -> literal("Stocking area updated for " + projectName), false);
+//$$         context.getSource().sendFeedback(() -> literal("Stocking area updated; scan scheduled for " + projectName), false);
 //#else
-        context.getSource().sendFeedback(literal("Stocking area updated for " + projectName), false);
+        context.getSource().sendFeedback(literal("Stocking area updated; scan scheduled for " + projectName), false);
 //#endif
         return 1;
     }
@@ -116,14 +120,18 @@ public final class SyncmaticaCommand {
         final BlockPos second = BlockPosArgumentType.getBlockPos(context, "pos2");
         final String dimensionId = context.getSource().getWorld().getRegistryKey().getValue().toString();
         final StockingAreaDefinition definition = new StockingAreaDefinition(dimensionId, first, second);
+        if (!materialService.isStockingAreaAllowed(definition)) {
+            context.getSource().sendError(literal("Stocking area exceeds the configured block limit"));
+            return 0;
+        }
         materialService.setDefaultStockingArea(definition);
 
         materialService.scanDefaultNow(context.getSource().getServer());
         syncmaticaContext.getSyncmaticManager().saveServerState();
 //#if MC >= 12001
-//$$         context.getSource().sendFeedback(() -> literal("Default stocking area updated"), false);
+//$$         context.getSource().sendFeedback(() -> literal("Default stocking area updated; scan scheduled"), false);
 //#else
-        context.getSource().sendFeedback(literal("Default stocking area updated"), false);
+        context.getSource().sendFeedback(literal("Default stocking area updated; scan scheduled"), false);
 //#endif
         return 1;
     }

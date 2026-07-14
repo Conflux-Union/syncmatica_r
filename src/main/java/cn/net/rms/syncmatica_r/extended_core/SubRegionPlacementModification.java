@@ -13,7 +13,7 @@ public class SubRegionPlacementModification {
     public final BlockRotation rotation;
     public final BlockMirror mirror;
 
-    SubRegionPlacementModification(final String name, final BlockPos position, final BlockRotation rotation, final BlockMirror mirror) {
+    public SubRegionPlacementModification(final String name, final BlockPos position, final BlockRotation rotation, final BlockMirror mirror) {
         this.name = name;
         this.position = position;
         this.rotation = rotation;

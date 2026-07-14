@@ -5,10 +5,13 @@ import cn.net.rms.syncmatica_r.ServerPlacement;
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
 import cn.net.rms.syncmatica_r.communication.MessageType;
 import cn.net.rms.syncmatica_r.communication.PacketType;
+import cn.net.rms.syncmatica_r.communication.ProtocolLimits;
 import cn.net.rms.syncmatica_r.communication.ServerCommunicationManager;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.Identifier;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -20,12 +23,13 @@ import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
 public class DownloadExchange extends AbstractExchange {
+    private static final Logger LOGGER = LogManager.getLogger(DownloadExchange.class);
 
     private final ServerPlacement toDownload;
     private final OutputStream outputStream;
     private final MessageDigest md5;
     private final File downloadFile;
-    private int bytesSent;
+    private long bytesSent;
 
     public DownloadExchange(final ServerPlacement syncmatic, final File downloadFile, final ExchangeTarget partner, final Context context) throws IOException, NoSuchAlgorithmException {
         super(partner, context);
@@ -52,16 +56,19 @@ public class DownloadExchange extends AbstractExchange {
         packetBuf.readUuid();
         final PacketType type = PacketType.fromIdentifier(id);
         if (type == PacketType.SEND_LITEMATIC) {
-            final int size = packetBuf.readInt();
-            bytesSent += size;
-            if (getContext().isServer() && getContext().getQuotaService().isOverQuota(getPartner(), bytesSent)) {
+            final int size = ProtocolLimits.requireTransferChunk(packetBuf.readInt(), packetBuf.readableBytes());
+            final long transferLimit = getContext().getMaxTransferBytes();
+            if (bytesSent > transferLimit - size) {
                 close(true);
-                ((ServerCommunicationManager) getContext().getCommunicationManager()).sendMessage(
-                        getPartner(),
-                        MessageType.ERROR,
-                        "syncmatica_r.error.cancelled_transmit_exceed_quota"
-                );
+                sendServerError("syncmatica_r.error.cancelled_transmit_exceed_limit");
+                return;
             }
+            if (getContext().isServer() && !getContext().getQuotaService().tryConsume(getPartner(), size)) {
+                close(true);
+                sendServerError("syncmatica_r.error.cancelled_transmit_exceed_quota");
+                return;
+            }
+            bytesSent += size;
             try {
                 packetBuf.readBytes(outputStream, size);
             } catch (final IOException e) {
@@ -106,16 +113,13 @@ public class DownloadExchange extends AbstractExchange {
     @Override
     protected void onClose() {
         getManager().setDownloadState(toDownload, false);
-        if (getContext().isServer() && isSuccessful()) {
-            getContext().getQuotaService().progressQuota(getPartner(), bytesSent);
-        }
         try {
             outputStream.close();
         } catch (final IOException e) {
             e.printStackTrace();
         }
-        if (!isSuccessful() && downloadFile.exists()) {
-            downloadFile.delete();
+        if (!isSuccessful() && downloadFile.exists() && !downloadFile.delete()) {
+            LOGGER.warn("Failed to delete incomplete litematic file {}", downloadFile.getAbsolutePath());
         }
     }
 
@@ -128,6 +132,16 @@ public class DownloadExchange extends AbstractExchange {
 
     public ServerPlacement getPlacement() {
         return toDownload;
+    }
+
+    private void sendServerError(final String message) {
+        if (getContext().isServer()) {
+            ((ServerCommunicationManager) getContext().getCommunicationManager()).sendMessage(
+                    getPartner(),
+                    MessageType.ERROR,
+                    message
+            );
+        }
     }
 
 }

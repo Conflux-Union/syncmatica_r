@@ -2,6 +2,9 @@
 
 **[English]** | [中文](README_CN.md)
 
+> **0.4.0 breaking release:** Server owners must review the
+> [migration guide](docs/BREAKING_CHANGES_0.4.0.md), especially the new placement management permission.
+
 > **Project Origin**: Enhanced fork of [Syncmatica](https://github.com/End-Tech/syncmatica) with collaborative material tracking. Maintained at [RMS-Server/syncmatica_r](https://github.com/RMS-Server/syncmatica_r).
 
 ---
@@ -57,6 +60,7 @@ After first run, configuration files are created at:
 | Main config | `config/syncmatica_r/config.json` | Server quota, material tracking settings |
 | HUD settings | `config/syncmatica_r/hud_settings.json` | Client HUD scale and enable toggle |
 | Material list | `config/syncmatica_r/material_list_settings.json` | Client sort mode and filter preferences |
+| Client notices | `config/syncmatica_r/client_notices.json` | Dismissed migration notice version |
 
 For integrated (single-player) servers, the main config is stored in `<world-folder>/syncmatica_r/config.json`.
 
@@ -96,6 +100,9 @@ Stocking areas are container regions the server scans for inventory tracking.
 - Permission node: `syncmatica_r.command`
 - Fallback behavior: if no permissions provider handles the node, vanilla permission level 2 (operators) can use the command.
 - LuckPerms example: `/lp group <group> permission set syncmatica_r.command true`
+- Network permission nodes: `syncmatica_r.share`, `syncmatica_r.claim`, and `syncmatica_r.manage`.
+- Owners may modify or remove their own placements. Managing another player's placement requires
+  `syncmatica_r.manage`, with vanilla permission level 2 as the fallback.
 
 **How it works:**
 

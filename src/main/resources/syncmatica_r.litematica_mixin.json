@@ -12,7 +12,6 @@
     "MixinGuiBase",
     "MixinSchematicHolder",
     "MixinButtonBase",
-    "MixinWidgetSchematicPlacement",
     "MixinGuiPlacementConfiguration",
     "MixinSubregionPlacement",
     "MixinSchematicPlacementManager"

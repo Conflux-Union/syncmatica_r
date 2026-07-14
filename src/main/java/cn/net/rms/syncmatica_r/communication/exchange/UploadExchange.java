@@ -18,8 +18,14 @@ public class UploadExchange extends AbstractExchange {
     private final InputStream inputStream;
     private final byte[] buffer = new byte[BUFFER_SIZE];
 
-    public UploadExchange(final ServerPlacement syncmatic, final File uploadFile, final ExchangeTarget partner, final Context con) throws FileNotFoundException {
+    public UploadExchange(final ServerPlacement syncmatic, final File uploadFile, final ExchangeTarget partner, final Context con) throws IOException {
         super(partner, con);
+        if (uploadFile == null || !uploadFile.isFile()) {
+            throw new FileNotFoundException("Litematic file is unavailable");
+        }
+        if (uploadFile.length() > con.getMaxTransferBytes()) {
+            throw new IOException("Litematic file exceeds the configured transfer limit");
+        }
         toUpload = syncmatic;
         inputStream = new FileInputStream(uploadFile);
     }

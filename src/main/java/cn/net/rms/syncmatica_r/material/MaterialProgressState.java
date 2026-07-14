@@ -16,6 +16,10 @@ public class MaterialProgressState {
         return entries.computeIfAbsent(key, missing -> new MaterialProgressEntry(missing, required));
     }
 
+    public MaterialProgressEntry get(final MaterialKey key) {
+        return entries.get(key);
+    }
+
     public void clear() {
         entries.clear();
     }

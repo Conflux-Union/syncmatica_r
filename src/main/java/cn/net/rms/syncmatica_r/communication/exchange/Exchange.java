@@ -19,6 +19,10 @@ public interface Exchange {
 
     boolean isSuccessful();
 
+    void markActivity();
+
+    boolean isTimedOut(long nowMillis);
+
     void close(boolean notifyPartner);
 
     void init();

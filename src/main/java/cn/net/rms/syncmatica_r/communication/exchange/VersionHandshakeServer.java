@@ -9,6 +9,7 @@ import cn.net.rms.syncmatica_r.communication.MessageType;
 import cn.net.rms.syncmatica_r.communication.PacketType;
 import cn.net.rms.syncmatica_r.communication.ProtocolFlavor;
 import cn.net.rms.syncmatica_r.communication.ServerCommunicationManager;
+import cn.net.rms.syncmatica_r.communication.ProtocolLimits;
 import cn.net.rms.syncmatica_r.communication.exchange.FeatureExchange;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.PacketByteBuf;
@@ -20,6 +21,7 @@ import java.util.Collection;
 public class VersionHandshakeServer extends FeatureExchange {
 
     private String partnerVersion;
+    private boolean awaitingFeatureSet;
 
     public VersionHandshakeServer(final ExchangeTarget partner, final Context con) {
         super(partner, con);
@@ -28,16 +30,19 @@ public class VersionHandshakeServer extends FeatureExchange {
     @Override
     public boolean checkPacket(final Identifier id, final PacketByteBuf packetBuf) {
         final PacketType type = PacketType.fromIdentifier(id);
-        return type == PacketType.REGISTER_VERSION
+        if (type == PacketType.REGISTER_VERSION
                 || type == PacketType.REVOLUTION
-                || super.checkPacket(id, packetBuf);
+                || type == PacketType.FEATURE_REQUEST) {
+            return true;
+        }
+        return type == PacketType.FEATURE && partnerVersion != null && awaitingFeatureSet;
     }
 
     @Override
     public void handle(final Identifier id, final PacketByteBuf packetBuf) {
         final PacketType type = PacketType.fromIdentifier(id);
         if (type == PacketType.REGISTER_VERSION) {
-            partnerVersion = packetBuf.readString(32767);
+            partnerVersion = packetBuf.readString(ProtocolLimits.MAX_VERSION_LENGTH);
             if (!getContext().checkPartnerVersion(partnerVersion)) {
                 LogManager.getLogger(VersionHandshakeServer.class).info("Denying syncmatica_r join due to outdated client with local version {} and client version {}", Syncmatica.getVersion(), partnerVersion);
 
@@ -46,6 +51,7 @@ public class VersionHandshakeServer extends FeatureExchange {
             }
             final FeatureSet fs = FeatureSet.fromVersionString(partnerVersion);
             if (fs == null) {
+                awaitingFeatureSet = true;
                 requestFeatureSet();
             } else {
                 getPartner().setFeatureSet(fs);
@@ -61,14 +67,13 @@ public class VersionHandshakeServer extends FeatureExchange {
 
     @Override
     public void onFeatureSetReceive() {
-        LogManager.getLogger(VersionHandshakeServer.class).info("Syncmatica_r client joining with local version {} and client version {}", Syncmatica.getVersion(), partnerVersion);
-        final PacketByteBuf newBuf = new PacketByteBuf(Unpooled.buffer());
-        final Collection<ServerPlacement> l = getContext().getSyncmaticManager().getAll();
-        newBuf.writeInt(l.size());
-        for (final ServerPlacement p : l) {
-            getManager().putMetaData(p, newBuf, getPartner());
+        if (partnerVersion == null) {
+            close(false);
+            return;
         }
-        getPartner().sendPacket(PacketType.CONFIRM_USER.toIdentifier(getPartner().getProtocolFlavor()), newBuf, getContext());
+        awaitingFeatureSet = false;
+        LogManager.getLogger(VersionHandshakeServer.class).info("Syncmatica_r client joining with local version {} and client version {}", Syncmatica.getVersion(), partnerVersion);
+        sendInitialState();
         succeed();
         if (getPartner().getProtocolFlavor() == ProtocolFlavor.LEGACY) {
             final ServerCommunicationManager serverComms =
@@ -81,10 +86,24 @@ public class VersionHandshakeServer extends FeatureExchange {
         }
     }
 
+    protected void sendInitialState() {
+        final Collection<ServerPlacement> placements = getContext().getSyncmaticManager().getAll();
+        for (final ServerPlacement placement : placements) {
+            getManager().sendMetaData(placement, getPartner());
+        }
+        final PacketByteBuf confirmationBuf = new PacketByteBuf(Unpooled.buffer());
+        confirmationBuf.writeInt(0);
+        getPartner().sendPacket(
+                PacketType.CONFIRM_USER.toIdentifier(getPartner().getProtocolFlavor()),
+                confirmationBuf,
+                getContext()
+        );
+    }
+
     @Override
     public void init() {
         final PacketByteBuf newBuf = new PacketByteBuf(Unpooled.buffer());
-        newBuf.writeString(Syncmatica.getVersion());
+        newBuf.writeString(Syncmatica.getVersion(), ProtocolLimits.MAX_VERSION_LENGTH);
         // Initial handshake always uses legacy Syncmatica channel for compatibility.
         getPartner().sendPacket(PacketType.REGISTER_VERSION.toIdentifier(ProtocolFlavor.LEGACY), newBuf, getContext());
     }

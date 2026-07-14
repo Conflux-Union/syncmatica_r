@@ -1,5 +1,6 @@
 package cn.net.rms.syncmatica_r.extended_core;
 
+import cn.net.rms.syncmatica_r.communication.ProtocolLimits;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import net.minecraft.util.BlockMirror;
@@ -27,7 +28,11 @@ public class SubRegionData {
 
         newSubRegionData.isModified = true;
 
+        int count = 0;
         for (final JsonElement modification : obj.getAsJsonArray()) {
+            if (count++ >= ProtocolLimits.MAX_SUBREGIONS) {
+                break;
+            }
             newSubRegionData.modify(SubRegionPlacementModification.fromJson(modification.getAsJsonObject()));
         }
 
@@ -82,6 +87,9 @@ public class SubRegionData {
 
     private JsonElement modificationDataToJson() {
         final JsonArray arr = new JsonArray();
+        if (modificationData == null) {
+            return arr;
+        }
 
         for (final Map.Entry<String, SubRegionPlacementModification> entry : modificationData.entrySet()) {
             arr.add(entry.getValue().toJson());

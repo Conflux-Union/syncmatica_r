@@ -2,6 +2,8 @@
 
 [English](README.md) | **[中文]**
 
+> **0.4.0 不兼容版本：** 服主升级前必须阅读[迁移文档](docs/BREAKING_CHANGES_0.4.0_CN.md)，尤其要检查新的放置管理权限。
+
 > **项目来源**：基于 [Syncmatica](https://github.com/End-Tech/syncmatica) 的增强分支，新增协作材料追踪功能。在 [RMS-Server/syncmatica_r](https://github.com/RMS-Server/syncmatica_r) 维护。
 
 ---
@@ -57,6 +59,7 @@ Syncmatica_r 与 Litematica 模组集成，实现服务器范围内的原理图�
 | 主配置 | `config/syncmatica_r/config.json` | 服务端配额、材料追踪设置 |
 | HUD 设置 | `config/syncmatica_r/hud_settings.json` | 客户端 HUD 缩放与开关 |
 | 材料列表 | `config/syncmatica_r/material_list_settings.json` | 客户端排序与过滤偏好 |
+| 客户端提醒 | `config/syncmatica_r/client_notices.json` | 已关闭的迁移提醒版本 |
 
 整合包（单人）服务端的主配置存储在 `<世界存档>/syncmatica_r/config.json`。
 
@@ -96,6 +99,8 @@ Syncmatica_r 与 Litematica 模组集成，实现服务器范围内的原理图�
 - 权限节点：`syncmatica_r.command`
 - 回退行为：如果没有权限管理器处理该节点，则仍按原版权限等级 2（OP）允许执行。
 - LuckPerms 示例：`/lp group <group> permission set syncmatica_r.command true`
+- 网络权限节点：`syncmatica_r.share`、`syncmatica_r.claim` 和 `syncmatica_r.manage`。
+- 所有者可以修改或移除自己的放置；管理其他玩家的放置需要 `syncmatica_r.manage`，默认回退到权限等级 2。
 
 **工作原理：**
 

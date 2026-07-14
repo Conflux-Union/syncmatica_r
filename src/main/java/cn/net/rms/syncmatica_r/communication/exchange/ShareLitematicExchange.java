@@ -14,7 +14,7 @@ import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.Identifier;
 
 import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.IOException;
 //#if MC >= 12106
 //$$ import java.nio.file.Path;
 //#endif
@@ -60,7 +60,7 @@ public class ShareLitematicExchange extends AbstractExchange {
             final UploadExchange upload;
             try {
                 upload = new UploadExchange(toShare, toUpload, getPartner(), getContext());
-            } catch (final FileNotFoundException e) {
+            } catch (final IOException e) {
                 e.printStackTrace();
 
                 return;
