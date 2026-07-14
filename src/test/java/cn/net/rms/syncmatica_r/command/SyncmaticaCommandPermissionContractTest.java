@@ -34,6 +34,18 @@ final class SyncmaticaCommandPermissionContractTest {
     }
 
     @Test
+    void loadSubcommandUsesDedicatedPermissionNode() throws IOException {
+        final String commandSource = read("src/main/java/cn/net/rms/syncmatica_r/command/SyncmaticaCommand.java");
+
+        assertTrue(
+                commandSource.contains("\"syncmatica_r.command.load\""),
+                "load subcommand must expose the syncmatica_r.command.load permission node");
+        assertTrue(
+                commandSource.contains("Permissions.require(LOAD_PERMISSION, COMMAND_PERMISSION_LEVEL)"),
+                "load subcommand must use the declared permission node and fallback level");
+    }
+
+    @Test
     void buildIncludesFabricPermissionsApi() throws IOException {
         final String gradleSource = read("common.gradle");
 
