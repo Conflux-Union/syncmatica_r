@@ -78,6 +78,20 @@ Syncmatica_r 与 Litematica 模组集成，实现服务器范围内的原理图�
 3. 打开 Litematica 放置概览 — 额外按钮可将你的放置上传到服务器
 4. 修改共享放置：先本地解锁，修改完成后重新锁定即可同步
 
+### 加载服务端 Litematic 文件
+
+服务器 `syncmatics` 目录中存在但未注册为共享放置的 litematic 文件（例如放置存储损坏后，
+或管理员手动放入的文件），可以直接重新注册，无需客户端重新分享：
+
+```
+/syncmatica_r load          # 注册所有未注册的 litematic 文件
+/syncmatica_r load <文件名>  # 注册单个文件；Tab 补全会列出候选文件
+```
+
+加载的放置定位在命令执行者所在位置，并广播给所有在线客户端。文件名不符合内容哈希命名的
+文件会被重命名为哈希存储格式，以保证客户端下载可用。该子命令使用 `syncmatica_r.command.load`
+权限节点，默认回退到原版权限等级 2。
+
 ### 设置备货区
 
 备货区是服务端扫描库存的容器区域。
@@ -96,7 +110,7 @@ Syncmatica_r 与 Litematica 模组集成，实现服务器范围内的原理图�
 
 **权限：**
 
-- 权限节点：`syncmatica_r.command`
+- 权限节点：`syncmatica_r.command`（`load` 子命令额外检查 `syncmatica_r.command.load`）
 - 回退行为：如果没有权限管理器处理该节点，则仍按原版权限等级 2（OP）允许执行。
 - LuckPerms 示例：`/lp group <group> permission set syncmatica_r.command true`
 - 网络权限节点：`syncmatica_r.share`、`syncmatica_r.claim` 和 `syncmatica_r.manage`。

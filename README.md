@@ -79,6 +79,22 @@ See [CONFIG.md](CONFIG.md) for detailed configuration options.
 3. Open your Litematica placement overview — an extra button lets you upload your placements to the server
 4. To modify a shared placement: unlock it locally, make changes, then lock again to sync
 
+### Loading Server-Side Litematic Files
+
+Litematic files that exist in the server's `syncmatics` folder but are not registered as shared
+placements (for example after a damaged placement store, or files dropped in by an admin) can be
+re-registered without a client re-share:
+
+```
+/syncmatica_r load          # register every unregistered litematic file
+/syncmatica_r load <file>   # register a single file; tab completion shows candidates
+```
+
+Loaded placements are positioned at the command issuer and broadcast to all connected clients.
+Files not named after their content hash are renamed into the hash-based storage scheme so client
+downloads resolve. The subcommand uses the `syncmatica_r.command.load` permission node with vanilla
+permission level 2 as the fallback.
+
 ### Setting Up Stocking Areas
 
 Stocking areas are container regions the server scans for inventory tracking.
@@ -97,7 +113,7 @@ Stocking areas are container regions the server scans for inventory tracking.
 
 **Permission:**
 
-- Permission node: `syncmatica_r.command`
+- Permission node: `syncmatica_r.command` (the `load` subcommand additionally checks `syncmatica_r.command.load`)
 - Fallback behavior: if no permissions provider handles the node, vanilla permission level 2 (operators) can use the command.
 - LuckPerms example: `/lp group <group> permission set syncmatica_r.command true`
 - Network permission nodes: `syncmatica_r.share`, `syncmatica_r.claim`, and `syncmatica_r.manage`.
