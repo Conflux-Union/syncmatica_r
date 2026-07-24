@@ -42,3 +42,5 @@ run/
 
 # claude context
 .claude-context/
+CLAUDE.md
+AGENTS.md
