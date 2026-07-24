@@ -23,6 +23,9 @@ import net.minecraft.util.Formatting;
 import java.net.URI;
 
 public final class BreakingChangeNotice {
+    // Last release that introduced breaking changes. Bump only when a new
+    // breaking change lands, together with matching docs/BREAKING_CHANGES_<version>*.md files.
+    static final String BREAKING_CHANGE_VERSION = "0.4.0";
     private static final String DOCUMENTATION_BASE_URL =
             "https://github.com/Conflux-Union/syncmatica_r/blob/for-rms/docs/BREAKING_CHANGES_";
     private static final String DISMISS_COMMAND = "syncmatica_r_dismiss_breaking_notice";
@@ -37,7 +40,7 @@ public final class BreakingChangeNotice {
     }
 
     public static void showIfNeeded(final MinecraftClient client) {
-        final String version = Syncmatica.getVersion();
+        final String version = BREAKING_CHANGE_VERSION;
         if (client == null || client.player == null
                 || PREFERENCES.isDismissed(noticeIdForVersion(version))) {
             return;
@@ -139,7 +142,7 @@ public final class BreakingChangeNotice {
 
     private static int dismiss() {
         final MinecraftClient client = MinecraftClient.getInstance();
-        if (PREFERENCES.dismiss(noticeIdForVersion(Syncmatica.getVersion()))) {
+        if (PREFERENCES.dismiss(noticeIdForVersion(BREAKING_CHANGE_VERSION))) {
             sendChatMessage(
                     client,
                     translatable("syncmatica_r.breaking_change.dismissed").formatted(Formatting.YELLOW)
