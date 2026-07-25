@@ -2,12 +2,14 @@ package cn.net.rms.syncmatica_r.service;
 
 import cn.net.rms.syncmatica_r.ServerPlacement;
 import cn.net.rms.syncmatica_r.ServerPosition;
+import cn.net.rms.syncmatica_r.communication.MessageType;
 import cn.net.rms.syncmatica_r.communication.ProtocolLimits;
 import cn.net.rms.syncmatica_r.communication.ServerCommunicationManager;
 import cn.net.rms.syncmatica_r.material.*;
 import cn.net.rms.syncmatica_r.service.IServiceConfiguration;
 import cn.net.rms.syncmatica_r.util.NbtHelper;
 import cn.net.rms.syncmatica_r.util.InventoryScanner;
+import cn.net.rms.syncmatica_r.util.SyncmaticaUtil;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.item.ItemStack;
@@ -446,12 +448,15 @@ public class MaterialService extends AbstractService {
         if (file == null) {
             LOGGER.warn("Cannot load material requirements for placement '{}' (hash: {}): file not found",
                     placement.getName(), placement.getHash());
+            reportAvailability(placement, MaterialAvailability.EXTRACTION_FAILED, "");
             return;
         }
         final long byteLimit = getMaxSchematicBytes();
         if (file.length() > byteLimit) {
             LOGGER.warn("Skipping material extraction for '{}' ({} bytes exceeds limit {} bytes)",
                     placement.getName(), file.length(), byteLimit);
+            reportAvailability(placement, MaterialAvailability.FILE_TOO_LARGE,
+                    SyncmaticaUtil.formatMegabytes(file.length()) + " > " + SyncmaticaUtil.formatMegabytes(byteLimit));
             return;
         }
         final UUID token = UUID.randomUUID();
@@ -464,19 +469,22 @@ public class MaterialService extends AbstractService {
         try {
             requirementExecutor.execute(() -> {
                 LOGGER.debug("Loading material requirements from: {} (exists={})", file.getAbsolutePath(), file.exists());
-                final Map<MaterialKey, Integer> extracted = MaterialRequirementExtractor.extract(
-                        file,
-                        includeContents,
-                        blockLimit,
-                        byteLimit
-                );
+                final MaterialRequirementExtractor.ExtractionOutcome outcome =
+                        MaterialRequirementExtractor.extractDetailed(
+                                file,
+                                includeContents,
+                                blockLimit,
+                                byteLimit
+                        );
                 completedExtractions.add(new RequirementExtractionResult(
                         placementId,
                         placementHash,
                         token,
-                        extracted
+                        outcome.getRequirements(),
+                        outcome.getAvailability()
                 ));
-                LOGGER.debug("Extracted {} material types from placement '{}'", extracted.size(), placementName);
+                LOGGER.debug("Extracted {} material types from placement '{}'",
+                        outcome.getRequirements().size(), placementName);
             });
         } catch (final RejectedExecutionException exception) {
             pendingExtractionTokens.remove(placementId);
@@ -507,12 +515,52 @@ public class MaterialService extends AbstractService {
             }
             pendingExtractionTokens.remove(result.placementId);
             final ServerPlacement placement = placements.get(result.placementId);
-            if (placement == null
-                    || !result.placementHash.equals(placement.getHash())
-                    || result.requirements.isEmpty()) {
+            if (placement == null || !result.placementHash.equals(placement.getHash())) {
                 continue;
             }
-            replaceRequirements(result.placementId, result.requirements);
+            if (result.availability.isBlocked()) {
+                reportAvailability(placement, result.availability, blockedDetail(result.availability));
+                continue;
+            }
+            // Clearing a previous rejection needs its own broadcast: identical
+            // requirements make replaceRequirements a no-op.
+            reportAvailability(placement, MaterialAvailability.AVAILABLE, "");
+            if (!result.requirements.isEmpty()) {
+                replaceRequirements(result.placementId, result.requirements);
+            }
+        }
+    }
+
+    private String blockedDetail(final MaterialAvailability availability) {
+        return availability == MaterialAvailability.TOO_MANY_BLOCKS
+                ? "> " + Math.max(1, maxSchematicBlocks)
+                : "";
+    }
+
+    /**
+     * Records why a material list is missing and makes it visible: the state
+     * rides along with every placement update, and the owner additionally gets a
+     * one-shot notification carrying the offending numbers.
+     */
+    private void reportAvailability(final ServerPlacement placement, final MaterialAvailability availability,
+                                    final String detail) {
+        if (!placement.setMaterialAvailability(availability)) {
+            return;
+        }
+        if (context == null || !context.isServer()
+                || !(context.getCommunicationManager() instanceof ServerCommunicationManager)) {
+            return;
+        }
+        final ServerCommunicationManager manager = (ServerCommunicationManager) context.getCommunicationManager();
+        context.getSyncmaticManager().updateServerPlacement(placement);
+        manager.broadcastPlacementUpdate(placement);
+        if (availability.isBlocked() && placement.getOwner() != null) {
+            manager.sendMessageToPlayer(
+                    placement.getOwner().uuid,
+                    MessageType.ERROR,
+                    availability.getMessageKey(),
+                    detail
+            );
         }
     }
 
@@ -813,15 +861,18 @@ public class MaterialService extends AbstractService {
         private final UUID placementHash;
         private final UUID token;
         private final Map<MaterialKey, Integer> requirements;
+        private final MaterialAvailability availability;
 
         private RequirementExtractionResult(final UUID placementId,
                                             final UUID placementHash,
                                             final UUID token,
-                                            final Map<MaterialKey, Integer> requirements) {
+                                            final Map<MaterialKey, Integer> requirements,
+                                            final MaterialAvailability availability) {
             this.placementId = placementId;
             this.placementHash = placementHash;
             this.token = token;
             this.requirements = new HashMap<>(requirements);
+            this.availability = availability;
         }
     }
 

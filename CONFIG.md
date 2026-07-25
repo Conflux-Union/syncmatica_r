@@ -87,6 +87,23 @@ Operational notes:
 - Stocking area commands schedule an incremental scan; they no longer scan the entire cuboid during command execution.
 - Changing these settings after the service started requires a full server restart.
 
+## Limit Diagnostics on the Client
+
+When a limit above blocks an operation, the server names the cause instead of failing silently. Clients that announce
+the `LIMIT_REPORT` feature also receive the offending and configured values as a language-neutral detail such as
+`96.0 MB > 64.0 MB`; older clients still get the plain message and the historic wire layout.
+
+| Situation | Where it shows | Configuration involved |
+|-----------|----------------|------------------------|
+| Shared schematic exceeds the accepted transfer size | Error message on the sharing client | `materials.max_schematic_megabytes` |
+| Shared schematic exhausts the player's upload quota | Error message on the sharing client | `quota.limit` |
+| Stored schematic is larger than the current limit, so it cannot be served | Error message on the downloading client; the pending download is cancelled instead of timing out | `materials.max_schematic_megabytes` |
+| Material list cannot be built | Reason line when the material list screen opens, hover text on the material button, and a one-shot message to the placement owner | `materials.enabled`, `materials.max_schematic_megabytes`, `materials.max_schematic_blocks` |
+
+Lowering `max_schematic_megabytes` or `max_schematic_blocks` below the size of already-shared schematics is the common
+cause: existing placements keep their metadata but stop serving downloads and material lists, and every affected client
+now says which limit rejected them.
+
 ## `debug` — Packet Logging (Client + Server)
 
 | Key              | Default | Meaning |

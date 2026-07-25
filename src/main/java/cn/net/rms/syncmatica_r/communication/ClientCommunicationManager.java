@@ -13,6 +13,7 @@ import cn.net.rms.syncmatica_r.litematica.LitematicManager;
 import cn.net.rms.syncmatica_r.litematica.ScreenHelper;
 import cn.net.rms.syncmatica_r.mixin_actor.ActorClientPlayNetworkHandler;
 import fi.dy.masa.malilib.gui.Message;
+import fi.dy.masa.malilib.util.StringUtils;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.Identifier;
 
@@ -97,9 +98,19 @@ public class ClientCommunicationManager extends CommunicationManager {
             return;
         }
         if (type == PacketType.MESSAGE) {
-            final Message.MessageType guiType = mapMessageType(MessageType.valueOf(packetBuf.readString(32)));
-            final String text = packetBuf.readString(ProtocolLimits.MAX_MESSAGE_LENGTH);
-            ScreenHelper.ifPresent(s -> s.addMessage(guiType, text));
+            final Message.MessageType guiType = mapMessageType(MessageCodec.readType(packetBuf));
+            final String text = MessageCodec.readIdentifier(packetBuf);
+            final String detail = MessageCodec.readDetail(packetBuf);
+            if (detail.isEmpty()) {
+                ScreenHelper.ifPresent(s -> s.addMessage(guiType, text));
+            } else {
+                ScreenHelper.ifPresent(s -> s.addMessage(
+                        guiType,
+                        "syncmatica_r.message.detail_format",
+                        StringUtils.translate(text),
+                        detail
+                ));
+            }
             return;
         }
         if (type == PacketType.REGISTER_VERSION) {

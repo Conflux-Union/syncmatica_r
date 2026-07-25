@@ -3,10 +3,12 @@ package cn.net.rms.syncmatica_r.litematica.gui;
 import cn.net.rms.syncmatica_r.ServerPlacement;
 import cn.net.rms.syncmatica_r.client.MaterialListPreferences;
 import cn.net.rms.syncmatica_r.litematica.ScreenHelper;
+import cn.net.rms.syncmatica_r.material.MaterialAvailability;
 import cn.net.rms.syncmatica_r.material.SyncmaticaMaterialEntry;
 import cn.net.rms.syncmatica_r.util.MaterialClaimHelper;
 import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.gui.GuiListBase;
+import fi.dy.masa.malilib.gui.Message;
 import fi.dy.masa.malilib.gui.button.ButtonGeneric;
 import fi.dy.masa.malilib.util.StringUtils;
 
@@ -15,6 +17,7 @@ public class GuiSyncmaticaMaterialProgress extends GuiListBase<SyncmaticaMateria
     private static final int TOP_BAR_HEIGHT = 34;
 
     private final ServerPlacement placement;
+    private boolean availabilityReported;
 
     public GuiSyncmaticaMaterialProgress(final ServerPlacement placement) {
         super(12, TOP_BAR_HEIGHT);
@@ -76,6 +79,21 @@ public class GuiSyncmaticaMaterialProgress extends GuiListBase<SyncmaticaMateria
 
         final ButtonGeneric closeButton = new ButtonGeneric(baseX + unclaimAllWidth + exportWidth + spacing * 2, y, closeWidth, 20, closeLabel);
         addButton(closeButton, (b, i) -> closeGui(true));
+
+        reportUnavailableMaterials();
+    }
+
+    /**
+     * An empty list is otherwise indistinguishable from a schematic the server
+     * refused to process, so state the reason once per opened screen.
+     */
+    private void reportUnavailableMaterials() {
+        final MaterialAvailability availability = placement.getMaterialAvailability();
+        if (availabilityReported || !availability.isBlocked()) {
+            return;
+        }
+        availabilityReported = true;
+        addMessage(Message.MessageType.ERROR, availability.getTranslationKey());
     }
 
     private String buildSortModeLabel() {

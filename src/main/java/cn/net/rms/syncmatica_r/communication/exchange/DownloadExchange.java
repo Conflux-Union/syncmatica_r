@@ -7,6 +7,7 @@ import cn.net.rms.syncmatica_r.communication.MessageType;
 import cn.net.rms.syncmatica_r.communication.PacketType;
 import cn.net.rms.syncmatica_r.communication.ProtocolLimits;
 import cn.net.rms.syncmatica_r.communication.ServerCommunicationManager;
+import cn.net.rms.syncmatica_r.util.SyncmaticaUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.Identifier;
@@ -60,12 +61,14 @@ public class DownloadExchange extends AbstractExchange {
             final long transferLimit = getContext().getMaxTransferBytes();
             if (bytesSent > transferLimit - size) {
                 close(true);
-                sendServerError("syncmatica_r.error.cancelled_transmit_exceed_limit");
+                sendServerError("syncmatica_r.error.cancelled_transmit_exceed_limit",
+                        "> " + SyncmaticaUtil.formatMegabytes(transferLimit));
                 return;
             }
             if (getContext().isServer() && !getContext().getQuotaService().tryConsume(getPartner(), size)) {
                 close(true);
-                sendServerError("syncmatica_r.error.cancelled_transmit_exceed_quota");
+                sendServerError("syncmatica_r.error.cancelled_transmit_exceed_quota",
+                        "> " + SyncmaticaUtil.formatMegabytes(getContext().getQuotaService().getLimitBytes()));
                 return;
             }
             bytesSent += size;
@@ -134,12 +137,13 @@ public class DownloadExchange extends AbstractExchange {
         return toDownload;
     }
 
-    private void sendServerError(final String message) {
+    private void sendServerError(final String message, final String detail) {
         if (getContext().isServer()) {
             ((ServerCommunicationManager) getContext().getCommunicationManager()).sendMessage(
                     getPartner(),
                     MessageType.ERROR,
-                    message
+                    message,
+                    detail
             );
         }
     }

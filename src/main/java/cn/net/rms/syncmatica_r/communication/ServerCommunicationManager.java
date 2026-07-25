@@ -63,15 +63,43 @@ public class ServerCommunicationManager extends CommunicationManager {
     }
 
     public void sendMessage(final ExchangeTarget client, final MessageType type, final String identifier) {
+        sendMessage(client, type, identifier, "");
+    }
+
+    /**
+     * The detail carries language-neutral diagnostics (byte counts, limits) that
+     * cannot be expressed by the translation key alone. {@link MessageCodec}
+     * decides whether the peer can read it.
+     */
+    public void sendMessage(final ExchangeTarget client, final MessageType type, final String identifier,
+                            final String detail) {
         final FeatureSet featureSet = client.getFeatureSet();
+        final String trimmedDetail = detail == null ? "" : detail;
         if (featureSet != null && featureSet.hasFeature(Feature.MESSAGE)) {
-            final PacketByteBuf newPacketBuf = new PacketByteBuf(Unpooled.buffer());
-            newPacketBuf.writeString(type.toString(), 32);
-            newPacketBuf.writeString(identifier, ProtocolLimits.MAX_MESSAGE_LENGTH);
+            final PacketByteBuf newPacketBuf = MessageCodec.encode(featureSet, type, identifier, trimmedDetail);
             client.sendPacket(PacketType.MESSAGE.toIdentifier(client.getProtocolFlavor()), newPacketBuf, context);
         } else if (playerMap.containsKey(client)) {
             final ServerPlayerEntity player = playerMap.get(client);
-            sendPlayerNotification(player, "Syncmatica_r " + type.toString() + " " + identifier);
+            final String suffix = trimmedDetail.isEmpty() ? "" : " (" + trimmedDetail + ")";
+            sendPlayerNotification(player, "Syncmatica_r " + type.toString() + " " + identifier + suffix);
+        }
+    }
+
+    /**
+     * Reaches the player behind a placement (usually its owner) without the
+     * caller having to hold on to an {@link ExchangeTarget}.
+     */
+    public void sendMessageToPlayer(final UUID playerId, final MessageType type, final String identifier,
+                                    final String detail) {
+        if (playerId == null) {
+            return;
+        }
+        for (final Map.Entry<ExchangeTarget, ServerPlayerEntity> entry : playerMap.entrySet()) {
+            final ServerPlayerEntity player = entry.getValue();
+            if (player != null && playerId.equals(SyncmaticaUtil.getProfileId(player.getGameProfile()))) {
+                sendMessage(entry.getKey(), type, identifier, detail);
+                return;
+            }
         }
     }
 
@@ -115,9 +143,18 @@ public class ServerCommunicationManager extends CommunicationManager {
             final UploadExchange upload;
             try {
                 upload = new UploadExchange(placement, toUpload, source, context);
+            } catch (final UploadExchange.TransferLimitExceededException tooLarge) {
+                LOGGER.warn("Refusing to serve '{}' to {}: {}",
+                        placement.getName(), source.getPersistentName(), tooLarge.getMessage());
+                cancelDownload(source, placement);
+                sendMessage(source, MessageType.ERROR, "syncmatica_r.error.download_exceeds_size_limit",
+                        SyncmaticaUtil.formatMegabytes(tooLarge.getFileBytes())
+                                + " > " + SyncmaticaUtil.formatMegabytes(tooLarge.getLimitBytes()));
+                return;
             } catch (final IOException e) {
-
-                e.printStackTrace();
+                LOGGER.warn("Failed to serve litematic '{}' to {}", placement.getName(), source.getPersistentName(), e);
+                cancelDownload(source, placement);
+                sendMessage(source, MessageType.ERROR, "syncmatica_r.error.file_unavailable");
                 return;
             }
             startExchange(upload);
@@ -355,6 +392,16 @@ public class ServerCommunicationManager extends CommunicationManager {
         final PacketByteBuf packetByteBuf = new PacketByteBuf(Unpooled.buffer());
         packetByteBuf.writeUuid(placement.getId());
         source.sendPacket(PacketType.CANCEL_SHARE.toIdentifier(source.getProtocolFlavor()), packetByteBuf, context);
+    }
+
+    /**
+     * Releases the requester's pending download exchange instead of leaving it
+     * to expire on the exchange timeout.
+     */
+    private void cancelDownload(final ExchangeTarget source, final ServerPlacement placement) {
+        final PacketByteBuf packetByteBuf = new PacketByteBuf(Unpooled.buffer());
+        packetByteBuf.writeUuid(placement.getId());
+        source.sendPacket(PacketType.CANCEL_LITEMATIC.toIdentifier(source.getProtocolFlavor()), packetByteBuf, context);
     }
 
     private void denyModification(final ExchangeTarget source, final UUID placementId) {

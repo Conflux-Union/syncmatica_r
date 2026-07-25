@@ -9,6 +9,7 @@ import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
 import cn.net.rms.syncmatica_r.communication.PacketType;
 import cn.net.rms.syncmatica_r.litematica.LitematicManager;
 import cn.net.rms.syncmatica_r.litematica.gui.BaseButtonType;
+import cn.net.rms.syncmatica_r.material.MaterialAvailability;
 import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.gui.button.ButtonBase;
 import fi.dy.masa.malilib.gui.button.ButtonGeneric;
@@ -62,6 +63,10 @@ public class WidgetSyncmaticaServerPlacementEntry extends WidgetListEntryBase<Se
         final boolean materialFeature = context.getCommunicationManager() instanceof ClientCommunicationManager
                 && ((ClientCommunicationManager) context.getCommunicationManager()).getServer().getFeatureSet().hasFeature(Feature.MATERIAL_PROGRESS);
         matGathering.setEnabled(materialFeature);
+        final MaterialAvailability availability = placement.getMaterialAvailability();
+        if (materialFeature && availability.isBlocked()) {
+            matGathering.setHoverStrings(StringUtils.translate(availability.getTranslationKey()));
+        }
         addButton(matGathering, listener);
 
         final ArrayList<IButtonType> multi = new ArrayList<>();

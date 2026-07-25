@@ -60,9 +60,21 @@ public final class MaterialRequirementExtractor {
                                                     final boolean includeContainerContents,
                                                     final long maxBlocks,
                                                     final long maxNbtBytes) {
+        return extractDetailed(litematicFile, includeContainerContents, maxBlocks, maxNbtBytes).getRequirements();
+    }
+
+    /**
+     * Same as {@link #extract}, but also reports why an empty result came back,
+     * so the server can tell a blank schematic apart from one that a configured
+     * limit refused.
+     */
+    public static ExtractionOutcome extractDetailed(final File litematicFile,
+                                                    final boolean includeContainerContents,
+                                                    final long maxBlocks,
+                                                    final long maxNbtBytes) {
         final Map<MaterialKey, Integer> requirements = new HashMap<>();
         if (litematicFile == null || !litematicFile.isFile() || maxBlocks <= 0L || maxNbtBytes <= 0L) {
-            return requirements;
+            return new ExtractionOutcome(requirements, MaterialAvailability.EXTRACTION_FAILED);
         }
         try (InputStream input = new FileInputStream(litematicFile)) {
 //#if MC >= 12005
@@ -76,7 +88,9 @@ public final class MaterialRequirementExtractor {
 //#endif
             final NbtCompound regions = NbtHelper.getCompound(root, "Regions");
             if (regions == null) {
-                return requirements;
+                // A litematic without regions is not readable as a schematic.
+                LOGGER.warn("Material extraction found no regions in {}", litematicFile);
+                return new ExtractionOutcome(requirements, MaterialAvailability.EXTRACTION_FAILED);
             }
             long processedBlocks = 0L;
             for (final String regionName : regions.getKeys()) {
@@ -87,17 +101,38 @@ public final class MaterialRequirementExtractor {
         } catch (final IOException exception) {
             requirements.clear();
             LOGGER.warn("Failed to read material requirements from {}", litematicFile, exception);
+            return new ExtractionOutcome(requirements, MaterialAvailability.EXTRACTION_FAILED);
         } catch (final ExtractionLimitExceededException limitExceededException) {
             requirements.clear();
             LOGGER.warn("Aborted material extraction for {} after {} blocks exceeded limit {}",
                     litematicFile,
                     limitExceededException.getSeenBlocks(),
                     maxBlocks);
+            return new ExtractionOutcome(requirements, MaterialAvailability.TOO_MANY_BLOCKS);
         } catch (final Exception exception) {
             requirements.clear();
             LOGGER.warn("Failed to parse material requirements from {}", litematicFile, exception);
+            return new ExtractionOutcome(requirements, MaterialAvailability.EXTRACTION_FAILED);
         }
-        return requirements;
+        return new ExtractionOutcome(requirements, MaterialAvailability.AVAILABLE);
+    }
+
+    public static final class ExtractionOutcome {
+        private final Map<MaterialKey, Integer> requirements;
+        private final MaterialAvailability availability;
+
+        ExtractionOutcome(final Map<MaterialKey, Integer> requirements, final MaterialAvailability availability) {
+            this.requirements = requirements;
+            this.availability = availability;
+        }
+
+        public Map<MaterialKey, Integer> getRequirements() {
+            return requirements;
+        }
+
+        public MaterialAvailability getAvailability() {
+            return availability;
+        }
     }
 
     private static long accumulateRegion(final NbtCompound region, final Map<MaterialKey, Integer> totals,

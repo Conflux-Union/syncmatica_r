@@ -9,6 +9,7 @@ import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifierProvider;
 import cn.net.rms.syncmatica_r.extended_core.SubRegionData;
 import cn.net.rms.syncmatica_r.extended_core.SubRegionPlacementModification;
+import cn.net.rms.syncmatica_r.material.MaterialAvailability;
 import cn.net.rms.syncmatica_r.material.MaterialKey;
 import cn.net.rms.syncmatica_r.material.MaterialProgressEntry;
 import cn.net.rms.syncmatica_r.material.MaterialProgressState;
@@ -267,6 +268,9 @@ public abstract class CommunicationManager {
         if (partnerFeatures == null || !partnerFeatures.hasFeature(Feature.MATERIAL_PROGRESS)) {
             return;
         }
+        if (partnerFeatures.hasFeature(Feature.LIMIT_REPORT)) {
+            buf.writeByte(resolveMaterialAvailability(placement).getCode());
+        }
         final FeatureSet localFeatures = context.getFeatureSet();
         final boolean sendClaims = partnerFeatures.hasFeature(Feature.MATERIAL_CLAIMS)
                 && localFeatures != null
@@ -305,6 +309,20 @@ public abstract class CommunicationManager {
         }
     }
 
+    /**
+     * Only the server owns this verdict; a client sharing a placement has no
+     * authoritative view of the server's material limits.
+     */
+    private MaterialAvailability resolveMaterialAvailability(final ServerPlacement placement) {
+        if (!context.isServer()) {
+            return MaterialAvailability.AVAILABLE;
+        }
+        if (context.getMaterialService() == null || !context.getMaterialService().isEnabled()) {
+            return MaterialAvailability.DISABLED;
+        }
+        return placement.getMaterialAvailability();
+    }
+
     private void skipMaterialEntry(final PacketByteBuf buf, final boolean readClaims) {
         buf.readString(ProtocolLimits.MAX_ITEM_ID_LENGTH);
         buf.readString(ProtocolLimits.MAX_VARIANT_LENGTH);
@@ -328,6 +346,12 @@ public abstract class CommunicationManager {
         final boolean readClaims = partnerFeatures.hasFeature(Feature.MATERIAL_CLAIMS)
                 && localFeatures != null
                 && localFeatures.hasFeature(Feature.MATERIAL_CLAIMS);
+        if (partnerFeatures.hasFeature(Feature.LIMIT_REPORT) && buf.readableBytes() >= Byte.BYTES) {
+            final MaterialAvailability availability = MaterialAvailability.fromCode(buf.readByte());
+            if (!context.isServer() && placement != null) {
+                placement.setMaterialAvailability(availability);
+            }
+        }
         if (buf.readableBytes() < Integer.BYTES) {
             if (!context.isServer() && placement != null) {
                 placement.getMaterialProgress().clear();

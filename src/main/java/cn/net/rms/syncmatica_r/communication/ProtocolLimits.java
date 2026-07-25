@@ -22,6 +22,7 @@ public final class ProtocolLimits {
     public static final int MAX_ITEM_ID_LENGTH = 128;
     public static final int MAX_VARIANT_LENGTH = 128;
     public static final int MAX_MESSAGE_LENGTH = 2_048;
+    public static final int MAX_MESSAGE_DETAIL_LENGTH = 128;
 
     private ProtocolLimits() {
     }

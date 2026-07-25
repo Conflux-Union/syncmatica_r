@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.UUID;
 
 public class SyncmaticaUtil {
@@ -58,6 +59,15 @@ public class SyncmaticaUtil {
 
         fis.close();
         return UUID.nameUUIDFromBytes(messageDigest.digest());
+    }
+
+    /**
+     * Limit diagnostics travel as a language-neutral detail string, so byte
+     * counts are rendered with a fixed locale and unit instead of being
+     * translated per client.
+     */
+    public static String formatMegabytes(final long bytes) {
+        return String.format(Locale.ROOT, "%.1f MB", Math.max(0L, bytes) / (1024.0 * 1024.0));
     }
 
     public static String sanitizeFileName(final String badFileName) {

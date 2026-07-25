@@ -13,7 +13,8 @@ public enum Feature {
     CORE_EX,
     TIMESTAMPS,
     VERSION,
-    DISPLAY_NAME;
+    DISPLAY_NAME,
+    LIMIT_REPORT;
 
     public static Feature fromString(final String s) {
         for (final Feature f : Feature.values()) {

@@ -12,6 +12,10 @@ public class QuotaService extends AbstractService {
     Boolean isEnabled = IS_ENABLED_DEFAULT;
     Integer limit = QUOTA_LIMIT_DEFAULT;
 
+    public long getLimitBytes() {
+        return Math.max(0L, limit.longValue());
+    }
+
     public boolean tryConsume(final ExchangeTarget sender, final long newData) {
         if (!Boolean.TRUE.equals(isEnabled)) {
             return true;

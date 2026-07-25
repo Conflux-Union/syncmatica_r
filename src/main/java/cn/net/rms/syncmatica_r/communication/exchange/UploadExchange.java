@@ -23,8 +23,9 @@ public class UploadExchange extends AbstractExchange {
         if (uploadFile == null || !uploadFile.isFile()) {
             throw new FileNotFoundException("Litematic file is unavailable");
         }
-        if (uploadFile.length() > con.getMaxTransferBytes()) {
-            throw new IOException("Litematic file exceeds the configured transfer limit");
+        final long limit = con.getMaxTransferBytes();
+        if (uploadFile.length() > limit) {
+            throw new TransferLimitExceededException(uploadFile.length(), limit);
         }
         toUpload = syncmatic;
         inputStream = new FileInputStream(uploadFile);
@@ -104,6 +105,31 @@ public class UploadExchange extends AbstractExchange {
         final PacketByteBuf packetByteBuf = new PacketByteBuf(Unpooled.buffer());
         packetByteBuf.writeUuid(toUpload.getId());
         getPartner().sendPacket(PacketType.CANCEL_LITEMATIC.toIdentifier(getPartner().getProtocolFlavor()), packetByteBuf, getContext());
+    }
+
+    /**
+     * Distinguishes a refused transfer from a missing or unreadable file so the
+     * caller can tell the user which limit blocked the exchange.
+     */
+    public static final class TransferLimitExceededException extends IOException {
+        private static final long serialVersionUID = 1L;
+
+        private final long fileBytes;
+        private final long limitBytes;
+
+        TransferLimitExceededException(final long fileBytes, final long limitBytes) {
+            super("Litematic file exceeds the configured transfer limit: " + fileBytes + " > " + limitBytes);
+            this.fileBytes = fileBytes;
+            this.limitBytes = limitBytes;
+        }
+
+        public long getFileBytes() {
+            return fileBytes;
+        }
+
+        public long getLimitBytes() {
+            return limitBytes;
+        }
     }
 
 }

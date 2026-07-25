@@ -37,6 +37,7 @@ public class ServerPlacement {
     private BlockMirror mirror;
     private SubRegionData subRegionData = new SubRegionData();
     private StockingAreaDefinition stockingArea;
+    private MaterialAvailability materialAvailability = MaterialAvailability.AVAILABLE;
 
     public ServerPlacement(final UUID id, final String fileName, final UUID hashValue, final PlayerIdentifier owner) {
         this.id = id;
@@ -308,6 +309,25 @@ public class ServerPlacement {
             materialList.setDeliveryPoint(origin);
         }
         return materialList;
+    }
+
+    public MaterialAvailability getMaterialAvailability() {
+        return materialAvailability;
+    }
+
+    /**
+     * Derived from the stored litematic on every attach, so it is deliberately
+     * not persisted with the placement.
+     *
+     * @return whether the value changed and therefore needs to be broadcast
+     */
+    public boolean setMaterialAvailability(final MaterialAvailability availability) {
+        final MaterialAvailability resolved = availability == null ? MaterialAvailability.AVAILABLE : availability;
+        if (materialAvailability == resolved) {
+            return false;
+        }
+        materialAvailability = resolved;
+        return true;
     }
 
     public StockingAreaDefinition getStockingArea() {

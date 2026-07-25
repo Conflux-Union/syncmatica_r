@@ -9,9 +9,14 @@ import cn.net.rms.syncmatica_r.communication.PacketType;
 import cn.net.rms.syncmatica_r.communication.exchange.AbstractExchange;
 import cn.net.rms.syncmatica_r.communication.exchange.UploadExchange;
 import cn.net.rms.syncmatica_r.litematica.LitematicManager;
+import cn.net.rms.syncmatica_r.litematica.ScreenHelper;
+import cn.net.rms.syncmatica_r.util.SyncmaticaUtil;
 import fi.dy.masa.litematica.schematic.placement.SchematicPlacement;
+import fi.dy.masa.malilib.gui.Message;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.Identifier;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,6 +25,8 @@ import java.io.IOException;
 //#endif
 
 public class ShareLitematicExchange extends AbstractExchange {
+
+    private static final Logger LOGGER = LogManager.getLogger(ShareLitematicExchange.class);
 
     private final SchematicPlacement schematicPlacement;
     private final ServerPlacement toShare;
@@ -60,9 +67,17 @@ public class ShareLitematicExchange extends AbstractExchange {
             final UploadExchange upload;
             try {
                 upload = new UploadExchange(toShare, toUpload, getPartner(), getContext());
+            } catch (final UploadExchange.TransferLimitExceededException tooLarge) {
+                LOGGER.warn("Aborting share of '{}': {}", toShare.getName(), tooLarge.getMessage());
+                showError("syncmatica_r.error.share_exceeds_size_limit",
+                        SyncmaticaUtil.formatMegabytes(tooLarge.getFileBytes()),
+                        SyncmaticaUtil.formatMegabytes(tooLarge.getLimitBytes()));
+                close(false);
+                return;
             } catch (final IOException e) {
-                e.printStackTrace();
-
+                LOGGER.warn("Aborting share of '{}': litematic file is unavailable", toShare.getName(), e);
+                showError("syncmatica_r.error.file_unavailable");
+                close(false);
                 return;
             }
             getManager().startExchange(upload);
@@ -94,5 +109,9 @@ public class ShareLitematicExchange extends AbstractExchange {
     @Override
     public void onClose() {
         ((ClientCommunicationManager) getManager()).setSharingState(toShare, false);
+    }
+
+    private static void showError(final String messageKey, final Object... args) {
+        ScreenHelper.ifPresent(s -> s.addMessage(Message.MessageType.ERROR, messageKey, args));
     }
 }
