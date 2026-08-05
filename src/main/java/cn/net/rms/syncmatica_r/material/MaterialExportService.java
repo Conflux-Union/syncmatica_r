@@ -222,6 +222,13 @@ public final class MaterialExportService {
 
     private static void notifyClient(final String key, final Object... args) {
         final MinecraftClient client = MinecraftClient.getInstance();
+        //#if MC >= 260200
+        //$$ if (client == null || client.player == null) {
+        //$$     return;
+        //$$ }
+        //$$ final String message = StringUtils.translate(key, args);
+        //$$ client.player.sendSystemMessage(Component.literal(message));
+        //#else
         if (client == null || client.inGameHud == null) {
             return;
         }
@@ -239,6 +246,7 @@ public final class MaterialExportService {
         //#endif
         //#else
         chat.addMessage(new LiteralText(message));
+        //#endif
         //#endif
     }
 }

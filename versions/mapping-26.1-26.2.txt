@@ -1,0 +1,2 @@
+# Mapping file for version 26.1 to 26.2
+# Both versions use Mojang mappings; no class renames are required.

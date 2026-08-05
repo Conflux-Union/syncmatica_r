@@ -1,6 +1,9 @@
 package cn.net.rms.syncmatica_r.client.hotkey;
 
 import cn.net.rms.syncmatica_r.litematica.gui.GuiStockingAreaMaterialOverview;
+//#if MC >= 260200
+//$$ import fi.dy.masa.malilib.gui.GuiBase;
+//#endif
 import fi.dy.masa.malilib.hotkeys.IHotkeyCallback;
 import fi.dy.masa.malilib.hotkeys.IKeybind;
 import fi.dy.masa.malilib.hotkeys.KeyAction;
@@ -25,6 +28,9 @@ import net.minecraft.client.MinecraftClient;
             return false;
         }
 
+        //#if MC >= 260200
+        //$$ GuiBase.openGui(new GuiStockingAreaMaterialOverview(null));
+        //#else
         // Check if no other screen is currently open
         final MinecraftClient client = MinecraftClient.getInstance();
         if (client.currentScreen != null) {
@@ -33,6 +39,7 @@ import net.minecraft.client.MinecraftClient;
 
         // Open the Material Collections GUI (null for overview of all placements)
         client.setScreen(new GuiStockingAreaMaterialOverview(null));
+        //#endif
         return true;
     }
 }

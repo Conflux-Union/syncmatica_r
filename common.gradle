@@ -8,7 +8,8 @@ apply plugin: 'maven-publish'
 apply plugin: 'com.gradleup.shadow'
 
 def javaRelease = mcVersionNumber >= 260100 ? 25 : (mcVersionNumber >= 12100 ? 21 : (mcVersionNumber >= 12000 ? 17 : 16))
-def toolchainVersion = javaRelease >= 17 ? javaRelease : 17
+def defaultToolchainVersion = javaRelease >= 17 ? javaRelease : 17
+def toolchainVersion = project.findProperty('java_toolchain_version')?.toInteger() ?: defaultToolchainVersion
 def preprocessRootProject = rootProject.file("versions/mainProject").text.trim()
 def poiVersion = '5.5.1'
 def fabricPermissionsApiVersion = '0.3.1'
