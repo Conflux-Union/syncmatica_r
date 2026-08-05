@@ -123,15 +123,11 @@ processResources {
         expand "version": project.version
     }
 
-    // Adjust mixin compatibility level and remove incompatible mixins for unobfuscated versions
+    // Adjust mixin compatibility level for unobfuscated versions
     if (unobfuscated) {
         filesMatching(['syncmatica_r.mixin.json', 'syncmatica_r.litematica_mixin.json']) {
             filter { String line ->
-                def result = line.replace('"JAVA_8"', '"JAVA_25"')
-                if (result.contains('MixinWidgetSchematicPlacement')) {
-                    return ''
-                }
-                return result
+                return line.replace('"JAVA_8"', '"JAVA_25"')
             }
         }
     }
