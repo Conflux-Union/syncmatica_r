@@ -5,6 +5,7 @@ import fi.dy.masa.malilib.hotkeys.IHotkeyCallback;
 import fi.dy.masa.malilib.hotkeys.IKeybind;
 import fi.dy.masa.malilib.hotkeys.KeyAction;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.Screen;
 
 /**
  * Callback handler for the "Open Material Collections" hotkey.
@@ -27,12 +28,23 @@ import net.minecraft.client.MinecraftClient;
 
         // Check if no other screen is currently open
         final MinecraftClient client = MinecraftClient.getInstance();
-        if (client.currentScreen != null) {
+        final Screen currentScreen;
+        //#if MC >= 260200
+        //$$ currentScreen = client.gui.screen();
+        //#else
+        currentScreen = client.currentScreen;
+        //#endif
+        if (currentScreen != null) {
             return false;
         }
 
         // Open the Material Collections GUI (null for overview of all placements)
-        client.setScreen(new GuiStockingAreaMaterialOverview(null));
+        final GuiStockingAreaMaterialOverview overview = new GuiStockingAreaMaterialOverview(null);
+        //#if MC >= 260200
+        //$$ client.gui.setScreen(overview);
+        //#else
+        client.setScreen(overview);
+        //#endif
         return true;
     }
 }

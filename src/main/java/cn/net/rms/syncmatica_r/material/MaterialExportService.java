@@ -225,8 +225,12 @@ public final class MaterialExportService {
         if (client == null || client.inGameHud == null) {
             return;
         }
+        //#if MC >= 260200
+        //$$ final net.minecraft.client.gui.components.ChatComponent chat = client.gui.hud.getChat();
+        //#else
         final InGameHud hud = client.inGameHud;
         final ChatHud chat = hud.getChatHud();
+        //#endif
         if (chat == null) {
             return;
         }
