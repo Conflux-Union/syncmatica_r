@@ -168,7 +168,9 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         final int missingLeftBound = stockColumnRight + 4;
         final int rowTop = y;
         final int rowBottom = y + height;
-        if (mouseX >= missingLeftBound && mouseX <= missingColumnRight && mouseY >= rowTop && mouseY <= rowBottom) {
+        final boolean missingAmountHovered = mouseX >= missingLeftBound && mouseX <= missingColumnRight
+                && mouseY >= rowTop && mouseY <= rowBottom;
+        if (missingAmountHovered) {
 //#if MC >= 12111
 //$$             final java.util.List<String> lines = java.util.Collections.singletonList(formatMissingVerboseText(material));
 //$$             RenderUtils.drawHoverText(guiContext, mouseX, mouseY, lines);
@@ -190,8 +192,10 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
 //#endif
         }
 
-        if (shouldRenderClaimTooltip(material) && mouseX >= x && mouseX <= x + width
-                && mouseY >= rowTop && mouseY <= rowBottom) {
+        final boolean rowHovered = mouseX >= x && mouseX <= x + width
+                && mouseY >= rowTop && mouseY <= rowBottom;
+        if (MaterialProgressHoverRules.shouldShowClaimTooltip(
+                shouldRenderClaimTooltip(material), rowHovered, missingAmountHovered)) {
             final java.util.List<String> claimers = material == null ? java.util.Collections.emptyList() : material.getClaimers();
             final net.minecraft.client.MinecraftClient cli = net.minecraft.client.MinecraftClient.getInstance();
             final String self = cli != null && cli.player != null ? SyncmaticaUtil.getProfileName(cli.player.getGameProfile()) : "";
