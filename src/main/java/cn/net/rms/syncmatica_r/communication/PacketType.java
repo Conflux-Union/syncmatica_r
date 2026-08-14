@@ -42,7 +42,9 @@ public enum PacketType {
 
     MESSAGE("mesage"),
 
-    MATERIAL_CLAIM_TOGGLE("material_claim_toggle");
+    MATERIAL_CLAIM_TOGGLE("material_claim_toggle"),
+
+    SET_STOCKING_AREA("set_stocking_area");
 
     private static final String NEW_NAMESPACE = "syncmatica_r";
     private static final String LEGACY_NAMESPACE = "syncmatica";

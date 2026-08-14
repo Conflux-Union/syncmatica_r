@@ -98,6 +98,24 @@ permission level 2 as the fallback.
 ### Setting Up Stocking Areas
 
 Stocking areas are container regions the server scans for inventory tracking.
+They can be set either by framing the area in-world with Litematica's schematic
+tool item, or by typing the coordinates into a command.
+
+**From an in-world selection (recommended):**
+
+1. Switch Litematica to **Area Selection** tool mode and frame the container region
+   with the schematic tool item, exactly as you would for any other selection
+2. Open **Materials** for the shared placement and press **Stocking Area from Selection**,
+   or open **Material Overview** and press **Default Area from Selection**
+3. The server validates the box, stores it, and schedules a scan
+
+The area is read from your currently selected sub-region box, so a selection with a
+single box works without highlighting anything first. Litematica keeps drawing the
+box; Syncmatica_r only reads its corners.
+
+Permissions for this path are per-placement: the placement owner, or anyone with
+`syncmatica_r.manage`, may set that placement's area. Setting the **default** area
+always requires `syncmatica_r.manage` (vanilla permission level 2 as fallback).
 
 **Create a default stocking area (matches all schematics via sign labels):**
 

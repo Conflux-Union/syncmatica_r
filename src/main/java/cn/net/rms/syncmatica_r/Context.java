@@ -139,6 +139,7 @@ public class Context {
 
             features.remove(Feature.MATERIAL_PROGRESS);
             features.remove(Feature.MATERIAL_CLAIMS);
+            features.remove(Feature.STOCKING_AREA_SETUP);
         }
         fs = new FeatureSet(features);
     }
