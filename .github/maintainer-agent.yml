@@ -1,0 +1,144 @@
+version: 1
+enabled: true
+
+languages:
+  - en
+  - zh-CN
+
+repository:
+  description: >-
+    Syncmatica Revolution is a Fabric mod that shares Litematica schematics and
+    their placements across a Minecraft server and tracks collaborative material
+    progress. A single source tree is compiled for Minecraft 1.17.1 through 26.2
+    through a Gradle preprocessor, so version-specific behavior lives behind
+    preprocessor directives rather than separate branches.
+  defaultBranch: for-rms
+  maintainers:
+    - Trirrin
+
+search:
+  # Only repositories the GitHub App is installed on can be read. The agent
+  # always reads its own repository, so this list stays empty.
+  repositories: []
+  maxCandidates: 10
+
+metadata:
+  # `fieldValue` must name an existing native issue type. The Conflux-Union
+  # organization defines Task, Bug and Feature only, so `question` shares the
+  # Task field value and carries its meaning through the label instead. `task`
+  # is declared first and marked canonical so a native Task selection resolves
+  # back to `task` rather than `question`.
+  issueTypes:
+    bug:
+      label: type/bug
+      fieldValue: Bug
+      canonical: true
+    feature:
+      label: type/feature
+      fieldValue: Feature
+      canonical: true
+    task:
+      label: type/task
+      fieldValue: Task
+      canonical: true
+    question:
+      label: type/question
+      fieldValue: Task
+      canonical: false
+  # Native issue fields are not enabled on this repository, so no
+  # priorityFieldId or projectId is set and priority is mirrored to labels only.
+  priorities:
+    critical:
+      label: priority/critical
+      fieldValue: Critical
+      canonical: true
+    high:
+      label: priority/high
+      fieldValue: High
+      canonical: true
+    normal:
+      label: priority/normal
+      fieldValue: Normal
+      canonical: true
+    low:
+      label: priority/low
+      fieldValue: Low
+      canonical: true
+
+# Paths are truncated at the first wildcard when the agent reads commit history
+# for assignment, so they are written as literal directories and files.
+areas:
+  - label: area/sync
+    paths:
+      - src/main/java/cn/net/rms/syncmatica_r/communication
+      - src/main/java/cn/net/rms/syncmatica_r/schematic
+      - src/main/java/cn/net/rms/syncmatica_r/SyncmaticManager.java
+      - src/main/java/cn/net/rms/syncmatica_r/ServerPlacement.java
+      - src/main/java/cn/net/rms/syncmatica_r/FileStorage.java
+  - label: area/material
+    paths:
+      - src/main/java/cn/net/rms/syncmatica_r/material
+  - label: area/client
+    paths:
+      - src/main/java/cn/net/rms/syncmatica_r/client
+      - src/main/java/cn/net/rms/syncmatica_r/litematica
+  - label: area/mixin
+    paths:
+      - src/main/java/cn/net/rms/syncmatica_r/mixin
+      - src/main/java/cn/net/rms/syncmatica_r/mixin_actor
+      - src/main/java/cn/net/rms/syncmatica_r/litematica_mixin
+      - src/main/resources/syncmatica_r.mixin.json
+      - src/main/resources/syncmatica_r.litematica_mixin.json
+  - label: area/server
+    paths:
+      - src/main/java/cn/net/rms/syncmatica_r/command
+      - src/main/java/cn/net/rms/syncmatica_r/service
+  - label: area/build
+    paths:
+      - versions
+      - scripts
+      - .github/workflows
+      - build.gradle
+      - common.gradle
+      - settings.gradle
+      - gradle.properties
+  - label: area/i18n
+    paths:
+      - src/main/resources/assets/syncmatica_r/lang
+  - label: area/docs
+    paths:
+      - docs
+      - README.md
+      - README_CN.md
+      - CONFIG.md
+      - CONFIG_CN.md
+
+autonomy:
+  automatic:
+    metadata: true
+    conversation: true
+    closingLinks: true
+    duplicate: true
+    wontfix: true
+    assignment: true
+  minimumConfidence: 0.9
+  duplicateMinimumConfidence: 0.88
+  assignment:
+    historyDepth: 30
+    minimumCommits: 3
+    minimumShare: 0.6
+    minimumLead: 2
+  trustedAssociations:
+    - OWNER
+    - MEMBER
+    - COLLABORATOR
+
+budgets:
+  maxModelCallsPerEvent: 4
+  maxToolCallsPerEvent: 8
+  maxToolResultCharacters: 12000
+  maxInputCharacters: 30000
+  maxOutputTokens: 2500
+
+disabledLabels:
+  - agent/disabled

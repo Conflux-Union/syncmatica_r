@@ -1,6 +1,6 @@
 name: Bug Report
 description: Report a bug in Syncmatica
-labels: ["bug"]
+labels: ["type/bug"]
 body:
   - type: dropdown
     id: minecraft-version
