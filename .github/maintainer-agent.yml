@@ -135,7 +135,7 @@ autonomy:
 
 budgets:
   maxModelCallsPerEvent: 30
-  maxToolCallsPerEvent: 120
+  maxToolCallsPerEvent: 20
   maxToolResultCharacters: 12000
   maxInputCharacters: 30000
   maxOutputTokens: 2500
