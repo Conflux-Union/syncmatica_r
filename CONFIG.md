@@ -21,7 +21,7 @@ Because of that, always edit the file while the game/server is stopped; changes 
 
 ## JSON Structure Overview
 
-The root object is a flat collection of sections. Servers use all three blocks shown below, while clients only care
+The root object is a flat collection of sections. Servers use all the blocks shown below, while clients only care
 about `debug`. Two additional top-level keys control the optional GitHub update check on the client.
 
 ```json
@@ -41,14 +41,20 @@ about `debug`. Two additional top-level keys control the optional GitHub update 
     "max_schematic_blocks": 8000000,
     "max_stocking_area_blocks": 1000000
   },
+  "build": {
+    "enabled": true,
+    "completion_enabled": true,
+    "scan_blocks_per_tick": 1024,
+    "scan_interval": 1200
+  },
   "debug": {
     "doPackageLogging": false
   }
 }
 ```
 
-Clients can safely delete the `quota` and `materials` sections; the loader will re-create them when the game later runs
-as a server. The two top-level update keys are ignored on servers.
+Clients can safely delete the `quota`, `materials` and `build` sections; the loader will re-create them when the game
+later runs as a server. The two top-level update keys are ignored on servers.
 
 ## `quota` — Server Upload Control
 
@@ -85,6 +91,35 @@ Operational notes:
 - Schematic extraction runs on a bounded background worker. NBT allocation and block volume are both checked before
   results are applied on the server thread; nested container traversal stops after 10 levels.
 - Stocking area commands schedule an incremental scan; they no longer scan the entire cuboid during command execution.
+- Changing these settings after the service started requires a full server restart.
+
+## `build` — Server Build Management
+
+This block is only consumed when the BuildService is present (dedicated or integrated servers). Disabling it withdraws
+`BUILD_MANAGEMENT` from the advertised feature set, which hides region claims from every client.
+
+Build management reads the schematic itself rather than reusing the material extraction, so the two features are
+independent: turning `materials` off leaves region claims and completion working, and vice versa. The cost is one extra
+decode per placement when the server starts.
+
+| Key                  | Default | Enforced Minimum     | Purpose |
+|----------------------|---------|----------------------|---------|
+| enabled              | `true`  | —                    | Master toggle for region claims and everything below. |
+| completion_enabled   | `true`  | —                    | Whether the server measures how much of each region is built. Claims keep working without it. |
+| scan_blocks_per_tick | `1024`  | `64`–`65,536` blocks | Per-tick budget of the completion scan. |
+| scan_interval        | `1200`  | `100` ticks          | How often every placement is queued for another completion pass. |
+
+Operational notes:
+
+- One placement is scanned at a time. A large schematic costs a long wall-clock scan rather than a server stall.
+- A region touching an unloaded chunk publishes no result at all rather than an undercount, so progress can stay at its
+  last value until the area is loaded again.
+- Completion compares block identity, not full block state. A region built with every stair facing the wrong way still
+  reads as complete — the same rule the material list counts by.
+- Claims are keyed by region name, so they survive a re-share, a re-extraction and a restart. A region that disappears
+  from the schematic loses its claim with it.
+- The foreign build warning is not configured here: it runs on the client, and its switch lives in
+  `config/syncmatica_r/build_warning_settings.json` under `warn_on_foreign_placement`.
 - Changing these settings after the service started requires a full server restart.
 
 ## Limit Diagnostics on the Client
@@ -126,6 +161,9 @@ diagnosing protocol problems.
 
 - `syncmatica_r.share`: upload new placements; allowed by default when no provider handles the node.
 - `syncmatica_r.claim`: claim existing material requirements; allowed by default.
+- `syncmatica_r.build.claim`: take responsibility for a sub-region of a shared schematic; allowed by default. Separate
+  from `syncmatica_r.claim` so gathering a material and building part of the schematic can be handed to different
+  people.
 - `syncmatica_r.manage`: modify or delete placements owned by another player; defaults to permission level 2.
 - Placement owners can always modify or delete their own placements.
 

@@ -30,6 +30,16 @@ Syncmatica_r 与 Litematica 模组集成，实现服务器范围内的原理图�
 - **GUI 仪表盘**：通过「材料收集」按钮协调团队资源收集
 - **排序与过滤**：按缺失数量或物品名称排序；隐藏已完成项目
 
+### 建造管理
+
+把一个大工程分给多个人，分工记录留在游戏里，不用再靠表格：
+
+- **区域认领**：共享蓝图的每个子区域可由一名玩家负责，所有人都看得到归属
+- **完成度统计**：服务端实时测量每个区域已经建了多少
+- **越界建造提醒**：在别人负责的区域里放方块会收到提示，但不会阻止放置
+- **GUI 仪表盘**：通过「建造管理」按钮进入 —— 先选蓝图，再看该蓝图的区域
+- **与材料收集互不依赖**：材料追踪开不开，建造管理都能用
+
 ---
 
 ## 安装
@@ -56,9 +66,10 @@ Syncmatica_r 与 Litematica 模组集成，实现服务器范围内的原理图�
 
 | 文件 | 位置 | 用途 |
 |------|------|------|
-| 主配置 | `config/syncmatica_r/config.json` | 服务端配额、材料追踪设置 |
+| 主配置 | `config/syncmatica_r/config.json` | 服务端配额、材料追踪与建造管理设置 |
 | HUD 设置 | `config/syncmatica_r/hud_settings.json` | 客户端 HUD 缩放与开关 |
 | 材料列表 | `config/syncmatica_r/material_list_settings.json` | 客户端排序与过滤偏好 |
+| 建造提醒 | `config/syncmatica_r/build_warning_settings.json` | 客户端越界建造提醒开关 |
 | 客户端提醒 | `config/syncmatica_r/client_notices.json` | 已关闭的迁移提醒版本 |
 
 整合包（单人）服务端的主配置存储在 `<世界存档>/syncmatica_r/config.json`。

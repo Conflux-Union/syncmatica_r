@@ -31,6 +31,16 @@ A real-time coordination system for collaborative building projects:
 - **GUI Dashboard**: Access via the **Material Collections** button to coordinate team resource collection
 - **Sorting & Filtering**: Sort by missing count or item name; hide completed items
 
+### Build Management
+
+Divides a large build between players, so the assignment lives in the game rather than in a spreadsheet:
+
+- **Region Claims**: Each sub-region of a shared schematic can be taken by one player, visible to everyone
+- **Completion Tracking**: The server measures how much of each region is already built and reports it live
+- **Foreign Build Warning**: Building inside a region somebody else took warns you, and never cancels the placement
+- **GUI Dashboard**: Access via the **Build Management** button — schematics first, then the regions of the one picked
+- **Independent of Materials**: Works whether or not material tracking is enabled
+
 ---
 
 ## Installation
@@ -57,9 +67,10 @@ After first run, configuration files are created at:
 
 | File | Location | Purpose |
 |------|----------|---------|
-| Main config | `config/syncmatica_r/config.json` | Server quota, material tracking settings |
+| Main config | `config/syncmatica_r/config.json` | Server quota, material tracking and build management settings |
 | HUD settings | `config/syncmatica_r/hud_settings.json` | Client HUD scale and enable toggle |
 | Material list | `config/syncmatica_r/material_list_settings.json` | Client sort mode and filter preferences |
+| Build warnings | `config/syncmatica_r/build_warning_settings.json` | Client toggle for the foreign build warning |
 | Client notices | `config/syncmatica_r/client_notices.json` | Dismissed migration notice version |
 
 For integrated (single-player) servers, the main config is stored in `<world-folder>/syncmatica_r/config.json`.
