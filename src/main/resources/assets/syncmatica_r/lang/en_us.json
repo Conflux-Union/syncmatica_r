@@ -97,6 +97,8 @@
   "syncmatica_r.update.toast.integrity_warning": "Your current Syncmatica build may be corrupted or withdrawn. Please download the latest release again.",
   "syncmatica_r.gui.label.hotkey.material_collections": "Open Material Collections",
   "syncmatica_r.hotkey.open_material_collections.comment": "Opens the Material Collections GUI when pressed",
+  "syncmatica_r.gui.label.hotkey.build_management": "Open Build Management",
+  "syncmatica_r.hotkey.open_build_management.comment": "Opens the Build Management GUI when pressed",
   "syncmatica_r.hotkeys.category": "Syncmatica_r Hotkeys",
   "syncmatica_r.gui.label.hotkey.none": "NONE",
   "syncmatica_r.gui.label.hotkey.press_key": "Press a key...",

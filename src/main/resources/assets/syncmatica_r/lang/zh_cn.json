@@ -97,6 +97,8 @@
   "syncmatica_r.update.toast.integrity_warning": "当前mod可能损坏或是您的当前版本可能因为bug被撤回，请重新下载最新版",
   "syncmatica_r.gui.label.hotkey.material_collections": "打开材料收集",
   "syncmatica_r.hotkey.open_material_collections.comment": "按下时打开材料收集界面",
+  "syncmatica_r.gui.label.hotkey.build_management": "打开建造管理",
+  "syncmatica_r.hotkey.open_build_management.comment": "按下时打开建造管理界面",
   "syncmatica_r.hotkeys.category": "Syncmatica_r 热键",
   "syncmatica_r.gui.label.hotkey.none": "无",
   "syncmatica_r.gui.label.hotkey.press_key": "请按下按键...",
