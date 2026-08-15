@@ -24,6 +24,7 @@ public class SyncmaticaClient implements ClientModInitializer {
         HudPreferences.load();
         MaterialListPreferences.load();
         BuildWarningPreferences.load();
+        BuildVisibilityPreferences.load();
         BuildClaimWarning.register();
         MaterialHudOverlay.getInstance().setHudScale(HudPreferences.getHudScale());
         MaterialHudOverlay.getInstance().register();

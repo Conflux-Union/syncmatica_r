@@ -126,6 +126,10 @@ Operational notes:
   from the schematic loses its claim with it.
 - The foreign build warning is not configured here: it runs on the client, and its switch lives in
   `config/syncmatica_r/build_warning_settings.json` under `warn_on_foreign_placement`.
+- Following claims with Litematica's sub-region visibility is a client choice too, switched from the region list or in
+  `config/syncmatica_r/build_visibility_settings.json` under `follow_claims`, and off by default. With it on, claiming a
+  region enables that sub-region and dropping it disables that sub-region again; regions claimed by others, and regions
+  nobody claimed, are left exactly as the player set them.
 - Changing these settings after the service started requires a full server restart.
 
 ## Limit Diagnostics on the Client

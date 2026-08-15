@@ -37,7 +37,10 @@ Syncmatica_r 与 Litematica 模组集成，实现服务器范围内的原理图�
 - **区域认领**：共享蓝图的每个子区域可由一名玩家负责，所有人都看得到归属
 - **完成度统计**：服务端实时测量每个区域已经建了多少
 - **越界建造提醒**：在别人负责的区域里放方块会收到提示，但不会阻止放置
-- **GUI 仪表盘**：通过「建造管理」按钮进入 —— 先选蓝图，再看该蓝图的区域
+- **GUI 仪表盘**：通过「建造管理」按钮或可自定义的快捷键进入 —— 先选蓝图，再看该蓝图的区域。区域按数字顺序排列，
+  已完成的排在最后
+- **可见性跟随认领**：可选打开后，认领区域会自动显示对应的 Litematica 子区域，取消认领则重新隐藏。默认关闭，
+  别人认领的区域永远不动
 - **与材料收集互不依赖**：材料追踪开不开，建造管理都能用
 
 ---
@@ -70,6 +73,7 @@ Syncmatica_r 与 Litematica 模组集成，实现服务器范围内的原理图�
 | HUD 设置 | `config/syncmatica_r/hud_settings.json` | 客户端 HUD 缩放与开关 |
 | 材料列表 | `config/syncmatica_r/material_list_settings.json` | 客户端排序与过滤偏好 |
 | 建造提醒 | `config/syncmatica_r/build_warning_settings.json` | 客户端越界建造提醒开关 |
+| 建造可见性 | `config/syncmatica_r/build_visibility_settings.json` | 客户端开关：Litematica 子区域可见性是否跟随认领 |
 | 客户端提醒 | `config/syncmatica_r/client_notices.json` | 已关闭的迁移提醒版本 |
 
 整合包（单人）服务端的主配置存储在 `<世界存档>/syncmatica_r/config.json`。

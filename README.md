@@ -38,7 +38,10 @@ Divides a large build between players, so the assignment lives in the game rathe
 - **Region Claims**: Each sub-region of a shared schematic can be taken by one player, visible to everyone
 - **Completion Tracking**: The server measures how much of each region is already built and reports it live
 - **Foreign Build Warning**: Building inside a region somebody else took warns you, and never cancels the placement
-- **GUI Dashboard**: Access via the **Build Management** button — schematics first, then the regions of the one picked
+- **GUI Dashboard**: Access via the **Build Management** button or a configurable hotkey — schematics first, then the
+  regions of the one picked. Regions are listed in numeric order, with completed ones at the bottom
+- **Claim-Following Visibility**: Optionally let claiming a region show that Litematica sub-region, and dropping it hide
+  the sub-region again. Off by default; regions claimed by others are never touched
 - **Independent of Materials**: Works whether or not material tracking is enabled
 
 ---
@@ -71,6 +74,7 @@ After first run, configuration files are created at:
 | HUD settings | `config/syncmatica_r/hud_settings.json` | Client HUD scale and enable toggle |
 | Material list | `config/syncmatica_r/material_list_settings.json` | Client sort mode and filter preferences |
 | Build warnings | `config/syncmatica_r/build_warning_settings.json` | Client toggle for the foreign build warning |
+| Build visibility | `config/syncmatica_r/build_visibility_settings.json` | Client toggle for following claims with Litematica sub-region visibility |
 | Client notices | `config/syncmatica_r/client_notices.json` | Dismissed migration notice version |
 
 For integrated (single-player) servers, the main config is stored in `<world-folder>/syncmatica_r/config.json`.

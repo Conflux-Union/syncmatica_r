@@ -2,6 +2,8 @@ package cn.net.rms.syncmatica_r.litematica.gui;
 
 import cn.net.rms.syncmatica_r.ServerPlacement;
 import cn.net.rms.syncmatica_r.build_management.BuildRegion;
+import cn.net.rms.syncmatica_r.client.BuildVisibilityPreferences;
+import cn.net.rms.syncmatica_r.litematica.ClaimedRegionVisibility;
 import cn.net.rms.syncmatica_r.litematica.ScreenHelper;
 import fi.dy.masa.malilib.gui.GuiListBase;
 import fi.dy.masa.malilib.gui.Message;
@@ -35,7 +37,37 @@ public class GuiBuildRegions extends GuiListBase<BuildRegion, WidgetBuildRegionE
                 new ButtonGeneric(width - closeWidth - 10, height - 26, closeWidth, 20, closeLabel);
         addButton(closeButton, (button, mouseButton) -> closeGui(true));
 
+        addFollowClaimsButton();
         reportEmptyRegionList();
+    }
+
+    /**
+     * The switch sits next to the rows it acts on, because this is the screen
+     * where the claims it follows are made.
+     */
+    private void addFollowClaimsButton() {
+        // Sized for both labels so the button does not resize as it is clicked.
+        final int labelWidth = Math.max(
+                getStringWidth(buildFollowClaimsLabel(true)),
+                getStringWidth(buildFollowClaimsLabel(false)));
+        final ButtonGeneric followButton = new ButtonGeneric(
+                10, height - 26, labelWidth + 20, 20, buildFollowClaimsLabel());
+        addButton(followButton, (button, mouseButton) -> {
+            BuildVisibilityPreferences.setFollowClaimsEnabled(!BuildVisibilityPreferences.isFollowClaimsEnabled());
+            followButton.setDisplayString(buildFollowClaimsLabel());
+            ClaimedRegionVisibility.getInstance().refresh();
+        });
+    }
+
+    private static String buildFollowClaimsLabel() {
+        return buildFollowClaimsLabel(BuildVisibilityPreferences.isFollowClaimsEnabled());
+    }
+
+    private static String buildFollowClaimsLabel(final boolean enabled) {
+        final String state = StringUtils.translate(enabled
+                ? "syncmatica_r.gui.label.toggle_on"
+                : "syncmatica_r.gui.label.toggle_off");
+        return StringUtils.translate("syncmatica_r.gui.button.build.follow_claims", state);
     }
 
     /**
