@@ -35,23 +35,8 @@ public abstract class MixinWidgetSchematicPlacement extends WidgetListEntryBase<
     @Inject(method = "<init>", at = @At("TAIL"), remap = false)
     public void addUploadButton(final int x, final int y, final int width, final int height, final boolean isOdd,
                                 final SchematicPlacement placement, final int listIndex, final WidgetListSchematicPlacements parent, final CallbackInfo ci) {
-        int i = 0;
         if (LitematicManager.getInstance().isSyncmatic(placement)) {
-            for (final WidgetBase base : subWidgets) {
-                if (base instanceof ButtonBase button) {
-                    if (++i == 1) {
-                        final IButtonActionListener oldAction = ((MixinButtonBase) button).getActionListener();
-                        button.setActionListener((b, k) -> {
-                            if (GuiBase.isShiftDown()) {
-                                LitematicManager.getInstance().unrenderSchematicPlacement(placement);
-                                return;
-                            }
-                            oldAction.actionPerformedWithButton(b, k);
-                        });
-
-                    }
-                }
-            }
+            wrapRemoveButtonOfSyncmatic(placement);
         }
 
         final ButtonGeneric shareButton = new ButtonGeneric(buttonsStartX, y + 1, -1, true, "syncmatica_r.gui.button.share");
@@ -60,6 +45,38 @@ public abstract class MixinWidgetSchematicPlacement extends WidgetListEntryBase<
         shareButton.setEnabled(buttonEnabled);
         addButton(shareButton, new ButtonListenerShare(placement, parent.parent));
         buttonsStartX = shareButton.getX() - 1;
+    }
+
+    /**
+     * A shared placement must not be removed outright, so shift-clicking Litematica's own Remove
+     * button only drops it from the local render instead.
+     * <p>
+     * The button is matched by its listener type rather than by its index in {@code subWidgets}:
+     * other Litematica addons inject into this same constructor and any button they add would
+     * otherwise shift the position we look at.
+     */
+    private void wrapRemoveButtonOfSyncmatic(final SchematicPlacement placement) {
+        for (final WidgetBase base : subWidgets) {
+            if (!(base instanceof ButtonBase button)) {
+                continue;
+            }
+
+            final IButtonActionListener listener = ((MixinButtonBase) button).getActionListener();
+            if (!(listener instanceof WidgetSchematicPlacement.ButtonListener)
+                    || ((MixinWidgetSchematicPlacementButtonListener) (Object) listener).getButtonType()
+                    != WidgetSchematicPlacement.ButtonListener.ButtonType.REMOVE) {
+                continue;
+            }
+
+            button.setActionListener((b, k) -> {
+                if (GuiBase.isShiftDown()) {
+                    LitematicManager.getInstance().unrenderSchematicPlacement(placement);
+                    return;
+                }
+                listener.actionPerformedWithButton(b, k);
+            });
+            return;
+        }
     }
 
     public SchematicPlacement getPlacement() {
