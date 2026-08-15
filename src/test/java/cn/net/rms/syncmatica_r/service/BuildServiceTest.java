@@ -287,8 +287,28 @@ final class BuildServiceTest {
             // Silly values must not turn into a per-tick full scan or a busy loop.
             service.configure(new ScanTuningConfiguration(1, 1));
             service.configure(new ScanTuningConfiguration(Integer.MAX_VALUE, Integer.MAX_VALUE));
+            // Zero switches the recovery sweep off; a negative is the same ask.
+            service.configure(new ScanTuningConfiguration(1024, 1200, 0));
+            service.configure(new ScanTuningConfiguration(1024, 1200, -1));
+            service.configure(new ScanTuningConfiguration(1024, 1200, 1));
         } finally {
             context.shutdown();
+        }
+    }
+
+    @Test
+    void theScanDefaultsAreThePublishedOnes() {
+        final BuildService service = new BuildService();
+        try {
+            final JsonObject defaults = new JsonObject();
+            service.getDefaultConfiguration(new JsonConfiguration(defaults));
+
+            assertEquals(BuildService.SCAN_BLOCKS_PER_TICK_DEFAULT, defaults.get("scan_blocks_per_tick").getAsInt());
+            assertEquals(BuildService.SCAN_INTERVAL_DEFAULT, defaults.get("scan_interval").getAsInt());
+            assertEquals(BuildService.FULL_RESCAN_INTERVAL_DEFAULT,
+                    defaults.get("full_rescan_interval").getAsInt());
+        } finally {
+            service.shutdown();
         }
     }
 
@@ -512,10 +532,16 @@ final class BuildServiceTest {
     private static final class ScanTuningConfiguration extends NoOpConfiguration {
         private final int blocksPerTick;
         private final int interval;
+        private final int fullRescanInterval;
 
         private ScanTuningConfiguration(final int blocksPerTick, final int interval) {
+            this(blocksPerTick, interval, interval);
+        }
+
+        private ScanTuningConfiguration(final int blocksPerTick, final int interval, final int fullRescanInterval) {
             this.blocksPerTick = blocksPerTick;
             this.interval = interval;
+            this.fullRescanInterval = fullRescanInterval;
         }
 
         @Override
@@ -524,6 +550,8 @@ final class BuildServiceTest {
                 loader.accept(blocksPerTick);
             } else if ("scan_interval".equals(key)) {
                 loader.accept(interval);
+            } else if ("full_rescan_interval".equals(key)) {
+                loader.accept(fullRescanInterval);
             }
         }
     }

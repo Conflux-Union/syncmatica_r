@@ -15,6 +15,7 @@ public final class RegionBlocks {
     private final int sizeZ;
     private final Identifier[] palette;
     private final PackedBlockStateArray states;
+    private RegionColumnHeights columnHeights;
 
     public RegionBlocks(final BlockPos absoluteSize, final Identifier[] palette,
                         final PackedBlockStateArray states) {
@@ -23,6 +24,30 @@ public final class RegionBlocks {
         sizeZ = absoluteSize.getZ();
         this.palette = palette;
         this.states = states;
+    }
+
+    /**
+     * Indexes where each schematic column starts and ends.
+     *
+     * <p>Walks the whole region, so it belongs on the decoding thread next to
+     * the decode itself, and is deliberately not done lazily on first use.
+     */
+    public void measureColumnHeights() {
+        columnHeights = RegionColumnHeights.measure(this);
+    }
+
+    /**
+     * @return the column index, or null when it was never measured or the region
+     *         was too wide to index. A caller without one has to walk the full
+     *         height of the region.
+     */
+    public RegionColumnHeights getColumnHeights() {
+        return columnHeights;
+    }
+
+    /** @return roughly what this region costs to keep decoded, for cache budgeting */
+    public long getStoredBytes() {
+        return states.sizeInBytes() + (columnHeights == null ? 0L : columnHeights.getStoredBytes());
     }
 
     public int getSizeX() {

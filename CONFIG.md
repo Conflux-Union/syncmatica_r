@@ -44,8 +44,9 @@ about `debug`. Two additional top-level keys control the optional GitHub update 
   "build": {
     "enabled": true,
     "completion_enabled": true,
-    "scan_blocks_per_tick": 1024,
-    "scan_interval": 1200
+    "scan_blocks_per_tick": 4096,
+    "scan_interval": 1200,
+    "full_rescan_interval": 36000
   },
   "debug": {
     "doPackageLogging": false
@@ -102,19 +103,31 @@ Build management reads the schematic itself rather than reusing the material ext
 independent: turning `materials` off leaves region claims and completion working, and vice versa. The cost is one extra
 decode per placement when the server starts.
 
-| Key                  | Default | Enforced Minimum     | Purpose |
-|----------------------|---------|----------------------|---------|
-| enabled              | `true`  | —                    | Master toggle for region claims and everything below. |
-| completion_enabled   | `true`  | —                    | Whether the server measures how much of each region is built. Claims keep working without it. |
-| scan_blocks_per_tick | `1024`  | `64`–`65,536` blocks | Per-tick budget of the completion scan. |
-| scan_interval        | `1200`  | `100` ticks          | How often every placement is queued for another completion pass. |
+| Key                  | Default  | Enforced Minimum     | Purpose |
+|----------------------|----------|----------------------|---------|
+| enabled              | `true`   | —                    | Master toggle for region claims and everything below. |
+| completion_enabled   | `true`   | —                    | Whether the server measures how much of each region is built. Claims keep working without it. |
+| scan_blocks_per_tick | `4096`   | `64`–`65,536` blocks | Per-tick budget of the completion scan. |
+| scan_interval        | `1200`   | `100` ticks          | How often a placement with columns nobody has counted yet is queued to retry them. |
+| full_rescan_interval | `36000`  | `1200` ticks, or `0` | How often every column is re-counted from scratch. `0` switches the sweep off. |
 
 Operational notes:
 
+- Scanning is driven by what changes. The server reports every block change to build management, so a placement nothing
+  has touched is not scanned at all, and a placement someone is building in only re-counts the chunk columns that
+  changed. Progress therefore updates within a tick or two of a block being placed, and an idle schematic costs nothing,
+  however large it is.
 - One placement is scanned at a time. A large schematic costs a long wall-clock scan rather than a server stall.
 - Completion is counted per chunk column and kept. A column out of view keeps the number it was last given, because
   nothing can be built inside an unloaded chunk, so a region far larger than the area players keep loaded still gets
-  measured — a piece at a time, across as many visits as it takes. Columns nobody has ever loaded count as unbuilt.
+  measured — a piece at a time, across as many visits as it takes. Columns nobody has ever loaded count as unbuilt, and
+  `scan_interval` is how often the scan goes back to see whether they have become reachable.
+- Writes that reach the world without going through it — a bulk editor putting chunk sections down directly, for
+  instance — are not reported and would otherwise leave a stale count behind. `full_rescan_interval` is the sweep that
+  recovers from them. Lengthen it on a server where nothing does that; `0` turns it off entirely, leaving
+  `rescanBuild` as the only way back.
+- Each region is scanned only through the layers its schematic actually fills, and each placement's decoded schematic is
+  kept between passes rather than re-read from disk. Neither changes what is counted.
 - The counts are stored in the world they were measured in, under `<world>/syncmatica_r/build_scan/`, rather than beside
   the placements. Restoring a backup or rolling the world back therefore brings the matching counts with it, and what the
   world says outranks what the placement file remembers.

@@ -61,6 +61,10 @@ public final class RegionBoundsResolver {
      * Maps a world position back to the schematic-local coordinate inside the
      * region, so a scan can walk world positions and ask what belongs there.
      *
+     * <p>Solving the map costs more than applying it. A caller with more than a
+     * handful of positions should hold a {@link RegionLocalMapper} instead of
+     * calling this in a loop.
+     *
      * @return local coordinates, or null when the position falls outside the region
      */
     public static BlockPos toLocalPosition(final BlockPos worldPos,
@@ -69,41 +73,18 @@ public final class RegionBoundsResolver {
                                            final BlockRotation placementRotation,
                                            final BlockMirror placementMirror,
                                            final SubRegionPlacementModification modification) {
-        if (worldPos == null || geometry == null || origin == null) {
+        if (worldPos == null) {
             return null;
         }
-        final BlockRotation rotation = placementRotation == null ? BlockRotation.NONE : placementRotation;
-        final BlockMirror mirror = placementMirror == null ? BlockMirror.NONE : placementMirror;
-        final BlockPos regionPos = modification == null ? geometry.getPosition() : modification.position;
-        final BlockRotation subRotation = modification == null ? BlockRotation.NONE : modification.rotation;
-        final BlockMirror subMirror = modification == null ? BlockMirror.NONE : modification.mirror;
-        if (regionPos == null) {
+        final RegionLocalMapper mapper =
+                RegionLocalMapper.of(geometry, origin, placementRotation, placementMirror, modification);
+        if (mapper == null) {
             return null;
         }
-
-        final BlockPos pos1 = add(transform(regionPos, mirror, rotation), origin);
-        final BlockPos relative = subtract(worldPos, pos1);
-        BlockPos local = reverseTransform(relative, subMirror, subRotation);
-        local = reverseTransform(local, mirror, rotation);
-
-        // The relative end tells which way each axis grows for a negative size.
-        final BlockPos size = geometry.getSize();
-        final int x = normalizeAxis(local.getX(), size.getX());
-        final int y = normalizeAxis(local.getY(), size.getY());
-        final int z = normalizeAxis(local.getZ(), size.getZ());
-        if (x < 0 || y < 0 || z < 0
-                || x >= Math.abs(size.getX()) || y >= Math.abs(size.getY()) || z >= Math.abs(size.getZ())) {
-            return null;
-        }
-        return new BlockPos(x, y, z);
-    }
-
-    /**
-     * A region growing in the negative direction stores its blocks in the same
-     * ascending array order, so flip the axis rather than the index.
-     */
-    private static int normalizeAxis(final int value, final int size) {
-        return size >= 0 ? value : -value;
+        final int x = mapper.localX(worldPos.getX(), worldPos.getZ());
+        final int y = mapper.localY(worldPos.getY());
+        final int z = mapper.localZ(worldPos.getX(), worldPos.getZ());
+        return mapper.containsLocal(x, y, z) ? new BlockPos(x, y, z) : null;
     }
 
     /** Mirrors {@code PositionUtils.getRelativeEndPositionFromAreaSize}. */
@@ -194,7 +175,4 @@ public final class RegionBoundsResolver {
         return new BlockPos(left.getX() + right.getX(), left.getY() + right.getY(), left.getZ() + right.getZ());
     }
 
-    private static BlockPos subtract(final BlockPos left, final BlockPos right) {
-        return new BlockPos(left.getX() - right.getX(), left.getY() - right.getY(), left.getZ() - right.getZ());
-    }
 }

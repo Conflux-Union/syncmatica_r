@@ -4,11 +4,14 @@ import cn.net.rms.syncmatica_r.ServerPlacement;
 import cn.net.rms.syncmatica_r.build_management.BuildRegion;
 import cn.net.rms.syncmatica_r.build_management.BuildRegionState;
 import cn.net.rms.syncmatica_r.build_management.BuildScanStore;
+import cn.net.rms.syncmatica_r.build_management.BuildScanTracker;
 import cn.net.rms.syncmatica_r.build_management.RegionBlocks;
 import cn.net.rms.syncmatica_r.build_management.RegionBounds;
 import cn.net.rms.syncmatica_r.build_management.RegionBoundsResolver;
+import cn.net.rms.syncmatica_r.build_management.RegionColumnHeights;
 import cn.net.rms.syncmatica_r.build_management.RegionGeometry;
 import cn.net.rms.syncmatica_r.build_management.RegionLayoutExtractor;
+import cn.net.rms.syncmatica_r.build_management.RegionLocalMapper;
 import cn.net.rms.syncmatica_r.build_management.RegionScanCache;
 import cn.net.rms.syncmatica_r.communication.ProtocolLimits;
 import cn.net.rms.syncmatica_r.communication.ServerCommunicationManager;
@@ -25,6 +28,7 @@ import net.minecraft.util.BlockRotation;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.registry.Registry;
+import net.minecraft.world.chunk.WorldChunk;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -62,13 +66,25 @@ import java.util.concurrent.TimeUnit;
 public class BuildService extends AbstractService {
     public static final boolean ENABLED_DEFAULT = true;
     public static final boolean COMPLETION_ENABLED_DEFAULT = true;
-    public static final int SCAN_BLOCKS_PER_TICK_DEFAULT = 1024;
+    public static final int SCAN_BLOCKS_PER_TICK_DEFAULT = 4096;
     public static final int SCAN_INTERVAL_DEFAULT = 1200;
+    public static final int FULL_RESCAN_INTERVAL_DEFAULT = 36_000;
     private static final int MAX_SCAN_BLOCKS_PER_TICK = 65_536;
     private static final int MIN_SCAN_BLOCKS_PER_TICK = 64;
     private static final int MIN_SCAN_INTERVAL = 100;
+    private static final int MIN_FULL_RESCAN_INTERVAL = 1200;
     private static final String CONFIG_KEY = "build";
     private static final int MAX_QUEUED_EXTRACTIONS = 64;
+    /** How often the tracker is told where the placements are. */
+    private static final int COVERAGE_REBUILD_TICKS = 100;
+    /**
+     * Ceiling on the decoded block data held between passes. Re-reading the
+     * litematic for every pass is what this replaces; holding every schematic on
+     * a busy server forever is not an improvement on it.
+     */
+    private static final long MAX_CACHED_BLOCK_BYTES = 64L * 1024L * 1024L;
+    /** How many columns a scan may pass over for the price of reading one block. */
+    private static final int COLUMNS_PER_BUDGET_UNIT = 16;
     private static final Logger LOGGER = LogManager.getLogger(BuildService.class);
 
     private final Map<UUID, ServerPlacement> placements = new HashMap<>();
@@ -79,15 +95,22 @@ public class BuildService extends AbstractService {
     private boolean completionEnabled = COMPLETION_ENABLED_DEFAULT;
     private int scanBlocksPerTick = SCAN_BLOCKS_PER_TICK_DEFAULT;
     private int scanInterval = SCAN_INTERVAL_DEFAULT;
-    private int tickCounter;
+    private int fullRescanInterval = FULL_RESCAN_INTERVAL_DEFAULT;
+    private long scanTick;
+    private int fullRescanCounter;
+    private int coverageCounter = COVERAGE_REBUILD_TICKS;
 
     private final ArrayDeque<UUID> scanQueue = new ArrayDeque<>();
     private final Set<UUID> queuedForScan = new HashSet<>();
+    private final Map<UUID, Long> lastScanTick = new HashMap<>();
+    private final BuildScanTracker tracker = new BuildScanTracker();
     private CompletionScan activeScan;
     private BuildScanStore scanStore;
     private UUID pendingBlockLoad;
     private UUID pendingBlockToken;
     private final Queue<LoadedRegionBlocks> loadedBlocks = new ConcurrentLinkedQueue<>();
+    /** Access ordered, so the oldest unused placement is the first one evicted. */
+    private final Map<UUID, CachedBlocks> blocksCache = new LinkedHashMap<>(16, 0.75f, true);
 
     private final ExecutorService layoutExecutor = new ThreadPoolExecutor(
             1,
@@ -126,6 +149,9 @@ public class BuildService extends AbstractService {
         if (enabled) {
             loadScanData(placement);
             scheduleLayoutLoad(placement);
+            // Nothing was watching this placement while the server was down, so
+            // the first pass has to take the counts on trust from nobody.
+            tracker.requestFullPass(placement.getId());
         }
     }
 
@@ -137,7 +163,10 @@ public class BuildService extends AbstractService {
         pendingLayoutTokens.remove(placementId);
         deferredLayoutIds.remove(placementId);
         deferredLayouts.removeIf(placementId::equals);
+        lastScanTick.remove(placementId);
+        blocksCache.remove(placementId);
         cancelScanFor(placementId);
+        tracker.forget(placementId);
         final BuildScanStore store = scanStore();
         if (store != null) {
             store.delete(placementId);
@@ -219,11 +248,20 @@ public class BuildService extends AbstractService {
      * Drives the completion scan. At most one placement is scanned at a time and
      * each tick spends a fixed block budget, so a large schematic costs a long
      * wall-clock scan rather than a server stall.
+     *
+     * <p>What gets scanned is decided by {@link BuildScanTracker}: a placement
+     * nothing has touched is not queued at all, and a queued one only re-counts
+     * the columns that were reported changed. Columns nobody has managed to count
+     * yet — the ones that were out of view every time — are retried on the
+     * {@code scan_interval} timer, and {@code full_rescan_interval} re-counts
+     * everything to recover from edits the tracker never saw.
      */
     private void tickCompletionScan(final MinecraftServer server) {
         if (!completionEnabled || server == null) {
             return;
         }
+        scanTick++;
+        refreshCoverage(server);
         adoptLoadedBlocks(server);
         if (activeScan != null) {
             activeScan.process(scanBlocksPerTick);
@@ -237,22 +275,79 @@ public class BuildService extends AbstractService {
         if (pendingBlockLoad != null) {
             return;
         }
-        if (++tickCounter >= scanInterval) {
-            tickCounter = 0;
-            enqueueAllPlacements();
+        if (fullRescanInterval > 0 && ++fullRescanCounter >= fullRescanInterval) {
+            fullRescanCounter = 0;
+            tracker.requestFullPass();
         }
-        requestNextScan();
+        enqueueScans();
+        requestNextScan(server);
     }
 
-    private void enqueueAllPlacements() {
-        for (final UUID placementId : regionGeometry.keySet()) {
-            if (placements.containsKey(placementId) && queuedForScan.add(placementId)) {
-                scanQueue.addLast(placementId);
+    /**
+     * Tells the tracker where the placements currently sit. Rebuilt on a timer
+     * rather than hooked to everything that can move a placement: it is cheap,
+     * and coverage that quietly stops matching is worse than coverage that lags
+     * a few seconds.
+     */
+    private void refreshCoverage(final MinecraftServer server) {
+        if (++coverageCounter < COVERAGE_REBUILD_TICKS) {
+            return;
+        }
+        coverageCounter = 0;
+        final List<BuildScanTracker.RegionColumns> coverage = new ArrayList<>();
+        for (final ServerPlacement placement : placements.values()) {
+            final Map<String, RegionBounds> bounds = getRegionBounds(placement);
+            if (bounds.isEmpty()) {
+                continue;
+            }
+            final ServerWorld world = WorldResolver.resolve(server, placement.getDimension());
+            if (world == null) {
+                continue;
+            }
+            for (final RegionBounds region : bounds.values()) {
+                coverage.add(new BuildScanTracker.RegionColumns(placement.getId(), world, region));
             }
         }
+        tracker.replaceCoverage(coverage);
     }
 
-    private void requestNextScan() {
+    private void enqueueScans() {
+        for (final UUID placementId : regionGeometry.keySet()) {
+            if (queuedForScan.contains(placementId)) {
+                continue;
+            }
+            final ServerPlacement placement = placements.get(placementId);
+            if (placement == null) {
+                continue;
+            }
+            if (!tracker.hasWork(placementId) && !dueForUncountedRetry(placementId, placement)) {
+                continue;
+            }
+            queuedForScan.add(placementId);
+            scanQueue.addLast(placementId);
+        }
+    }
+
+    /**
+     * A column out of view every time it was reached is never reported changed —
+     * nothing changed in it — so the only way it ever gets a number is to go back
+     * and look. That retry is what {@code scan_interval} paces.
+     */
+    private boolean dueForUncountedRetry(final UUID placementId, final ServerPlacement placement) {
+        final Long last = lastScanTick.get(placementId);
+        if (last != null && scanTick - last < scanInterval) {
+            return false;
+        }
+        for (final BuildRegion region : placement.getBuildRegions().getRegions()) {
+            final RegionScanCache cache = region.getScanCache();
+            if (cache == null || cache.getCountedColumnCount() < cache.getColumnCount()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void requestNextScan(final MinecraftServer server) {
         while (!scanQueue.isEmpty()) {
             final UUID placementId = scanQueue.pollFirst();
             queuedForScan.remove(placementId);
@@ -260,17 +355,33 @@ public class BuildService extends AbstractService {
             if (placement == null || !regionGeometry.containsKey(placementId) || context == null) {
                 continue;
             }
+            // Resolved before anything is decoded: a placement in a dimension
+            // this server does not have cannot be scanned, and reading its file
+            // to discover that every tick would be the whole cost of the feature.
+            final ServerWorld world = WorldResolver.resolve(server, placement.getDimension());
+            if (world == null) {
+                continue;
+            }
+            final CachedBlocks cached = blocksCache.get(placementId);
+            if (cached != null && cached.placementHash.equals(placement.getHash())) {
+                if (startScan(placement, world, cached.blocks)) {
+                    return;
+                }
+                continue;
+            }
             final File file = context.getFileStorage().getLocalLitematic(placement);
             if (file == null || !file.isFile()) {
                 continue;
             }
             final UUID token = UUID.randomUUID();
+            final UUID placementHash = placement.getHash();
             final long maxBytes = context.getMaxTransferBytes();
             pendingBlockLoad = placementId;
             pendingBlockToken = token;
             try {
                 layoutExecutor.execute(() -> loadedBlocks.add(new LoadedRegionBlocks(
-                        placementId, token, RegionLayoutExtractor.extractRegionBlocks(file, maxBytes))));
+                        placementId, placementHash, token,
+                        RegionLayoutExtractor.extractRegionBlocks(file, maxBytes))));
             } catch (final RejectedExecutionException exception) {
                 pendingBlockLoad = null;
                 pendingBlockToken = null;
@@ -278,6 +389,18 @@ public class BuildService extends AbstractService {
             }
             return;
         }
+    }
+
+    /** @return false when the placement has no layout to scan against */
+    private boolean startScan(final ServerPlacement placement, final ServerWorld world,
+                              final Map<String, RegionBlocks> blocks) {
+        final Map<String, RegionGeometry> geometry = regionGeometry.get(placement.getId());
+        if (geometry == null || blocks.isEmpty()) {
+            return false;
+        }
+        activeScan = new CompletionScan(placement, world, geometry, blocks, tracker.take(placement.getId()));
+        lastScanTick.put(placement.getId(), scanTick);
+        return true;
     }
 
     private void adoptLoadedBlocks(final MinecraftServer server) {
@@ -289,21 +412,59 @@ public class BuildService extends AbstractService {
             pendingBlockLoad = null;
             pendingBlockToken = null;
             final ServerPlacement placement = placements.get(loaded.placementId);
-            final Map<String, RegionGeometry> geometry = regionGeometry.get(loaded.placementId);
-            if (placement == null || geometry == null || loaded.blocks.isEmpty()) {
+            // A placement re-shared mid-read now points at a different file.
+            if (placement == null || loaded.blocks.isEmpty()
+                    || !loaded.placementHash.equals(placement.getHash())) {
                 continue;
             }
             final ServerWorld world = WorldResolver.resolve(server, placement.getDimension());
             if (world == null) {
                 continue;
             }
-            activeScan = new CompletionScan(placement, world, geometry, loaded.blocks);
+            cacheBlocks(loaded.placementId, loaded.placementHash, loaded.blocks);
+            startScan(placement, world, loaded.blocks);
+        }
+    }
+
+    /**
+     * Keeps a decoded schematic around for the next pass. Decoding is by far the
+     * most expensive part of a pass that finds nothing changed, and with the
+     * tracker in place most passes find exactly that.
+     */
+    private void cacheBlocks(final UUID placementId, final UUID placementHash,
+                             final Map<String, RegionBlocks> blocks) {
+        long bytes = 0L;
+        for (final RegionBlocks region : blocks.values()) {
+            bytes += region.getStoredBytes();
+        }
+        // One placement over the whole budget would evict everything else and
+        // still not fit, so it is decoded per pass instead.
+        if (bytes > MAX_CACHED_BLOCK_BYTES) {
+            blocksCache.remove(placementId);
+            return;
+        }
+        blocksCache.remove(placementId);
+        blocksCache.put(placementId, new CachedBlocks(placementHash, blocks, bytes));
+        long total = 0L;
+        for (final CachedBlocks entry : blocksCache.values()) {
+            total += entry.bytes;
+        }
+        final Iterator<Map.Entry<UUID, CachedBlocks>> iterator = blocksCache.entrySet().iterator();
+        while (total > MAX_CACHED_BLOCK_BYTES && iterator.hasNext()) {
+            total -= iterator.next().getValue().bytes;
+            iterator.remove();
         }
     }
 
     private void applyScanResults(final CompletionScan scan) {
         final ServerPlacement placement = placements.get(scan.placementId);
-        if (placement == null || scan.results.isEmpty() || scan.poseChanged(placement)) {
+        if (placement == null || scan.poseChanged(placement)) {
+            // The counts describe a box the region no longer occupies. Nothing
+            // was measured, so nothing was answered either.
+            tracker.restore(scan.placementId, scan.request);
+            return;
+        }
+        if (scan.results.isEmpty()) {
             return;
         }
         final long now = System.currentTimeMillis();
@@ -345,6 +506,8 @@ public class BuildService extends AbstractService {
         if (store != null) {
             store.delete(placementId);
         }
+        lastScanTick.remove(placementId);
+        tracker.requestFullPass(placementId);
         if (regionGeometry.containsKey(placementId) && queuedForScan.add(placementId)) {
             scanQueue.addFirst(placementId);
         }
@@ -354,6 +517,7 @@ public class BuildService extends AbstractService {
 
     private void cancelScanFor(final UUID placementId) {
         if (activeScan != null && activeScan.placementId.equals(placementId)) {
+            tracker.restore(placementId, activeScan.request);
             activeScan = null;
         }
         if (placementId.equals(pendingBlockLoad)) {
@@ -426,6 +590,11 @@ public class BuildService extends AbstractService {
             regionGeometry.put(placementId, new LinkedHashMap<>(geometry));
         }
         cancelScanFor(placementId);
+        // A fresh layout means a fresh decode, and nothing measured against the
+        // old one can be trusted to describe the new one.
+        blocksCache.remove(placementId);
+        lastScanTick.remove(placementId);
+        tracker.requestFullPass(placementId);
     }
 
     public void replaceRegions(final UUID placementId, final Map<String, Long> blocks) {
@@ -596,26 +765,33 @@ public class BuildService extends AbstractService {
         private final Map<String, SubRegionPlacementModification> overrides;
         private final Map<String, RegionGeometry> geometry;
         private final Map<String, RegionBlocks> blocks;
+        private final BuildScanTracker.ScanRequest request;
         private final Iterator<String> remainingRegions;
         private final Map<String, Long> results = new LinkedHashMap<>();
+        private final int[] span = new int[2];
 
         private String currentRegion;
         private RegionGeometry currentGeometry;
         private RegionBlocks currentBlocks;
         private Block[] currentPalette;
         private RegionScanCache currentCache;
+        private RegionLocalMapper currentMapper;
+        private RegionColumnHeights currentHeights;
         private Iterator<Long> remainingColumns;
 
         private boolean columnActive;
+        private int skippedColumns;
         private int columnX;
         private int columnZ;
+        private WorldChunk currentChunk;
         private Iterator<BlockPos> positions;
         private int columnMatched;
         private boolean finished;
 
         private CompletionScan(final ServerPlacement placement, final ServerWorld world,
                                final Map<String, RegionGeometry> geometry,
-                               final Map<String, RegionBlocks> blocks) {
+                               final Map<String, RegionBlocks> blocks,
+                               final BuildScanTracker.ScanRequest request) {
             this.placement = placement;
             placementId = placement.getId();
             this.world = world;
@@ -625,6 +801,7 @@ public class BuildService extends AbstractService {
             overrides = new LinkedHashMap<>(overridesOf(placement));
             this.geometry = geometry;
             this.blocks = blocks;
+            this.request = request;
             final List<String> names = new ArrayList<>(geometry.keySet());
             remainingRegions = names.iterator();
         }
@@ -658,10 +835,17 @@ public class BuildService extends AbstractService {
                     remaining--;
                     continue;
                 }
-                commitColumn();
                 // Examining a column costs a unit too, so a region spread over
-                // thousands of unloaded columns cannot stall a tick.
-                remaining--;
+                // thousands of columns cannot stall a tick. Passing over one
+                // costs a hash lookup rather than a block read though, and
+                // charging that a full unit would leave a wide region no budget
+                // to spend on the handful of columns that did change.
+                if (commitColumn()) {
+                    remaining--;
+                } else if (++skippedColumns >= COLUMNS_PER_BUDGET_UNIT) {
+                    skippedColumns = 0;
+                    remaining--;
+                }
                 if (remainingColumns != null && remainingColumns.hasNext()) {
                     beginColumn(remainingColumns.next());
                     continue;
@@ -676,17 +860,20 @@ public class BuildService extends AbstractService {
         }
 
         private void countAt(final BlockPos pos) {
-            final BlockPos local = RegionBoundsResolver.toLocalPosition(
-                    pos, currentGeometry, origin, rotation, mirror, overrides.get(currentRegion));
-            if (local == null) {
+            final int localX = currentMapper.localX(pos.getX(), pos.getZ());
+            final int localY = currentMapper.localY(pos.getY());
+            final int localZ = currentMapper.localZ(pos.getX(), pos.getZ());
+            if (!currentMapper.containsLocal(localX, localY, localZ)) {
                 return;
             }
-            final int paletteIndex = currentBlocks.paletteIndexAt(local.getX(), local.getY(), local.getZ());
+            final int paletteIndex = currentBlocks.paletteIndexAt(localX, localY, localZ);
             if (paletteIndex < 0) {
                 return;
             }
             final Block expected = currentPalette[paletteIndex];
-            if (expected != null && world.getBlockState(pos).getBlock() == expected) {
+            // Read through the chunk the column already resolved to, rather than
+            // making the world find it again for every position in it.
+            if (expected != null && currentChunk.getBlockState(pos).getBlock() == expected) {
                 columnMatched++;
             }
         }
@@ -697,14 +884,19 @@ public class BuildService extends AbstractService {
             currentBlocks = blocks.get(regionName);
             currentPalette = null;
             currentCache = null;
+            currentMapper = null;
+            currentHeights = null;
             remainingColumns = null;
             final BuildRegion region = placement.getBuildRegions().get(regionName);
             if (region == null || currentGeometry == null || currentBlocks == null) {
                 return;
             }
-            final RegionBounds bounds = RegionBoundsResolver.resolve(
-                    currentGeometry, origin, rotation, mirror, overrides.get(regionName));
-            if (bounds == null) {
+            final SubRegionPlacementModification override = overrides.get(regionName);
+            final RegionBounds bounds =
+                    RegionBoundsResolver.resolve(currentGeometry, origin, rotation, mirror, override);
+            final RegionLocalMapper mapper =
+                    RegionLocalMapper.of(currentGeometry, origin, rotation, mirror, override);
+            if (bounds == null || mapper == null) {
                 return;
             }
             RegionScanCache cache = region.getScanCache();
@@ -714,6 +906,8 @@ public class BuildService extends AbstractService {
             }
             currentCache = cache;
             currentPalette = resolvePalette(currentBlocks.getPalette());
+            currentMapper = mapper;
+            currentHeights = currentBlocks.getColumnHeights();
             remainingColumns = cache.columns();
         }
 
@@ -723,6 +917,12 @@ public class BuildService extends AbstractService {
             columnMatched = 0;
             columnActive = false;
             positions = null;
+            currentChunk = null;
+            // A column that already has a number and that nothing was reported to
+            // have touched still holds that number.
+            if (currentCache.isCounted(columnX, columnZ) && !request.covers(packedColumn)) {
+                return;
+            }
             // An unloaded column keeps whatever it was last counted as, which is
             // still what is there: nothing can have been built inside it since.
             if (!world.isChunkLoaded(columnX, columnZ)) {
@@ -732,21 +932,74 @@ public class BuildService extends AbstractService {
             if (box == null) {
                 return;
             }
+            final BlockPos min = box.getMin();
+            final BlockPos max = box.getMax();
+            resolveWorldYSpan(min, max);
+            // A column the schematic leaves empty has been examined and found to
+            // hold nothing, which is an answer and not the absence of one.
             columnActive = true;
-            positions = BlockPos.iterate(box.getMin(), box.getMax()).iterator();
+            if (span[0] > span[1]) {
+                return;
+            }
+            currentChunk = world.getChunk(columnX, columnZ);
+            positions = BlockPos.iterate(
+                    new BlockPos(min.getX(), span[0], min.getZ()),
+                    new BlockPos(max.getX(), span[1], max.getZ())).iterator();
         }
 
-        /** Publishes a column only once every position in it has been read. */
-        private void commitColumn() {
-            if (columnActive) {
+        /**
+         * Narrows a column to the layers the schematic actually fills, leaving
+         * the world Y range to walk in {@link #span}. An empty range says there
+         * is nothing here to walk.
+         *
+         * <p>The index is keyed by schematic column, so the world box has to be
+         * carried into region coordinates first. Rotation and mirroring only ever
+         * permute and flip the horizontal axes, so a world box maps onto a region
+         * box and the corners are enough to find it.
+         */
+        private void resolveWorldYSpan(final BlockPos min, final BlockPos max) {
+            if (currentHeights == null) {
+                span[0] = min.getY();
+                span[1] = max.getY();
+                return;
+            }
+            final boolean occupied = currentHeights.occupiedSpan(
+                    currentMapper.lowestLocalX(min.getX(), min.getZ(), max.getX(), max.getZ()),
+                    currentMapper.lowestLocalZ(min.getX(), min.getZ(), max.getX(), max.getZ()),
+                    currentMapper.highestLocalX(min.getX(), min.getZ(), max.getX(), max.getZ()),
+                    currentMapper.highestLocalZ(min.getX(), min.getZ(), max.getX(), max.getZ()),
+                    span);
+            if (!occupied) {
+                span[0] = Integer.MAX_VALUE;
+                span[1] = Integer.MIN_VALUE;
+                return;
+            }
+            // A region built upside down maps its lowest layer to the highest
+            // world Y, so order the pair after mapping rather than before.
+            final int oneEnd = currentMapper.worldY(span[0]);
+            final int otherEnd = currentMapper.worldY(span[1]);
+            span[0] = Math.max(min.getY(), Math.min(oneEnd, otherEnd));
+            span[1] = Math.min(max.getY(), Math.max(oneEnd, otherEnd));
+        }
+
+        /**
+         * Publishes a column only once every position in it has been read.
+         *
+         * @return true when this column was examined rather than passed over
+         */
+        private boolean commitColumn() {
+            final boolean examined = columnActive;
+            if (examined) {
                 currentCache.record(columnX, columnZ, columnMatched);
             }
             abandonColumn();
+            return examined;
         }
 
         private void abandonColumn() {
             columnActive = false;
             positions = null;
+            currentChunk = null;
             columnMatched = 0;
         }
 
@@ -819,14 +1072,29 @@ public class BuildService extends AbstractService {
 
     private static final class LoadedRegionBlocks {
         private final UUID placementId;
+        private final UUID placementHash;
         private final UUID token;
         private final Map<String, RegionBlocks> blocks;
 
-        private LoadedRegionBlocks(final UUID placementId, final UUID token,
+        private LoadedRegionBlocks(final UUID placementId, final UUID placementHash, final UUID token,
                                    final Map<String, RegionBlocks> blocks) {
             this.placementId = placementId;
+            this.placementHash = placementHash;
             this.token = token;
             this.blocks = blocks;
+        }
+    }
+
+    /** A decoded schematic held for the next pass, and what it is holding. */
+    private static final class CachedBlocks {
+        private final UUID placementHash;
+        private final Map<String, RegionBlocks> blocks;
+        private final long bytes;
+
+        private CachedBlocks(final UUID placementHash, final Map<String, RegionBlocks> blocks, final long bytes) {
+            this.placementHash = placementHash;
+            this.blocks = blocks;
+            this.bytes = bytes;
         }
     }
 
@@ -841,6 +1109,7 @@ public class BuildService extends AbstractService {
         configuration.saveBoolean("completion_enabled", COMPLETION_ENABLED_DEFAULT);
         configuration.saveInteger("scan_blocks_per_tick", SCAN_BLOCKS_PER_TICK_DEFAULT);
         configuration.saveInteger("scan_interval", SCAN_INTERVAL_DEFAULT);
+        configuration.saveInteger("full_rescan_interval", FULL_RESCAN_INTERVAL_DEFAULT);
     }
 
     @Override
@@ -851,6 +1120,10 @@ public class BuildService extends AbstractService {
                 scanBlocksPerTick = Math.max(MIN_SCAN_BLOCKS_PER_TICK, Math.min(MAX_SCAN_BLOCKS_PER_TICK, value)));
         configuration.loadInteger("scan_interval", value ->
                 scanInterval = Math.max(MIN_SCAN_INTERVAL, value));
+        // Zero switches the sweep off, which is a real choice on a server where
+        // nothing writes to the world behind the game's back.
+        configuration.loadInteger("full_rescan_interval", value ->
+                fullRescanInterval = value <= 0 ? 0 : Math.max(MIN_FULL_RESCAN_INTERVAL, value));
     }
 
     public boolean isCompletionEnabled() {
@@ -859,15 +1132,22 @@ public class BuildService extends AbstractService {
 
     @Override
     public void startup() {
+        // Attached unconditionally. With nothing being tracked the hot path is
+        // one failed map lookup, and this way neither the startup order of the
+        // configuration nor a reload of it can leave the tracker detached.
+        tracker.install();
     }
 
     @Override
     public void shutdown() {
+        tracker.uninstall();
         placements.clear();
         regionBlocks.clear();
         regionGeometry.clear();
         scanQueue.clear();
         queuedForScan.clear();
+        lastScanTick.clear();
+        blocksCache.clear();
         loadedBlocks.clear();
         activeScan = null;
         pendingBlockLoad = null;

@@ -131,11 +131,13 @@ public final class RegionLayoutExtractor {
                 for (int index = 0; index < paletteData.size(); index++) {
                     palette[index] = resolveBlockId(NbtHelper.getCompound(paletteData, index));
                 }
-                result.put(regionName, new RegionBlocks(
+                final RegionBlocks blocks = new RegionBlocks(
                         new BlockPos(size[0], size[1], size[2]),
                         palette,
                         new PackedBlockStateArray(LitematicNbt.resolveBlockStates(region), palette.length)
-                ));
+                );
+                blocks.measureColumnHeights();
+                result.put(regionName, blocks);
             }
         } catch (final Exception exception) {
             LOGGER.warn("Failed to decode the region blocks of {}", litematicFile, exception);

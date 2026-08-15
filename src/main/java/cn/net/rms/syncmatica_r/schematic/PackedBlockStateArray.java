@@ -37,6 +37,10 @@ public final class PackedBlockStateArray {
         return data.length == 0;
     }
 
+    public long sizeInBytes() {
+        return (long) data.length * Long.BYTES;
+    }
+
     /**
      * @return the palette index stored at {@code index}, or -1 when the array is
      *         shorter than the region claims
