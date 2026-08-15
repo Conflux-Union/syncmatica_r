@@ -3,6 +3,7 @@ package cn.net.rms.syncmatica_r.litematica.gui;
 import cn.net.rms.syncmatica_r.Context;
 import cn.net.rms.syncmatica_r.ServerPlacement;
 import cn.net.rms.syncmatica_r.litematica.LitematicManager;
+import cn.net.rms.syncmatica_r.util.NaturalOrderComparator;
 import fi.dy.masa.malilib.gui.widgets.WidgetListBase;
 import fi.dy.masa.malilib.render.RenderUtils;
 import fi.dy.masa.malilib.util.StringUtils;
@@ -102,7 +103,7 @@ public class WidgetListBuildPlacements extends WidgetListBase<ServerPlacement, W
             return Collections.emptyList();
         }
         final List<ServerPlacement> snapshot = new ArrayList<>(context.getSyncmaticManager().getAll());
-        snapshot.sort((left, right) -> left.getName().compareToIgnoreCase(right.getName()));
+        snapshot.sort((left, right) -> NaturalOrderComparator.INSTANCE.compare(left.getName(), right.getName()));
         return snapshot;
     }
 

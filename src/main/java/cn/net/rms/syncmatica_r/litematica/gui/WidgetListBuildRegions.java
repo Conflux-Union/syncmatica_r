@@ -2,6 +2,7 @@ package cn.net.rms.syncmatica_r.litematica.gui;
 
 import cn.net.rms.syncmatica_r.ServerPlacement;
 import cn.net.rms.syncmatica_r.build_management.BuildRegion;
+import cn.net.rms.syncmatica_r.util.NaturalOrderComparator;
 import fi.dy.masa.malilib.gui.widgets.WidgetListBase;
 import fi.dy.masa.malilib.render.RenderUtils;
 import fi.dy.masa.malilib.util.StringUtils;
@@ -93,13 +94,16 @@ public class WidgetListBuildRegions extends WidgetListBase<BuildRegion, WidgetBu
     @Override
     protected Collection<BuildRegion> getAllEntries() {
         final List<BuildRegion> snapshot = new ArrayList<>(placement.getBuildRegions().getRegions());
-        // Unclaimed regions first so the next thing to pick up is at the top,
-        // then by name for a stable order.
+        // Finished regions sink to the bottom, everything still to do keeps its
+        // place in the numbering. Claiming a region deliberately does not move
+        // it: a row that jumps to the end the moment it is taken is a row nobody
+        // can find again to drop after a misclick. With completion tracking off
+        // nothing is ever complete, so this degrades to plain name order.
         snapshot.sort((left, right) -> {
-            if (left.isClaimed() != right.isClaimed()) {
-                return left.isClaimed() ? 1 : -1;
+            if (left.isComplete() != right.isComplete()) {
+                return left.isComplete() ? 1 : -1;
             }
-            return left.getRegionName().compareToIgnoreCase(right.getRegionName());
+            return NaturalOrderComparator.INSTANCE.compare(left.getRegionName(), right.getRegionName());
         });
         return snapshot;
     }
