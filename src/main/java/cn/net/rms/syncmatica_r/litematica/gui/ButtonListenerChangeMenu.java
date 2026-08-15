@@ -22,6 +22,9 @@ public class ButtonListenerChangeMenu implements IButtonActionListener {
             case MATERIAL_GATHERINGS:
                 gui = new GuiStockingAreaMaterialOverview(null);
                 break;
+            case BUILD_MANAGEMENT:
+                gui = new GuiBuildManagement();
+                break;
             case VIEW_SYNCMATICS:
                 gui = new GuiSyncmaticaServerPlacementList();
                 break;

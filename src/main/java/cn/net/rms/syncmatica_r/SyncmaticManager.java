@@ -54,11 +54,37 @@ public class SyncmaticManager {
             placement.touchCreated(clock.getAsLong());
         }
         schematics.put(placement.getId(), placement);
-        if (context != null && context.getMaterialService() != null) {
-            context.getMaterialService().attachPlacement(placement);
-        }
+        attachToServices(placement);
         updateServerPlacement(placement);
         markPlacementDirty(placement.getId());
+    }
+
+    /**
+     * Every path that puts a placement into {@link #schematics} funnels through
+     * here, so a newly added service cannot be forgotten by one of them.
+     */
+    private void attachToServices(final ServerPlacement placement) {
+        if (context == null) {
+            return;
+        }
+        if (context.getMaterialService() != null) {
+            context.getMaterialService().attachPlacement(placement);
+        }
+        if (context.getBuildService() != null) {
+            context.getBuildService().attachPlacement(placement);
+        }
+    }
+
+    private void detachFromServices(final ServerPlacement placement) {
+        if (context == null) {
+            return;
+        }
+        if (context.getMaterialService() != null) {
+            context.getMaterialService().detachPlacement(placement);
+        }
+        if (context.getBuildService() != null) {
+            context.getBuildService().detachPlacement(placement);
+        }
     }
 
     public ServerPlacement getPlacement(final UUID id) {
@@ -71,9 +97,7 @@ public class SyncmaticManager {
 
     public void removePlacement(final ServerPlacement placement) {
         schematics.remove(placement.getId());
-        if (context != null && context.getMaterialService() != null) {
-            context.getMaterialService().detachPlacement(placement);
-        }
+        detachFromServices(placement);
         markPlacementRemoved(placement);
         updateServerPlacement(placement);
     }
@@ -212,9 +236,7 @@ public class SyncmaticManager {
                                 continue;
                             }
                             schematics.put(placement.getId(), placement);
-                            if (context.getMaterialService() != null) {
-                                context.getMaterialService().attachPlacement(placement);
-                            }
+                            attachToServices(placement);
                         } catch (final RuntimeException exception) {
                             LogManager.getLogger(SyncmaticManager.class).warn("Skipping malformed legacy placement", exception);
                         }
@@ -379,9 +401,7 @@ public class SyncmaticManager {
                         continue;
                     }
                     schematics.put(placement.getId(), placement);
-                    if (context.getMaterialService() != null) {
-                        context.getMaterialService().attachPlacement(placement);
-                    }
+                    attachToServices(placement);
                     if (placement.consumeMetadataDirty()) {
                         dirtyPlacements.add(placement.getId());
                         markDirty();

@@ -14,7 +14,8 @@ public enum Feature {
     TIMESTAMPS,
     VERSION,
     DISPLAY_NAME,
-    LIMIT_REPORT;
+    LIMIT_REPORT,
+    BUILD_MANAGEMENT;
 
     public static Feature fromString(final String s) {
         for (final Feature f : Feature.values()) {

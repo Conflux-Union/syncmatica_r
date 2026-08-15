@@ -28,6 +28,7 @@ public class Context {
     private final DebugService debugService;
     private final PlayerIdentifierProvider playerIdentifierProvider;
     private final MaterialService materialService;
+    private final BuildService buildService;
     private FeatureSet fs = null;
     private boolean isStarted = false;
 
@@ -61,9 +62,12 @@ public class Context {
             quota.setContext(this);
             materialService = new MaterialService();
             materialService.setContext(this);
+            buildService = new BuildService();
+            buildService.setContext(this);
         } else {
             quota = null;
             materialService = null;
+            buildService = null;
         }
         playerIdentifierProvider = new PlayerIdentifierProvider(this);
         debugService = new DebugService();
@@ -98,6 +102,10 @@ public class Context {
 
     public MaterialService getMaterialService() {
         return materialService;
+    }
+
+    public BuildService getBuildService() {
+        return buildService;
     }
 
     public long getMaxTransferBytes() {
@@ -139,6 +147,11 @@ public class Context {
 
             features.remove(Feature.MATERIAL_PROGRESS);
             features.remove(Feature.MATERIAL_CLAIMS);
+        }
+        // Build management reads the schematic itself, so it stands or falls on
+        // its own switch rather than on whether materials are tracked.
+        if (isServer() && (buildService == null || !buildService.isEnabled())) {
+            features.remove(Feature.BUILD_MANAGEMENT);
         }
         fs = new FeatureSet(features);
     }
@@ -213,6 +226,9 @@ public class Context {
             needsRewrite |= loadConfigurationForService(quota, configuration, attemptToLoad);
             if (materialService != null) {
                 needsRewrite |= loadConfigurationForService(materialService, configuration, attemptToLoad);
+            }
+            if (buildService != null) {
+                needsRewrite |= loadConfigurationForService(buildService, configuration, attemptToLoad);
             }
         }
         needsRewrite |= loadConfigurationForService(debugService, configuration, attemptToLoad);
@@ -334,6 +350,9 @@ public class Context {
         if (materialService != null) {
             materialService.startup();
         }
+        if (buildService != null) {
+            buildService.startup();
+        }
         debugService.startup();
     }
 
@@ -343,6 +362,9 @@ public class Context {
         }
         if (materialService != null) {
             materialService.shutdown();
+        }
+        if (buildService != null) {
+            buildService.shutdown();
         }
         debugService.shutdown();
     }
