@@ -27,6 +27,7 @@
   "syncmatica_r.gui.tooltip.build.claim.none": "Nobody is responsible for this region",
   "syncmatica_r.gui.tooltip.build.claim.action": "Shift-Click to take or drop this region",
   "syncmatica_r.gui.tooltip.build.claim.locked": "Someone else is responsible for this region",
+  "syncmatica_r.warning.build.foreign": "You are building in %s, which %s is responsible for",
   "syncmatica_r.error.build.region_taken": "%s is already responsible for this region",
   "syncmatica_r.gui.button.shared_settings": "Shared Schematic Settings",
   "syncmatica_r.gui.button.material.claim": "Claim",

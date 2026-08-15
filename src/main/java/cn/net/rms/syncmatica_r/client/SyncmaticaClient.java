@@ -4,6 +4,7 @@ import cn.net.rms.syncmatica_r.Syncmatica;
 import cn.net.rms.syncmatica_r.client.hud.MaterialHudOverlay;
 import cn.net.rms.syncmatica_r.client.update.UpdateChecker;
 import cn.net.rms.syncmatica_r.client.update.UpdateConfig;
+import cn.net.rms.syncmatica_r.litematica.BuildClaimWarning;
 import fi.dy.masa.malilib.event.InitializationHandler;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -22,6 +23,8 @@ public class SyncmaticaClient implements ClientModInitializer {
         BreakingChangeNotice.initialize();
         HudPreferences.load();
         MaterialListPreferences.load();
+        BuildWarningPreferences.load();
+        BuildClaimWarning.register();
         MaterialHudOverlay.getInstance().setHudScale(HudPreferences.getHudScale());
         MaterialHudOverlay.getInstance().register();
         ClientTickEvents.END_CLIENT_TICK.register(SyncmaticaClient::handleClientTick);

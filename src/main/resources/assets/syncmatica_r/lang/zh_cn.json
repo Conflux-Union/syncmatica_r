@@ -27,6 +27,7 @@
   "syncmatica_r.gui.tooltip.build.claim.none": "这个区域还没有人负责",
   "syncmatica_r.gui.tooltip.build.claim.action": "Shift+左键 认领或释放",
   "syncmatica_r.gui.tooltip.build.claim.locked": "这个区域已由他人负责",
+  "syncmatica_r.warning.build.foreign": "你正在 %s 里施工，该区域由 %s 负责",
   "syncmatica_r.error.build.region_taken": "这个区域已由 %s 负责",
   "syncmatica_r.gui.button.shared_settings": "共享原理图设置",
   "syncmatica_r.gui.button.material.claim": "认领",
