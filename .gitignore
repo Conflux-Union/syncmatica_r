@@ -42,6 +42,7 @@ run/
 /debug/
 
 # claude context
+.claude/
 .claude-context/
 CLAUDE.md
 AGENTS.md
