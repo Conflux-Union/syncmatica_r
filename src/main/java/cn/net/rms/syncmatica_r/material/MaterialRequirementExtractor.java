@@ -1,6 +1,8 @@
 package cn.net.rms.syncmatica_r.material;
 
 import cn.net.rms.syncmatica_r.communication.ProtocolLimits;
+import cn.net.rms.syncmatica_r.schematic.LitematicNbt;
+import cn.net.rms.syncmatica_r.schematic.PackedBlockStateArray;
 import cn.net.rms.syncmatica_r.util.IdentifierUtil;
 import cn.net.rms.syncmatica_r.util.NbtHelper;
 import net.minecraft.block.Block;
@@ -8,31 +10,19 @@ import net.minecraft.block.Blocks;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.registry.Registry;
-//#if MC >= 12005
-//$$ import net.minecraft.nbt.NbtSizeTracker;
-//#else
-import net.minecraft.nbt.NbtTagSizeTracker;
-//#endif
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.BufferedInputStream;
-import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.zip.GZIPInputStream;
 
 public final class MaterialRequirementExtractor {
 
@@ -76,17 +66,8 @@ public final class MaterialRequirementExtractor {
         if (litematicFile == null || !litematicFile.isFile() || maxBlocks <= 0L || maxNbtBytes <= 0L) {
             return new ExtractionOutcome(requirements, MaterialAvailability.EXTRACTION_FAILED);
         }
-        try (InputStream input = new FileInputStream(litematicFile)) {
-//#if MC >= 12005
-//$$             final NbtCompound root = NbtIo.readCompressed(input, NbtSizeTracker.of(maxNbtBytes));
-//#else
-            final NbtCompound root;
-            try (DataInputStream dataInput = new DataInputStream(
-                    new BufferedInputStream(new GZIPInputStream(input)))) {
-                root = NbtIo.read(dataInput, new NbtTagSizeTracker(maxNbtBytes));
-            }
-//#endif
-            final NbtCompound regions = NbtHelper.getCompound(root, "Regions");
+        try {
+            final NbtCompound regions = NbtHelper.getCompound(LitematicNbt.readRoot(litematicFile, maxNbtBytes), "Regions");
             if (regions == null) {
                 // A litematic without regions is not readable as a schematic.
                 LOGGER.warn("Material extraction found no regions in {}", litematicFile);
@@ -142,7 +123,7 @@ public final class MaterialRequirementExtractor {
         if (region == null) {
             return processedBlocks;
         }
-        final int[] dimensions = resolveSize(region);
+        final int[] dimensions = LitematicNbt.resolveSize(region);
         if (dimensions == null) {
             return processedBlocks;
         }
@@ -167,31 +148,16 @@ public final class MaterialRequirementExtractor {
         if (palette.isEmpty()) {
             return updatedBlocks;
         }
-        final long[] blockStates = resolveBlockStates(region);
+        final long[] blockStates = LitematicNbt.resolveBlockStates(region);
         if (palette.size() == 1) {
             final MaterialKey key = palette.get(0);
             if (key != null) {
                 mergeCount(totals, key, volume);
             }
         } else if (blockStates.length != 0) {
-            final int bits = bitsForPalette(palette.size());
-            final long mask = bits >= Long.SIZE ? -1L : (1L << bits) - 1L;
+            final PackedBlockStateArray packed = new PackedBlockStateArray(blockStates, palette.size());
             for (long index = 0; index < volume; index++) {
-                final long bitIndex = index * bits;
-                final long arrayIndexLong = bitIndex >>> 6;
-                if (arrayIndexLong > Integer.MAX_VALUE) {
-                    break;
-                }
-                final int arrayIndex = (int) arrayIndexLong;
-                final int bitOffset = (int) (bitIndex & 63L);
-                long value = 0L;
-                if (arrayIndex < blockStates.length) {
-                    value = blockStates[arrayIndex] >>> bitOffset;
-                }
-                if (bitOffset + bits > Long.SIZE && arrayIndex + 1 < blockStates.length) {
-                    value |= blockStates[arrayIndex + 1] << (Long.SIZE - bitOffset);
-                }
-                final int paletteIndex = (int) (value & mask);
+                final int paletteIndex = packed.get(index);
                 if (paletteIndex < 0 || paletteIndex >= palette.size()) {
                     continue;
                 }
@@ -259,97 +225,6 @@ public final class MaterialRequirementExtractor {
         return new MaterialKey(itemId, "");
     }
 
-    private static int bitsForPalette(final int paletteSize) {
-        if (paletteSize <= 1) {
-            return 1;
-        }
-        return 32 - Integer.numberOfLeadingZeros(paletteSize - 1);
-    }
-
-    private static int[] resolveSize(final NbtCompound region) {
-        //#if MC >= 12106
-        //$$ if (region.contains("Size")) {
-        //$$     final Optional<int[]> intArrayOpt = region.getIntArray("Size");
-        //$$     if (intArrayOpt.isPresent()) {
-        //$$         final int[] raw = intArrayOpt.get();
-        //$$         if (raw.length >= 3) {
-        //$$             return normalizeDimensions(raw[0], raw[1], raw[2]);
-        //$$         }
-        //$$         return null;
-        //$$     }
-        //$$     final Optional<NbtCompound> compoundOpt = region.getCompound("Size");
-        //$$     if (compoundOpt.isPresent()) {
-        //$$         final NbtCompound compound = compoundOpt.get();
-        //$$         if (compound.contains("x") && compound.contains("y") && compound.contains("z")) {
-        //$$             return normalizeDimensions(
-        //$$                     compound.getInt("x", 0),
-        //$$                     compound.getInt("y", 0),
-        //$$                     compound.getInt("z", 0)
-        //$$             );
-        //$$         }
-        //$$     }
-        //$$ }
-        //$$ return null;
-        //#else
-        if (region.contains("Size", NbtElement.INT_ARRAY_TYPE)) {
-            final int[] raw = region.getIntArray("Size");
-            if (raw.length >= 3) {
-                return normalizeDimensions(raw[0], raw[1], raw[2]);
-            }
-            return null;
-        }
-        if (region.contains("Size", NbtElement.COMPOUND_TYPE)) {
-            final NbtCompound compound = region.getCompound("Size");
-            if (compound.contains("x", NbtElement.INT_TYPE)
-                    && compound.contains("y", NbtElement.INT_TYPE)
-                    && compound.contains("z", NbtElement.INT_TYPE)) {
-                final int sizeX = safeAbs(compound.getInt("x"));
-                final int sizeY = safeAbs(compound.getInt("y"));
-                final int sizeZ = safeAbs(compound.getInt("z"));
-                if (sizeX == 0 || sizeY == 0 || sizeZ == 0) {
-                    return null;
-                }
-                return new int[]{sizeX, sizeY, sizeZ};
-            }
-        }
-        return null;
-        //#endif
-    }
-
-    private static long[] resolveBlockStates(final NbtCompound region) {
-        //#if MC >= 12106
-        //$$ if (region.contains("BlockStates")) {
-        //$$     final Optional<long[]> longArrayOpt = region.getLongArray("BlockStates");
-        //$$     if (longArrayOpt.isPresent()) {
-        //$$         return longArrayOpt.get();
-        //$$     }
-        //$$     final Optional<int[]> intArrayOpt = region.getIntArray("BlockStates");
-        //$$     if (intArrayOpt.isPresent()) {
-        //$$         final int[] ints = intArrayOpt.get();
-        //$$         final long[] longs = new long[ints.length];
-        //$$         for (int index = 0; index < ints.length; index++) {
-        //$$             longs[index] = ints[index] & 0xFFFFFFFFL;
-        //$$         }
-        //$$         return longs;
-        //$$     }
-        //$$ }
-        //$$ return new long[0];
-        //#else
-        if (region.contains("BlockStates", NbtElement.LONG_ARRAY_TYPE)) {
-            return region.getLongArray("BlockStates");
-        }
-        if (region.contains("BlockStates", NbtElement.INT_ARRAY_TYPE)) {
-            final int[] ints = region.getIntArray("BlockStates");
-            final long[] longs = new long[ints.length];
-            for (int index = 0; index < ints.length; index++) {
-                longs[index] = ints[index] & 0xFFFFFFFFL;
-            }
-            return longs;
-        }
-        return new long[0];
-        //#endif
-    }
-
     private static void accumulateTileEntityContents(final NbtList entities, final Map<MaterialKey, Integer> totals) {
         for (int i = 0; i < entities.size(); i++) {
             final NbtCompound entity = NbtHelper.getCompound(entities, i);
@@ -411,20 +286,6 @@ public final class MaterialRequirementExtractor {
         if (nestedItems != null) {
             accumulateItemList(nestedItems, totals, depth + 1);
         }
-    }
-
-    private static int[] normalizeDimensions(final int x, final int y, final int z) {
-        final int sizeX = safeAbs(x);
-        final int sizeY = safeAbs(y);
-        final int sizeZ = safeAbs(z);
-        if (sizeX <= 0 || sizeY <= 0 || sizeZ <= 0) {
-            return null;
-        }
-        return new int[]{sizeX, sizeY, sizeZ};
-    }
-
-    private static int safeAbs(final int value) {
-        return value == Integer.MIN_VALUE ? -1 : Math.abs(value);
     }
 
     private static void mergeCount(final Map<MaterialKey, Integer> totals, final MaterialKey key, final long amount) {
