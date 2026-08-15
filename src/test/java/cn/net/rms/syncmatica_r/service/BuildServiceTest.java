@@ -12,7 +12,11 @@ import cn.net.rms.syncmatica_r.FileStorage;
 import cn.net.rms.syncmatica_r.ServerPlacement;
 import cn.net.rms.syncmatica_r.SyncmaticManager;
 import cn.net.rms.syncmatica_r.build_management.BuildRegion;
+import cn.net.rms.syncmatica_r.build_management.BuildRegionState;
+import cn.net.rms.syncmatica_r.build_management.BuildScanStore;
 import cn.net.rms.syncmatica_r.build_management.RegionBounds;
+import cn.net.rms.syncmatica_r.build_management.RegionScanCache;
+import com.google.gson.JsonObject;
 import cn.net.rms.syncmatica_r.communication.CommunicationManager;
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
 import cn.net.rms.syncmatica_r.communication.ProtocolLimits;
@@ -303,6 +307,114 @@ final class BuildServiceTest {
             assertEquals(60L, roof.getPlacedBlocks());
             assertEquals(4_242L, roof.getLastScanMillis());
             assertEquals(60, roof.getCompletionPercent());
+        } finally {
+            context.shutdown();
+        }
+    }
+
+    @Test
+    void perChunkCountsComeBackFromTheWorldFolderOnAttach() {
+        final RegionBounds bounds = new RegionBounds(new BlockPos(0, 64, 0), new BlockPos(31, 70, 31));
+        final JsonObject storedPlacement;
+
+        final Context first = newServerContext();
+        try {
+            final ServerPlacement placement = attach(first, first.getBuildService(), regions("roof"));
+            final BuildRegion roof = placement.getBuildRegions().get("roof");
+            final RegionScanCache cache = new RegionScanCache(bounds);
+            cache.record(0, 0, 40);
+            cache.record(1, 0, 20);
+            roof.setScanCache(cache);
+            roof.recordScan(cache.getTotal(), 4_242L);
+            new BuildScanStore(tempDir.toFile()).save(placement.getId(), placement.getBuildRegions());
+            storedPlacement = placement.toJson();
+        } finally {
+            first.shutdown();
+        }
+
+        final Context second = newServerContext();
+        try {
+            // What a restart does: the placement comes back from its own file,
+            // and attaching it picks the counts back up out of the world.
+            final ServerPlacement restored = ServerPlacement.fromJson(storedPlacement, second);
+            assertNotNull(restored);
+            second.getSyncmaticManager().addPlacement(restored);
+
+            final RegionScanCache cache = restored.getBuildRegions().get("roof").getScanCache();
+            assertNotNull(cache, "without the counts a restart would re-measure from nothing");
+            assertEquals(60L, cache.getTotal());
+            assertTrue(cache.isCounted(0, 0));
+            assertTrue(cache.isCounted(1, 0));
+            assertFalse(cache.isCounted(0, 1), "a column nobody reached stays unknown");
+            assertTrue(cache.matches(bounds), "the counts still belong to the box they were taken in");
+        } finally {
+            second.shutdown();
+        }
+    }
+
+    @Test
+    void aWorldThatCameBackFromABackupOutranksThePlacementFile() {
+        final JsonObject storedPlacement;
+
+        final Context first = newServerContext();
+        try {
+            final ServerPlacement placement = attach(first, first.getBuildService(), regions("roof"));
+            final BuildRegion roof = placement.getBuildRegions().get("roof");
+            final RegionScanCache cache =
+                    new RegionScanCache(new RegionBounds(new BlockPos(0, 64, 0), new BlockPos(15, 70, 15)));
+            cache.record(0, 0, 60);
+            roof.setScanCache(cache);
+            roof.recordScan(60L, 4_242L);
+            new BuildScanStore(tempDir.toFile()).save(placement.getId(), placement.getBuildRegions());
+
+            // The build carried on after that measurement was stored, and only the
+            // placement file kept up — the world is the one that got rolled back.
+            roof.recordScan(90L, 9_999L);
+            storedPlacement = placement.toJson();
+        } finally {
+            first.shutdown();
+        }
+
+        final Context second = newServerContext();
+        try {
+            final ServerPlacement restored = ServerPlacement.fromJson(storedPlacement, second);
+            assertNotNull(restored);
+            second.getSyncmaticManager().addPlacement(restored);
+
+            final BuildRegion roof = restored.getBuildRegions().get("roof");
+            assertEquals(60L, roof.getPlacedBlocks(),
+                    "the world holds the blocks, so what it measured wins over the placement file");
+            assertEquals(4_242L, roof.getLastScanMillis());
+        } finally {
+            second.shutdown();
+        }
+    }
+
+    @Test
+    void aRescanForgetsEveryMeasurementSoTheyAreTakenAgain() {
+        final Context context = newServerContext();
+        try {
+            final BuildService service = context.getBuildService();
+            final ServerPlacement placement = attach(context, service, regions("roof"));
+            final BuildRegion roof = placement.getBuildRegions().get("roof");
+            final RegionScanCache cache =
+                    new RegionScanCache(new RegionBounds(new BlockPos(0, 64, 0), new BlockPos(15, 70, 15)));
+            cache.record(0, 0, 60);
+            roof.setScanCache(cache);
+            roof.recordScan(60L, 4_242L);
+            final BuildScanStore store = new BuildScanStore(tempDir.toFile());
+            store.save(placement.getId(), placement.getBuildRegions());
+
+            assertTrue(service.rescan(placement));
+            assertNull(roof.getScanCache(), "an offline world edit is exactly what this has to undo");
+            assertFalse(roof.isScanned());
+            assertEquals(0L, roof.getPlacedBlocks());
+
+            // Left on disk it would come straight back on the next restart.
+            final BuildRegionState reloaded = new BuildRegionState();
+            reloaded.getOrCreate("roof", 100L);
+            store.load(placement.getId(), reloaded);
+            assertNull(reloaded.get("roof").getScanCache(), "the stored counts went with it");
         } finally {
             context.shutdown();
         }

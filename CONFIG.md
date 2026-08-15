@@ -112,8 +112,14 @@ decode per placement when the server starts.
 Operational notes:
 
 - One placement is scanned at a time. A large schematic costs a long wall-clock scan rather than a server stall.
-- A region touching an unloaded chunk publishes no result at all rather than an undercount, so progress can stay at its
-  last value until the area is loaded again.
+- Completion is counted per chunk column and kept. A column out of view keeps the number it was last given, because
+  nothing can be built inside an unloaded chunk, so a region far larger than the area players keep loaded still gets
+  measured — a piece at a time, across as many visits as it takes. Columns nobody has ever loaded count as unbuilt.
+- The counts are stored in the world they were measured in, under `<world>/syncmatica_r/build_scan/`, rather than beside
+  the placements. Restoring a backup or rolling the world back therefore brings the matching counts with it, and what the
+  world says outranks what the placement file remembers.
+- Editing the world with the server down, or writing region files with another tool, still goes behind the counts' back.
+  `/syncmatica_r <project_name> rescanBuild` throws them away and measures again from what is actually there.
 - Completion compares block identity, not full block state. A region built with every stair facing the wrong way still
   reads as complete — the same rule the material list counts by.
 - Claims are keyed by region name, so they survive a re-share, a re-extraction and a restart. A region that disappears

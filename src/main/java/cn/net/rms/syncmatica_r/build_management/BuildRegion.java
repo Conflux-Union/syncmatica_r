@@ -21,6 +21,7 @@ public final class BuildRegion {
     private final String regionName;
     private final long requiredBlocks;
     private final Set<PlayerIdentifier> claimants = new LinkedHashSet<>();
+    private RegionScanCache scanCache;
     private long placedBlocks;
     private long lastScanMillis;
 
@@ -54,6 +55,29 @@ public final class BuildRegion {
     public void recordScan(final long placedBlocks, final long scanMillis) {
         this.placedBlocks = Math.max(0L, Math.min(placedBlocks, requiredBlocks));
         this.lastScanMillis = scanMillis;
+    }
+
+    /**
+     * The per-chunk counts {@link #getPlacedBlocks()} is summed from. Held by the
+     * server that measures the region; a client is sent the total instead, so
+     * this stays null there.
+     */
+    public RegionScanCache getScanCache() {
+        return scanCache;
+    }
+
+    public void setScanCache(final RegionScanCache scanCache) {
+        this.scanCache = scanCache;
+    }
+
+    /**
+     * Forgets everything measured about this region, counts and total alike, so
+     * the next pass rebuilds both from the world.
+     */
+    public void forgetScan() {
+        scanCache = null;
+        placedBlocks = 0L;
+        lastScanMillis = 0L;
     }
 
     /** A region nobody has scanned yet reports no progress rather than zero. */

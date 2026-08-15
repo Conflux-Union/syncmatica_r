@@ -190,6 +190,16 @@ public class Context {
         return new File(root, Syncmatica.MOD_ID);
     }
 
+    /**
+     * @return the save directory of the world this server runs, or null off a
+     *         server. Data that describes world blocks rather than schematics
+     *         belongs here, so restoring a backup restores it too — on a
+     *         dedicated server that is a different place from the config folder.
+     */
+    public File getWorldFolder() {
+        return worldFolder;
+    }
+
     public File getConfigFile() {
         return new File(getConfigFolder(), "config.json");
     }

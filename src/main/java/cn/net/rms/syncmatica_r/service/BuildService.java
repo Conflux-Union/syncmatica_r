@@ -3,11 +3,13 @@ package cn.net.rms.syncmatica_r.service;
 import cn.net.rms.syncmatica_r.ServerPlacement;
 import cn.net.rms.syncmatica_r.build_management.BuildRegion;
 import cn.net.rms.syncmatica_r.build_management.BuildRegionState;
+import cn.net.rms.syncmatica_r.build_management.BuildScanStore;
 import cn.net.rms.syncmatica_r.build_management.RegionBlocks;
 import cn.net.rms.syncmatica_r.build_management.RegionBounds;
 import cn.net.rms.syncmatica_r.build_management.RegionBoundsResolver;
 import cn.net.rms.syncmatica_r.build_management.RegionGeometry;
 import cn.net.rms.syncmatica_r.build_management.RegionLayoutExtractor;
+import cn.net.rms.syncmatica_r.build_management.RegionScanCache;
 import cn.net.rms.syncmatica_r.communication.ProtocolLimits;
 import cn.net.rms.syncmatica_r.communication.ServerCommunicationManager;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
@@ -82,6 +84,7 @@ public class BuildService extends AbstractService {
     private final ArrayDeque<UUID> scanQueue = new ArrayDeque<>();
     private final Set<UUID> queuedForScan = new HashSet<>();
     private CompletionScan activeScan;
+    private BuildScanStore scanStore;
     private UUID pendingBlockLoad;
     private UUID pendingBlockToken;
     private final Queue<LoadedRegionBlocks> loadedBlocks = new ConcurrentLinkedQueue<>();
@@ -121,6 +124,7 @@ public class BuildService extends AbstractService {
         placements.put(placement.getId(), placement);
         seedFromExistingSnapshot(placement);
         if (enabled) {
+            loadScanData(placement);
             scheduleLayoutLoad(placement);
         }
     }
@@ -134,6 +138,41 @@ public class BuildService extends AbstractService {
         deferredLayoutIds.remove(placementId);
         deferredLayouts.removeIf(placementId::equals);
         cancelScanFor(placementId);
+        final BuildScanStore store = scanStore();
+        if (store != null) {
+            store.delete(placementId);
+        }
+    }
+
+    /**
+     * The per-chunk counts live in the world they were measured in, not beside
+     * the placements: a world restored from a backup brings its own counts with
+     * it, which is the only way the measurement survives a rollback without
+     * somebody remembering to order a rescan.
+     */
+    private BuildScanStore scanStore() {
+        if (scanStore == null) {
+            final File worldFolder = context == null ? null : context.getWorldFolder();
+            if (worldFolder == null) {
+                return null;
+            }
+            scanStore = new BuildScanStore(worldFolder);
+        }
+        return scanStore;
+    }
+
+    private void loadScanData(final ServerPlacement placement) {
+        final BuildScanStore store = scanStore();
+        if (store != null) {
+            store.load(placement.getId(), placement.getBuildRegions());
+        }
+    }
+
+    private void saveScanData(final ServerPlacement placement) {
+        final BuildScanStore store = scanStore();
+        if (store != null) {
+            store.save(placement.getId(), placement.getBuildRegions());
+        }
     }
 
     public void tick(final MinecraftServer server) {
@@ -278,7 +317,39 @@ public class BuildService extends AbstractService {
         }
         if (changed) {
             persistAndBroadcast(placement);
+            saveScanData(placement);
         }
+    }
+
+    /**
+     * Forgets everything measured about a placement and queues a fresh pass.
+     *
+     * <p>Counting per chunk column rests on a block never changing while its
+     * chunk is unloaded. Nothing inside the game can break that, and a world
+     * restored from a backup brings its own counts back with it, so what is left
+     * is editing the world with the server down or writing region files with
+     * another tool. This is the way back from those.
+     *
+     * @return false when build management or completion tracking is switched off
+     */
+    public boolean rescan(final ServerPlacement placement) {
+        if (!enabled || !completionEnabled || placement == null) {
+            return false;
+        }
+        for (final BuildRegion region : placement.getBuildRegions().getRegions()) {
+            region.forgetScan();
+        }
+        final UUID placementId = placement.getId();
+        cancelScanFor(placementId);
+        final BuildScanStore store = scanStore();
+        if (store != null) {
+            store.delete(placementId);
+        }
+        if (regionGeometry.containsKey(placementId) && queuedForScan.add(placementId)) {
+            scanQueue.addFirst(placementId);
+        }
+        persistAndBroadcast(placement);
+        return true;
     }
 
     private void cancelScanFor(final UUID placementId) {
@@ -506,15 +577,17 @@ public class BuildService extends AbstractService {
     }
 
     /**
-     * Walks a placement's regions one world position at a time, comparing the
-     * block that is there against the one the schematic asks for.
+     * Walks a placement's regions one chunk column at a time, comparing the block
+     * that is there against the one the schematic asks for.
      *
      * <p>Only the block is compared, not its full state: orientation is not
      * tracked, matching how the material list counts by item rather than by
-     * state. A region that touches an unloaded chunk publishes no result at all
-     * rather than an undercount.
+     * state. Each column's result is kept in the region's {@link RegionScanCache}
+     * rather than in this pass, so a column out of view keeps the number it was
+     * last given instead of costing the region its whole measurement.
      */
     private final class CompletionScan {
+        private final ServerPlacement placement;
         private final UUID placementId;
         private final ServerWorld world;
         private final BlockPos origin;
@@ -530,14 +603,20 @@ public class BuildService extends AbstractService {
         private RegionGeometry currentGeometry;
         private RegionBlocks currentBlocks;
         private Block[] currentPalette;
+        private RegionScanCache currentCache;
+        private Iterator<Long> remainingColumns;
+
+        private boolean columnActive;
+        private int columnX;
+        private int columnZ;
         private Iterator<BlockPos> positions;
-        private long placed;
-        private boolean regionPartial;
+        private int columnMatched;
         private boolean finished;
 
         private CompletionScan(final ServerPlacement placement, final ServerWorld world,
                                final Map<String, RegionGeometry> geometry,
                                final Map<String, RegionBlocks> blocks) {
+            this.placement = placement;
             placementId = placement.getId();
             this.world = world;
             origin = placement.getPosition();
@@ -550,10 +629,15 @@ public class BuildService extends AbstractService {
             remainingRegions = names.iterator();
         }
 
+        /**
+         * @return true when the schematic no longer sits where these counts were
+         *         taken, whether the whole placement moved or one sub-region did
+         */
         private boolean poseChanged(final ServerPlacement placement) {
             return !origin.equals(placement.getPosition())
                     || rotation != placement.getRotation()
-                    || mirror != placement.getMirror();
+                    || mirror != placement.getMirror()
+                    || !sameOverrides(overrides, overridesOf(placement));
         }
 
         private boolean isFinished() {
@@ -561,36 +645,49 @@ public class BuildService extends AbstractService {
         }
 
         private void process(final int budget) {
+            // Chunks are loaded and unloaded on the server thread, so the loaded
+            // set cannot change while this runs: checking the column once per
+            // tick is as exact as checking it once per block, and far cheaper.
+            if (columnActive && !world.isChunkLoaded(columnX, columnZ)) {
+                abandonColumn();
+            }
             int remaining = Math.max(1, budget);
             while (remaining > 0) {
-                if (positions == null || !positions.hasNext()) {
-                    closeCurrentRegion();
-                    if (!remainingRegions.hasNext()) {
-                        finished = true;
-                        return;
-                    }
-                    beginRegion(remainingRegions.next());
+                if (positions != null && positions.hasNext()) {
+                    countAt(positions.next());
+                    remaining--;
                     continue;
                 }
-                final BlockPos pos = positions.next();
+                commitColumn();
+                // Examining a column costs a unit too, so a region spread over
+                // thousands of unloaded columns cannot stall a tick.
                 remaining--;
-                if (!world.isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)) {
-                    regionPartial = true;
+                if (remainingColumns != null && remainingColumns.hasNext()) {
+                    beginColumn(remainingColumns.next());
                     continue;
                 }
-                final BlockPos local = RegionBoundsResolver.toLocalPosition(
-                        pos, currentGeometry, origin, rotation, mirror, overrides.get(currentRegion));
-                if (local == null) {
-                    continue;
+                closeCurrentRegion();
+                if (!remainingRegions.hasNext()) {
+                    finished = true;
+                    return;
                 }
-                final int paletteIndex = currentBlocks.paletteIndexAt(local.getX(), local.getY(), local.getZ());
-                if (paletteIndex < 0) {
-                    continue;
-                }
-                final Block expected = currentPalette[paletteIndex];
-                if (expected != null && world.getBlockState(pos).getBlock() == expected) {
-                    placed++;
-                }
+                beginRegion(remainingRegions.next());
+            }
+        }
+
+        private void countAt(final BlockPos pos) {
+            final BlockPos local = RegionBoundsResolver.toLocalPosition(
+                    pos, currentGeometry, origin, rotation, mirror, overrides.get(currentRegion));
+            if (local == null) {
+                return;
+            }
+            final int paletteIndex = currentBlocks.paletteIndexAt(local.getX(), local.getY(), local.getZ());
+            if (paletteIndex < 0) {
+                return;
+            }
+            final Block expected = currentPalette[paletteIndex];
+            if (expected != null && world.getBlockState(pos).getBlock() == expected) {
+                columnMatched++;
             }
         }
 
@@ -598,11 +695,11 @@ public class BuildService extends AbstractService {
             currentRegion = regionName;
             currentGeometry = geometry.get(regionName);
             currentBlocks = blocks.get(regionName);
-            placed = 0L;
-            regionPartial = false;
-            positions = null;
             currentPalette = null;
-            if (currentGeometry == null || currentBlocks == null) {
+            currentCache = null;
+            remainingColumns = null;
+            final BuildRegion region = placement.getBuildRegions().get(regionName);
+            if (region == null || currentGeometry == null || currentBlocks == null) {
                 return;
             }
             final RegionBounds bounds = RegionBoundsResolver.resolve(
@@ -610,17 +707,80 @@ public class BuildService extends AbstractService {
             if (bounds == null) {
                 return;
             }
+            RegionScanCache cache = region.getScanCache();
+            if (cache == null || !cache.matches(bounds)) {
+                cache = new RegionScanCache(bounds);
+                region.setScanCache(cache);
+            }
+            currentCache = cache;
             currentPalette = resolvePalette(currentBlocks.getPalette());
-            positions = BlockPos.iterate(bounds.getMin(), bounds.getMax()).iterator();
+            remainingColumns = cache.columns();
+        }
+
+        private void beginColumn(final long packedColumn) {
+            columnX = RegionScanCache.columnX(packedColumn);
+            columnZ = RegionScanCache.columnZ(packedColumn);
+            columnMatched = 0;
+            columnActive = false;
+            positions = null;
+            // An unloaded column keeps whatever it was last counted as, which is
+            // still what is there: nothing can have been built inside it since.
+            if (!world.isChunkLoaded(columnX, columnZ)) {
+                return;
+            }
+            final RegionBounds box = currentCache.columnBounds(columnX, columnZ);
+            if (box == null) {
+                return;
+            }
+            columnActive = true;
+            positions = BlockPos.iterate(box.getMin(), box.getMax()).iterator();
+        }
+
+        /** Publishes a column only once every position in it has been read. */
+        private void commitColumn() {
+            if (columnActive) {
+                currentCache.record(columnX, columnZ, columnMatched);
+            }
+            abandonColumn();
+        }
+
+        private void abandonColumn() {
+            columnActive = false;
+            positions = null;
+            columnMatched = 0;
         }
 
         private void closeCurrentRegion() {
-            if (currentRegion != null && positions != null && !regionPartial) {
-                results.put(currentRegion, placed);
+            if (currentRegion != null && currentCache != null) {
+                results.put(currentRegion, currentCache.getTotal());
             }
             currentRegion = null;
-            positions = null;
+            currentCache = null;
+            remainingColumns = null;
         }
+    }
+
+    /**
+     * {@link SubRegionPlacementModification} carries no equality of its own, and
+     * the pose it describes is exactly what decides whether counts taken earlier
+     * still apply.
+     */
+    private static boolean sameOverrides(final Map<String, SubRegionPlacementModification> left,
+                                         final Map<String, SubRegionPlacementModification> right) {
+        if (left.size() != right.size()) {
+            return false;
+        }
+        for (final Map.Entry<String, SubRegionPlacementModification> entry : left.entrySet()) {
+            final SubRegionPlacementModification other = right.get(entry.getKey());
+            final SubRegionPlacementModification mine = entry.getValue();
+            if (other == null
+                    || other.rotation != mine.rotation
+                    || other.mirror != mine.mirror
+                    || !java.util.Objects.equals(other.position, mine.position)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -716,6 +876,7 @@ public class BuildService extends AbstractService {
         deferredLayouts.clear();
         deferredLayoutIds.clear();
         completedLayouts.clear();
+        scanStore = null;
         layoutExecutor.shutdownNow();
     }
 }
