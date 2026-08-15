@@ -29,8 +29,7 @@ final class RegionLayoutExtractorTest {
         regions.put("roof", sizedRegion(4, 3, 2));
         regions.put("walls", sizedRegion(2, 2, 2));
 
-        final Map<String, Long> counts =
-                RegionLayoutExtractor.extractBlockCounts(writeRegions("build.litematic", regions), ONE_MEGABYTE);
+        final Map<String, Long> counts = RegionLayoutExtractor.extractLayout(writeRegions("build.litematic", regions), ONE_MEGABYTE).getBlockCounts();
 
         // A region with no palette asks for nothing, but it is still somebody's
         // job, so it has to stay claimable.
@@ -50,8 +49,7 @@ final class RegionLayoutExtractorTest {
         final NbtCompound regions = new NbtCompound();
         regions.put("roof", region);
 
-        final Map<String, Long> counts =
-                RegionLayoutExtractor.extractBlockCounts(writeRegions("skips.litematic", regions), ONE_MEGABYTE);
+        final Map<String, Long> counts = RegionLayoutExtractor.extractLayout(writeRegions("skips.litematic", regions), ONE_MEGABYTE).getBlockCounts();
 
         // The upper half of a door is placed by its lower half, and a nameless
         // entry is not a block at all. Neither costs a material, so neither is
@@ -101,8 +99,7 @@ final class RegionLayoutExtractorTest {
         }
         regions.put(tooLongName(), sizedRegion(1, 1, 1));
 
-        final Map<String, Long> counts =
-                RegionLayoutExtractor.extractBlockCounts(writeRegions("many.litematic", regions), ONE_MEGABYTE);
+        final Map<String, Long> counts = RegionLayoutExtractor.extractLayout(writeRegions("many.litematic", regions), ONE_MEGABYTE).getBlockCounts();
 
         assertTrue(counts.size() <= ProtocolLimits.MAX_REGION_ENTRIES);
         assertTrue(counts.keySet().stream()
@@ -116,12 +113,12 @@ final class RegionLayoutExtractorTest {
             output.write(new byte[]{1, 2, 3, 4});
         }
 
-        assertTrue(RegionLayoutExtractor.extractBlockCounts(garbage, ONE_MEGABYTE).isEmpty());
+        assertTrue(RegionLayoutExtractor.extractLayout(garbage, ONE_MEGABYTE).isEmpty());
         assertTrue(RegionLayoutExtractor
-                .extractBlockCounts(new File(tempDir.toFile(), "missing.litematic"), ONE_MEGABYTE).isEmpty());
-        assertTrue(RegionLayoutExtractor.extractBlockCounts(null, ONE_MEGABYTE).isEmpty());
+                .extractLayout(new File(tempDir.toFile(), "missing.litematic"), ONE_MEGABYTE).isEmpty());
+        assertTrue(RegionLayoutExtractor.extractLayout(null, ONE_MEGABYTE).isEmpty());
         assertTrue(RegionLayoutExtractor
-                .extractBlockCounts(writeRegions("empty.litematic", null), ONE_MEGABYTE).isEmpty());
+                .extractLayout(writeRegions("empty.litematic", null), ONE_MEGABYTE).isEmpty());
     }
 
     private static NbtCompound sizedRegion(final int x, final int y, final int z) {

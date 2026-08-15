@@ -12,6 +12,7 @@ import cn.net.rms.syncmatica_r.FileStorage;
 import cn.net.rms.syncmatica_r.ServerPlacement;
 import cn.net.rms.syncmatica_r.SyncmaticManager;
 import cn.net.rms.syncmatica_r.build_management.BuildRegion;
+import cn.net.rms.syncmatica_r.build_management.RegionBounds;
 import cn.net.rms.syncmatica_r.communication.CommunicationManager;
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
 import cn.net.rms.syncmatica_r.communication.ProtocolLimits;
@@ -240,6 +241,73 @@ final class BuildServiceTest {
         }
     }
 
+    /**
+     * Region boxes are derived from the file and never persisted, so a placement
+     * that came back from disk has to be read again before the completion scan or
+     * anything else can locate it in the world.
+     */
+    @Test
+    void regionBoxesFollowThePlacementPose() throws Exception {
+        final Context context = newServerContext();
+        try {
+            final UUID hash = writeLitematic(context, "roof");
+            final ServerPlacement placement = new ServerPlacement(
+                    UUID.randomUUID(), "build", hash, PlayerIdentifier.MISSING_PLAYER);
+            placement.move("minecraft:overworld", new BlockPos(100, 64, 200),
+                    BlockRotation.NONE, BlockMirror.NONE);
+
+            context.getSyncmaticManager().addPlacement(placement);
+            pumpUntilRegionsArrive(context, placement);
+
+            RegionBounds bounds = context.getBuildService().getRegionBounds(placement).get("roof");
+            assertNotNull(bounds, "a placement never learns where its regions are");
+            assertEquals(new BlockPos(100, 64, 200), bounds.getMin());
+
+            // Moving the placement must move the box without another extraction.
+            placement.move("minecraft:overworld", BlockPos.ORIGIN, BlockRotation.NONE, BlockMirror.NONE);
+            bounds = context.getBuildService().getRegionBounds(placement).get("roof");
+            assertEquals(BlockPos.ORIGIN, bounds.getMin());
+            assertEquals(new BlockPos(3, 2, 1), bounds.getMax());
+        } finally {
+            context.shutdown();
+        }
+    }
+
+    @Test
+    void scanBudgetsAreClampedToSaneValues() {
+        final Context context = newServerContext();
+        try {
+            final BuildService service = context.getBuildService();
+            assertTrue(service.isCompletionEnabled());
+
+            // Silly values must not turn into a per-tick full scan or a busy loop.
+            service.configure(new ScanTuningConfiguration(1, 1));
+            service.configure(new ScanTuningConfiguration(Integer.MAX_VALUE, Integer.MAX_VALUE));
+        } finally {
+            context.shutdown();
+        }
+    }
+
+    @Test
+    void completionSurvivesARestartThroughTheStoredPlacement() {
+        final Context context = newServerContext();
+        try {
+            final BuildService service = context.getBuildService();
+            final ServerPlacement placement = attach(context, service, regions("roof"));
+            placement.getBuildRegions().get("roof").recordScan(60L, 4_242L);
+
+            final ServerPlacement restored = ServerPlacement.fromJson(placement.toJson(), context);
+            assertNotNull(restored);
+            final BuildRegion roof = restored.getBuildRegions().get("roof");
+            assertNotNull(roof);
+            assertEquals(60L, roof.getPlacedBlocks());
+            assertEquals(4_242L, roof.getLastScanMillis());
+            assertEquals(60, roof.getCompletionPercent());
+        } finally {
+            context.shutdown();
+        }
+    }
+
     /** Extraction runs off the server thread, so the tick loop has to catch up with it. */
     private void pumpUntilRegionsArrive(final Context context, final ServerPlacement placement)
             throws InterruptedException {
@@ -325,6 +393,25 @@ final class BuildServiceTest {
         public void loadBoolean(final String key, final java.util.function.Consumer<Boolean> loader) {
             if ("enabled".equals(key)) {
                 loader.accept(false);
+            }
+        }
+    }
+
+    private static final class ScanTuningConfiguration extends NoOpConfiguration {
+        private final int blocksPerTick;
+        private final int interval;
+
+        private ScanTuningConfiguration(final int blocksPerTick, final int interval) {
+            this.blocksPerTick = blocksPerTick;
+            this.interval = interval;
+        }
+
+        @Override
+        public void loadInteger(final String key, final java.util.function.IntConsumer loader) {
+            if ("scan_blocks_per_tick".equals(key)) {
+                loader.accept(blocksPerTick);
+            } else if ("scan_interval".equals(key)) {
+                loader.accept(interval);
             }
         }
     }

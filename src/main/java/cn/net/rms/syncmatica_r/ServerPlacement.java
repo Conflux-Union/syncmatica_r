@@ -353,6 +353,9 @@ public class ServerPlacement {
         }
         for (final BuildRegion source : snapshot.getRegions()) {
             final BuildRegion target = buildRegions.getOrCreate(source.getRegionName(), source.getRequiredBlocks());
+            if (source.isScanned()) {
+                target.recordScan(source.getPlacedBlocks(), source.getLastScanMillis());
+            }
             target.clearClaimants();
             source.getClaimants().forEach(target::addClaimer);
         }

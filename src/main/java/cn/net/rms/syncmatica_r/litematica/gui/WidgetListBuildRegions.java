@@ -75,12 +75,15 @@ public class WidgetListBuildRegions extends WidgetListBase<BuildRegion, WidgetBu
     private void drawHeaderRow(final TextDrawer drawer) {
         final int textColor = 0xFFFFFFFF;
         final int textY = posY + 6;
-        final int claimerColumnRight = posX + browserEntryWidth - 8;
+        final int progressColumnRight = posX + browserEntryWidth - 8;
+        final int claimerColumnRight = progressColumnRight - WidgetBuildRegionEntry.PROGRESS_COLUMN_WIDTH;
 
         drawer.drawString(StringUtils.translate("syncmatica_r.gui.label.build.column.region"),
                 posX + 6, textY, textColor);
         final String playerLabel = StringUtils.translate("syncmatica_r.gui.label.build.column.player");
         drawer.drawString(playerLabel, claimerColumnRight - getStringWidth(playerLabel), textY, textColor);
+        final String progressLabel = StringUtils.translate("syncmatica_r.gui.label.build.column.progress");
+        drawer.drawString(progressLabel, progressColumnRight - getStringWidth(progressLabel), textY, textColor);
     }
 
     private interface TextDrawer {

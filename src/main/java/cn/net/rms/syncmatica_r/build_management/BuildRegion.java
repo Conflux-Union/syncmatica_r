@@ -21,6 +21,8 @@ public final class BuildRegion {
     private final String regionName;
     private final long requiredBlocks;
     private final Set<PlayerIdentifier> claimants = new LinkedHashSet<>();
+    private long placedBlocks;
+    private long lastScanMillis;
 
     public BuildRegion(final String regionName, final long requiredBlocks) {
         this.regionName = Objects.requireNonNull(regionName, "regionName");
@@ -38,6 +40,40 @@ public final class BuildRegion {
      */
     public long getRequiredBlocks() {
         return requiredBlocks;
+    }
+
+    /** @return how many of those positions already hold the right block */
+    public long getPlacedBlocks() {
+        return placedBlocks;
+    }
+
+    public long getLastScanMillis() {
+        return lastScanMillis;
+    }
+
+    public void recordScan(final long placedBlocks, final long scanMillis) {
+        this.placedBlocks = Math.max(0L, Math.min(placedBlocks, requiredBlocks));
+        this.lastScanMillis = scanMillis;
+    }
+
+    /** A region nobody has scanned yet reports no progress rather than zero. */
+    public boolean isScanned() {
+        return lastScanMillis > 0L;
+    }
+
+    public boolean isComplete() {
+        return isScanned() && placedBlocks >= requiredBlocks;
+    }
+
+    /** @return 0-100, or -1 when this region has never been scanned */
+    public int getCompletionPercent() {
+        if (!isScanned()) {
+            return -1;
+        }
+        if (requiredBlocks <= 0L) {
+            return 100;
+        }
+        return (int) Math.min(100L, placedBlocks * 100L / requiredBlocks);
     }
 
     public Collection<PlayerIdentifier> getClaimants() {

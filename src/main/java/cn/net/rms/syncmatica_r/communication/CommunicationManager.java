@@ -556,6 +556,8 @@ public abstract class CommunicationManager {
             }
             buf.writeString(region.getRegionName(), ProtocolLimits.MAX_SUBREGION_NAME_LENGTH);
             buf.writeLong(region.getRequiredBlocks());
+            buf.writeLong(region.getPlacedBlocks());
+            buf.writeLong(region.getLastScanMillis());
             final Collection<PlayerIdentifier> claimers = region.getClaimants();
             final int claimantCount = Math.min(claimers.size(), ProtocolLimits.MAX_CLAIMANTS_PER_REGION);
             buf.writeInt(claimantCount);
@@ -584,9 +586,14 @@ public abstract class CommunicationManager {
         for (int i = 0; i < total; i++) {
             final String regionName = buf.readString(ProtocolLimits.MAX_SUBREGION_NAME_LENGTH);
             final long requiredBlocks = buf.readLong();
+            final long placedBlocks = buf.readLong();
+            final long lastScanMillis = buf.readLong();
             final int claimantCount = ProtocolLimits.requireCount(
                     buf.readInt(), ProtocolLimits.MAX_CLAIMANTS_PER_REGION, "region claimant count");
             final BuildRegion region = apply ? snapshot.getOrCreate(regionName, requiredBlocks) : null;
+            if (region != null && lastScanMillis > 0L) {
+                region.recordScan(placedBlocks, lastScanMillis);
+            }
             for (int claimant = 0; claimant < claimantCount; claimant++) {
                 final UUID claimerId = buf.readUuid();
                 final String claimerName = buf.readString(ProtocolLimits.MAX_PLAYER_NAME_LENGTH);

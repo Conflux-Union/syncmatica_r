@@ -77,7 +77,8 @@ public class WidgetListBuildPlacements extends WidgetListBase<ServerPlacement, W
     private void drawHeaderRow(final TextDrawer drawer) {
         final int textColor = 0xFFFFFFFF;
         final int textY = posY + 6;
-        final int claimedColumnRight = posX + browserEntryWidth - 8;
+        final int progressColumnRight = posX + browserEntryWidth - 8;
+        final int claimedColumnRight = progressColumnRight - WidgetBuildPlacementEntry.PROGRESS_COLUMN_WIDTH;
         final int regionColumnRight = claimedColumnRight - WidgetBuildPlacementEntry.CLAIMED_COLUMN_WIDTH;
 
         drawer.drawString(StringUtils.translate("syncmatica_r.gui.label.build.column.schematic"),
@@ -86,6 +87,8 @@ public class WidgetListBuildPlacements extends WidgetListBase<ServerPlacement, W
         drawer.drawString(regionLabel, regionColumnRight - getStringWidth(regionLabel), textY, textColor);
         final String claimedLabel = StringUtils.translate("syncmatica_r.gui.label.build.column.claimed");
         drawer.drawString(claimedLabel, claimedColumnRight - getStringWidth(claimedLabel), textY, textColor);
+        final String progressLabel = StringUtils.translate("syncmatica_r.gui.label.build.column.progress");
+        drawer.drawString(progressLabel, progressColumnRight - getStringWidth(progressLabel), textY, textColor);
     }
 
     private interface TextDrawer {

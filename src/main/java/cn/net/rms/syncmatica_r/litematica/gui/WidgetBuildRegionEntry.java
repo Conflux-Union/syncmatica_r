@@ -40,6 +40,8 @@ import java.util.List;
  */
 public class WidgetBuildRegionEntry extends WidgetListEntryBase<BuildRegion> {
 
+    static final int PROGRESS_COLUMN_WIDTH = 70;
+
     private final ServerPlacement placement;
 
     public WidgetBuildRegionEntry(final int x, final int y, final int width, final int height,
@@ -97,7 +99,8 @@ public class WidgetBuildRegionEntry extends WidgetListEntryBase<BuildRegion> {
             rects.drawRect(x, y, width, height, claimers.contains(selfName()) ? 0x3040FF40 : 0x30FFFF80);
         }
 
-        final int claimerColumnRight = x + width - 8;
+        final int progressColumnRight = x + width - 8;
+        final int claimerColumnRight = progressColumnRight - PROGRESS_COLUMN_WIDTH;
         final int textY = y + 6;
 
         texts.drawString(region == null ? "" : region.getRegionName(), x + 6, textY, 0xFFFFFFFF);
@@ -107,6 +110,10 @@ public class WidgetBuildRegionEntry extends WidgetListEntryBase<BuildRegion> {
                 : String.join(", ", claimers);
         texts.drawString(claimerText, claimerColumnRight - getStringWidth(claimerText), textY,
                 claimers.isEmpty() ? 0x80FFFFFF : 0xFFFFFF80);
+
+        final String progressText = formatProgress(region);
+        texts.drawString(progressText, progressColumnRight - getStringWidth(progressText), textY,
+                progressColor(region));
 
         if (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height) {
             drawClaimTooltip(region, claimers, mouseX, mouseY,
@@ -119,6 +126,23 @@ public class WidgetBuildRegionEntry extends WidgetListEntryBase<BuildRegion> {
 //#endif
             );
         }
+    }
+
+    private static String formatProgress(final BuildRegion region) {
+        if (region == null || !region.isScanned()) {
+            return StringUtils.translate("syncmatica_r.gui.label.build.status.unknown");
+        }
+        if (region.isComplete()) {
+            return StringUtils.translate("syncmatica_r.gui.label.build.status.complete");
+        }
+        return StringUtils.translate("syncmatica_r.gui.label.build.status.percent", region.getCompletionPercent());
+    }
+
+    private static int progressColor(final BuildRegion region) {
+        if (region == null || !region.isScanned()) {
+            return 0x80FFFFFF;
+        }
+        return region.isComplete() ? 0xFF80FF80 : 0xFFFFFF80;
     }
 
     private void drawClaimTooltip(final BuildRegion region, final List<String> claimers,
@@ -138,7 +162,9 @@ public class WidgetBuildRegionEntry extends WidgetListEntryBase<BuildRegion> {
                 ? StringUtils.translate("syncmatica_r.gui.tooltip.build.claim.none")
                 : StringUtils.translate("syncmatica_r.gui.tooltip.build.claimers", String.join(", ", claimers));
         final String blocksLine = region == null ? "" : StringUtils.translate(
-                "syncmatica_r.gui.tooltip.build.blocks", region.getRequiredBlocks());
+                "syncmatica_r.gui.tooltip.build.blocks",
+                region.isScanned() ? region.getPlacedBlocks() : 0L,
+                region.getRequiredBlocks());
 //#if MC >= 12111
 //$$         final List<String> lines = new ArrayList<>();
 //$$         lines.add(ownerLine);

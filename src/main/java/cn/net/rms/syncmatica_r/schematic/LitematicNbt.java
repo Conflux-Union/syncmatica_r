@@ -3,6 +3,7 @@ package cn.net.rms.syncmatica_r.schematic;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtIo;
+import net.minecraft.util.math.BlockPos;
 //#if MC >= 12005
 //$$ import net.minecraft.nbt.NbtSizeTracker;
 //#else
@@ -136,6 +137,48 @@ public final class LitematicNbt {
             return longs;
         }
         return new long[0];
+        //#endif
+    }
+
+    /**
+     * Reads a signed vector such as {@code Position} or {@code Size}. Unlike
+     * {@link #resolveSize} the sign is kept, because a negative size means the
+     * region grows in the negative direction and dropping that puts the box on
+     * the wrong side of its origin.
+     *
+     * @return the vector, or null when the region does not declare one
+     */
+    public static BlockPos resolveSignedVec(final NbtCompound region, final String key) {
+        //#if MC >= 12106
+        //$$ if (region.contains(key)) {
+        //$$     final Optional<int[]> intArrayOpt = region.getIntArray(key);
+        //$$     if (intArrayOpt.isPresent()) {
+        //$$         final int[] raw = intArrayOpt.get();
+        //$$         return raw.length >= 3 ? new BlockPos(raw[0], raw[1], raw[2]) : null;
+        //$$     }
+        //$$     final Optional<NbtCompound> compoundOpt = region.getCompound(key);
+        //$$     if (compoundOpt.isPresent()) {
+        //$$         final NbtCompound compound = compoundOpt.get();
+        //$$         if (compound.contains("x") && compound.contains("y") && compound.contains("z")) {
+        //$$             return new BlockPos(compound.getInt("x", 0), compound.getInt("y", 0), compound.getInt("z", 0));
+        //$$         }
+        //$$     }
+        //$$ }
+        //$$ return null;
+        //#else
+        if (region.contains(key, NbtElement.INT_ARRAY_TYPE)) {
+            final int[] raw = region.getIntArray(key);
+            return raw.length >= 3 ? new BlockPos(raw[0], raw[1], raw[2]) : null;
+        }
+        if (region.contains(key, NbtElement.COMPOUND_TYPE)) {
+            final NbtCompound compound = region.getCompound(key);
+            if (compound.contains("x", NbtElement.INT_TYPE)
+                    && compound.contains("y", NbtElement.INT_TYPE)
+                    && compound.contains("z", NbtElement.INT_TYPE)) {
+                return new BlockPos(compound.getInt("x"), compound.getInt("y"), compound.getInt("z"));
+            }
+        }
+        return null;
         //#endif
     }
 

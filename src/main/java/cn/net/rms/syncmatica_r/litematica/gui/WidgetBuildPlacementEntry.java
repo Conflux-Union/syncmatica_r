@@ -5,6 +5,7 @@ import cn.net.rms.syncmatica_r.build_management.BuildRegion;
 import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.gui.widgets.WidgetListEntryBase;
 import fi.dy.masa.malilib.render.RenderUtils;
+import fi.dy.masa.malilib.util.StringUtils;
 import net.minecraft.client.util.math.MatrixStack;
 //#if MC >= 12001
 //$$ import net.minecraft.client.gui.DrawContext;
@@ -23,6 +24,7 @@ import net.minecraft.client.util.math.MatrixStack;
 public class WidgetBuildPlacementEntry extends WidgetListEntryBase<ServerPlacement> {
 
     static final int CLAIMED_COLUMN_WIDTH = 70;
+    static final int PROGRESS_COLUMN_WIDTH = 70;
 
     /**
      * Handed down rather than looked up from the client: which screen is current
@@ -85,7 +87,8 @@ public class WidgetBuildPlacementEntry extends WidgetListEntryBase<ServerPlaceme
             return;
         }
 
-        final int claimedColumnRight = x + width - 8;
+        final int progressColumnRight = x + width - 8;
+        final int claimedColumnRight = progressColumnRight - PROGRESS_COLUMN_WIDTH;
         final int regionColumnRight = claimedColumnRight - CLAIMED_COLUMN_WIDTH;
         final int textY = y + 6;
 
@@ -93,10 +96,20 @@ public class WidgetBuildPlacementEntry extends WidgetListEntryBase<ServerPlaceme
 
         int regionCount = 0;
         int claimedCount = 0;
+        // Weighted by block count rather than by region, so one huge region does
+        // not read as the same progress as one tiny one.
+        long required = 0L;
+        long placed = 0L;
+        boolean anyScanned = false;
         for (final BuildRegion region : placement.getBuildRegions().getRegions()) {
             regionCount++;
             if (region.isClaimed()) {
                 claimedCount++;
+            }
+            required += region.getRequiredBlocks();
+            if (region.isScanned()) {
+                anyScanned = true;
+                placed += region.getPlacedBlocks();
             }
         }
 
@@ -107,6 +120,34 @@ public class WidgetBuildPlacementEntry extends WidgetListEntryBase<ServerPlaceme
         final String claimedText = claimedCount + "/" + regionCount;
         texts.drawString(claimedText, claimedColumnRight - getStringWidth(claimedText), textY,
                 claimedColor(regionCount, claimedCount));
+
+        final String progressText = formatProgress(anyScanned, required, placed);
+        texts.drawString(progressText, progressColumnRight - getStringWidth(progressText), textY,
+                progressColor(anyScanned, required, placed));
+    }
+
+    private static String formatProgress(final boolean anyScanned, final long required, final long placed) {
+        if (!anyScanned) {
+            return StringUtils.translate("syncmatica_r.gui.label.build.status.unknown");
+        }
+        if (placed >= required) {
+            return StringUtils.translate("syncmatica_r.gui.label.build.status.complete");
+        }
+        return StringUtils.translate("syncmatica_r.gui.label.build.status.percent", percentOf(required, placed));
+    }
+
+    private static int progressColor(final boolean anyScanned, final long required, final long placed) {
+        if (!anyScanned) {
+            return 0x80FFFFFF;
+        }
+        return placed >= required ? 0xFF80FF80 : 0xFFFFFF80;
+    }
+
+    private static int percentOf(final long required, final long placed) {
+        if (required <= 0L) {
+            return 100;
+        }
+        return (int) Math.min(100L, placed * 100L / required);
     }
 
     private static int claimedColor(final int regionCount, final int claimedCount) {
