@@ -15,6 +15,7 @@ import cn.net.rms.syncmatica_r.material.MaterialAvailability;
 import cn.net.rms.syncmatica_r.material.MaterialKey;
 import cn.net.rms.syncmatica_r.material.MaterialProgressEntry;
 import cn.net.rms.syncmatica_r.material.MaterialProgressState;
+import cn.net.rms.syncmatica_r.material.StockingAreaDefinition;
 import cn.net.rms.syncmatica_r.util.SyncmaticaUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.PacketByteBuf;
@@ -118,6 +119,7 @@ public abstract class CommunicationManager {
 
         putPositionData(metaData, buf, exchangeTarget);
         putMaterialProgress(metaData, buf, exchangeTarget);
+        putStockingArea(metaData, buf, exchangeTarget);
         putBuildRegions(metaData, buf, exchangeTarget);
     }
 
@@ -155,6 +157,7 @@ public abstract class CommunicationManager {
 
     public void putMaterialData(final ServerPlacement placement, final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
         putMaterialProgress(placement, buf, exchangeTarget);
+        putStockingArea(placement, buf, exchangeTarget);
         putBuildRegions(placement, buf, exchangeTarget);
     }
 
@@ -205,6 +208,7 @@ public abstract class CommunicationManager {
 
         receivePositionData(placement, buf, exchangeTarget);
         receiveMaterialProgress(placement, buf, exchangeTarget);
+        receiveStockingArea(placement, buf, exchangeTarget);
         receiveBuildRegions(placement, buf, exchangeTarget);
 
         return placement;
@@ -218,6 +222,7 @@ public abstract class CommunicationManager {
                                         final ExchangeTarget exchangeTarget) {
         final PositionData positionData = readPositionData(buf, exchangeTarget);
         receiveMaterialProgress(placement, buf, exchangeTarget);
+        receiveStockingArea(placement, buf, exchangeTarget);
         receiveBuildRegions(placement, buf, exchangeTarget);
         if (context.isServer() && buf.isReadable()) {
             throw new IllegalArgumentException("Unexpected trailing modification data");
@@ -411,6 +416,53 @@ public abstract class CommunicationManager {
 
     public void receiveMaterialData(final ServerPlacement placement, final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
         receiveMaterialProgress(placement, buf, exchangeTarget);
+    }
+
+    /**
+     * Only the server owns stocking areas. A client echoing metadata back writes
+     * an empty section so the byte stream keeps the same shape in both
+     * directions, which is what lets the reader stay feature-flag driven.
+     */
+    private void putStockingArea(final ServerPlacement placement, final PacketByteBuf buf,
+                                 final ExchangeTarget exchangeTarget) {
+        if (!supportsStockingAreaSetup(exchangeTarget)) {
+            return;
+        }
+        final StockingAreaDefinition area = context.isServer() ? placement.getStockingArea() : null;
+        if (area == null) {
+            buf.writeBoolean(false);
+            return;
+        }
+        buf.writeBoolean(true);
+        buf.writeString(area.getDimensionId(), ProtocolLimits.MAX_DIMENSION_ID_LENGTH);
+        buf.writeBlockPos(area.getMin());
+        buf.writeBlockPos(area.getMax());
+    }
+
+    private void receiveStockingArea(final ServerPlacement placement, final PacketByteBuf buf,
+                                     final ExchangeTarget exchangeTarget) {
+        if (!supportsStockingAreaSetup(exchangeTarget) || buf.readableBytes() < Byte.BYTES) {
+            return;
+        }
+        if (!buf.readBoolean()) {
+            if (!context.isServer() && placement != null) {
+                placement.setStockingArea(null);
+            }
+            return;
+        }
+        final String dimensionId = buf.readString(ProtocolLimits.MAX_DIMENSION_ID_LENGTH);
+        final BlockPos min = buf.readBlockPos();
+        final BlockPos max = buf.readBlockPos();
+        if (!context.isServer() && placement != null) {
+            placement.setStockingArea(new StockingAreaDefinition(dimensionId, min, max));
+        }
+    }
+
+    private boolean supportsStockingAreaSetup(final ExchangeTarget exchangeTarget) {
+        final FeatureSet partnerFeatures = exchangeTarget.getFeatureSet();
+        final FeatureSet localFeatures = context.getFeatureSet();
+        return partnerFeatures != null && partnerFeatures.hasFeature(Feature.STOCKING_AREA_SETUP)
+                && localFeatures != null && localFeatures.hasFeature(Feature.STOCKING_AREA_SETUP);
     }
 
     public void download(final ServerPlacement syncmatic, final ExchangeTarget source) throws NoSuchAlgorithmException, IOException {

@@ -46,6 +46,7 @@ versions/*/config/
 /debug/
 
 # claude context
+.claude/
 .claude-context/
 CLAUDE.md
 AGENTS.md

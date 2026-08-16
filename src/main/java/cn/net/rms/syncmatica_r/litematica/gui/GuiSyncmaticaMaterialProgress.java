@@ -6,6 +6,7 @@ import cn.net.rms.syncmatica_r.litematica.ScreenHelper;
 import cn.net.rms.syncmatica_r.material.MaterialAvailability;
 import cn.net.rms.syncmatica_r.material.SyncmaticaMaterialEntry;
 import cn.net.rms.syncmatica_r.util.MaterialClaimHelper;
+import cn.net.rms.syncmatica_r.util.StockingAreaSelectionHelper;
 import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.gui.GuiListBase;
 import fi.dy.masa.malilib.gui.Message;
@@ -56,28 +57,36 @@ public class GuiSyncmaticaMaterialProgress extends GuiListBase<SyncmaticaMateria
         });
 
         // Bottom button bar
-        final String closeLabel = StringUtils.translate("syncmatica_r.gui.button.back");
-        final String exportLabel = StringUtils.translate("syncmatica_r.gui.button.material_export");
+        final String stockingLabel = StringUtils.translate("syncmatica_r.gui.button.stocking_area.set_from_selection");
         final String unclaimAllLabel = StringUtils.translate("syncmatica_r.gui.button.material.unclaim_all");
-        final int closeWidth = getStringWidth(closeLabel) + 20;
-        final int exportWidth = getStringWidth(exportLabel) + 20;
+        final String exportLabel = StringUtils.translate("syncmatica_r.gui.button.material_export");
+        final String closeLabel = StringUtils.translate("syncmatica_r.gui.button.back");
+        final int stockingWidth = getStringWidth(stockingLabel) + 20;
         final int unclaimAllWidth = getStringWidth(unclaimAllLabel) + 20;
+        final int exportWidth = getStringWidth(exportLabel) + 20;
+        final int closeWidth = getStringWidth(closeLabel) + 20;
         final int spacing = 6;
-        final int totalWidth = closeWidth + exportWidth + unclaimAllWidth + spacing * 2;
-        final int baseX = width - totalWidth - 10;
+        final int totalWidth = stockingWidth + unclaimAllWidth + exportWidth + closeWidth + spacing * 3;
         final int y = height - 26;
+        int x = width - totalWidth - 10;
 
-        final ButtonGeneric unclaimAllButton = new ButtonGeneric(baseX, y, unclaimAllWidth, 20, unclaimAllLabel);
+        final ButtonGeneric stockingButton = new ButtonGeneric(x, y, stockingWidth, 20, stockingLabel);
+        addButton(stockingButton, (button, mouseButton) -> applySelectionAsStockingArea());
+        x += stockingWidth + spacing;
+
+        final ButtonGeneric unclaimAllButton = new ButtonGeneric(x, y, unclaimAllWidth, 20, unclaimAllLabel);
         addButton(unclaimAllButton, (button, mouseButton) -> unclaimAllMaterials());
+        x += unclaimAllWidth + spacing;
 
-        final ButtonGeneric exportButton = new ButtonGeneric(baseX + unclaimAllWidth + spacing, y, exportWidth, 20, exportLabel);
+        final ButtonGeneric exportButton = new ButtonGeneric(x, y, exportWidth, 20, exportLabel);
         addButton(exportButton, (button, mouseButton) -> {
             final GuiMaterialExportOptions gui = new GuiMaterialExportOptions(placement);
             gui.setParent(this);
             GuiBase.openGui(gui);
         });
+        x += exportWidth + spacing;
 
-        final ButtonGeneric closeButton = new ButtonGeneric(baseX + unclaimAllWidth + exportWidth + spacing * 2, y, closeWidth, 20, closeLabel);
+        final ButtonGeneric closeButton = new ButtonGeneric(x, y, closeWidth, 20, closeLabel);
         addButton(closeButton, (b, i) -> closeGui(true));
 
         reportUnavailableMaterials();
@@ -124,6 +133,17 @@ public class GuiSyncmaticaMaterialProgress extends GuiListBase<SyncmaticaMateria
     @Override
     protected int getBrowserWidth() {
         return width - 20;
+    }
+
+    /**
+     * The server answers with its own message on success, so only report the
+     * cases where the packet never left the client.
+     */
+    private void applySelectionAsStockingArea() {
+        final StockingAreaSelectionHelper.Result result = StockingAreaSelectionHelper.sendForPlacement(placement);
+        if (result != StockingAreaSelectionHelper.Result.SENT) {
+            addMessage(Message.MessageType.ERROR, StockingAreaSelectionHelper.getFailureMessageKey(result));
+        }
     }
 
     private void unclaimAllMaterials() {

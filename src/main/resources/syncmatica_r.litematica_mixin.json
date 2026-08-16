@@ -9,6 +9,7 @@
     "MixinWidgetListSchematicPlacement",
     "MixinSchematicPlacement",
     "MixinWidgetSchematicPlacement",
+    "MixinWidgetSchematicPlacementButtonListener",
     "MixinGuiBase",
     "MixinSchematicHolder",
     "MixinButtonBase",

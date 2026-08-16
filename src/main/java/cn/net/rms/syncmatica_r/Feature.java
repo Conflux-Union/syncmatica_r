@@ -15,7 +15,8 @@ public enum Feature {
     VERSION,
     DISPLAY_NAME,
     LIMIT_REPORT,
-    BUILD_MANAGEMENT;
+    BUILD_MANAGEMENT,
+    STOCKING_AREA_SETUP;
 
     public static Feature fromString(final String s) {
         for (final Feature f : Feature.values()) {
