@@ -21,7 +21,7 @@ Because of that, always edit the file while the game/server is stopped; changes 
 
 ## JSON Structure Overview
 
-The root object is a flat collection of sections. Servers use all three blocks shown below, while clients only care
+The root object is a flat collection of sections. Servers use all the blocks shown below, while clients only care
 about `debug`. Two additional top-level keys control the optional GitHub update check on the client.
 
 ```json
@@ -41,14 +41,21 @@ about `debug`. Two additional top-level keys control the optional GitHub update 
     "max_schematic_blocks": 8000000,
     "max_stocking_area_blocks": 1000000
   },
+  "build": {
+    "enabled": true,
+    "completion_enabled": true,
+    "scan_blocks_per_tick": 4096,
+    "scan_interval": 1200,
+    "full_rescan_interval": 36000
+  },
   "debug": {
     "doPackageLogging": false
   }
 }
 ```
 
-Clients can safely delete the `quota` and `materials` sections; the loader will re-create them when the game later runs
-as a server. The two top-level update keys are ignored on servers.
+Clients can safely delete the `quota`, `materials` and `build` sections; the loader will re-create them when the game
+later runs as a server. The two top-level update keys are ignored on servers.
 
 ## `quota` — Server Upload Control
 
@@ -85,6 +92,59 @@ Operational notes:
 - Schematic extraction runs on a bounded background worker. NBT allocation and block volume are both checked before
   results are applied on the server thread; nested container traversal stops after 10 levels.
 - Stocking area commands schedule an incremental scan; they no longer scan the entire cuboid during command execution.
+- Changing these settings after the service started requires a full server restart.
+
+## `build` — Server Build Management
+
+This block is only consumed when the BuildService is present (dedicated or integrated servers). Disabling it withdraws
+`BUILD_MANAGEMENT` from the advertised feature set, which hides region claims from every client.
+
+Build management reads the schematic itself rather than reusing the material extraction, so the two features are
+independent: turning `materials` off leaves region claims and completion working, and vice versa. The cost is one extra
+decode per placement when the server starts.
+
+| Key                  | Default  | Enforced Minimum     | Purpose |
+|----------------------|----------|----------------------|---------|
+| enabled              | `true`   | —                    | Master toggle for region claims and everything below. |
+| completion_enabled   | `true`   | —                    | Whether the server measures how much of each region is built. Claims keep working without it. |
+| scan_blocks_per_tick | `4096`   | `64`–`65,536` blocks | Per-tick budget of the completion scan. |
+| scan_interval        | `1200`   | `100` ticks          | How often a placement with columns nobody has counted yet is queued to retry them. |
+| full_rescan_interval | `36000`  | `1200` ticks, or `0` | How often every column is re-counted from scratch. `0` switches the sweep off. |
+
+Operational notes:
+
+- Scanning is driven by what changes. The server reports every block change to build management, so a placement nothing
+  has touched is not scanned at all, and a placement someone is building in only re-counts the chunk columns that
+  changed. Progress therefore updates within a tick or two of a block being placed, and an idle schematic costs nothing,
+  however large it is.
+- One placement is scanned at a time. A large schematic costs a long wall-clock scan rather than a server stall.
+- Completion is counted per chunk column and kept. A column out of view keeps the number it was last given, because
+  nothing can be built inside an unloaded chunk, so a region far larger than the area players keep loaded still gets
+  measured — a piece at a time, across as many visits as it takes. Columns nobody has ever loaded count as unbuilt, and
+  `scan_interval` is how often the scan goes back to see whether they have become reachable.
+- Writes that reach the world without going through it — a bulk editor putting chunk sections down directly, for
+  instance — are not reported and would otherwise leave a stale count behind. `full_rescan_interval` is the sweep that
+  recovers from them. Lengthen it on a server where nothing does that; `0` turns it off entirely, leaving
+  `rescanBuild` as the only way back.
+- Each region is scanned only through the layers its schematic actually fills, and each placement's decoded schematic is
+  kept between passes rather than re-read from disk. Neither changes what is counted.
+- The counts are stored in the world they were measured in, under `<world>/syncmatica_r/build_scan/`, rather than beside
+  the placements. Restoring a backup or rolling the world back therefore brings the matching counts with it, and what the
+  world says outranks what the placement file remembers.
+- Editing the world with the server down, or writing region files with another tool, still goes behind the counts' back.
+  `/syncmatica_r <project_name> rescanBuild` throws them away and measures again from what is actually there.
+- Completion compares block identity, not full block state. A region built with every stair facing the wrong way still
+  reads as complete — the same rule the material list counts by.
+- Claims are keyed by region name, so they survive a re-share, a re-extraction and a restart. A region that disappears
+  from the schematic loses its claim with it.
+- Two switches are the player's rather than the operator's, so they are not configured here. Both sit on the region list
+  screen, above the rows they act on, and are stored client side:
+  - The foreign build warning, in `config/syncmatica_r/build_warning_settings.json` under `warn_on_foreign_placement`,
+    on by default.
+  - Following claims with Litematica's sub-region visibility, in `config/syncmatica_r/build_visibility_settings.json`
+    under `follow_claims`, off by default. With it on, claiming a region enables that sub-region, and dropping it or
+    building it to completion disables that sub-region again; regions claimed by others, and regions nobody claimed,
+    are left exactly as the player set them.
 - Changing these settings after the service started requires a full server restart.
 
 ## Limit Diagnostics on the Client
@@ -126,6 +186,9 @@ diagnosing protocol problems.
 
 - `syncmatica_r.share`: upload new placements; allowed by default when no provider handles the node.
 - `syncmatica_r.claim`: claim existing material requirements; allowed by default.
+- `syncmatica_r.build.claim`: take responsibility for a sub-region of a shared schematic; allowed by default. Separate
+  from `syncmatica_r.claim` so gathering a material and building part of the schematic can be handed to different
+  people.
 - `syncmatica_r.manage`: modify or delete placements owned by another player; defaults to permission level 2.
 - Placement owners can always modify or delete their own placements.
 

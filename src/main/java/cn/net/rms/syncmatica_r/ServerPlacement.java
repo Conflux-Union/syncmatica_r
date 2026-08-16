@@ -1,5 +1,8 @@
 package cn.net.rms.syncmatica_r;
 
+import cn.net.rms.syncmatica_r.build_management.BuildRegion;
+import cn.net.rms.syncmatica_r.build_management.BuildRegionSerializer;
+import cn.net.rms.syncmatica_r.build_management.BuildRegionState;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
 import cn.net.rms.syncmatica_r.extended_core.SubRegionData;
 import cn.net.rms.syncmatica_r.material.*;
@@ -28,6 +31,7 @@ public class ServerPlacement {
     private final UUID hashValue;
     private final SyncmaticaMaterialList materialList = new SyncmaticaMaterialList();
     private final MaterialProgressState materialProgress = new MaterialProgressState();
+    private final BuildRegionState buildRegions = new BuildRegionState();
     private PlayerIdentifier owner;
     private PlayerIdentifier lastModifiedBy;
     private long createdAtMillis;
@@ -127,6 +131,14 @@ public class ServerPlacement {
                 MaterialProgressSerializer.fromJson(
                         obj.get("materials").getAsJsonObject(),
                         newPlacement.materialProgress,
+                        context.getPlayerIdentifierProvider()
+                );
+            }
+
+            if (obj.has("buildRegions")) {
+                BuildRegionSerializer.fromJson(
+                        obj.get("buildRegions").getAsJsonObject(),
+                        newPlacement.buildRegions,
                         context.getPlayerIdentifierProvider()
                 );
             }
@@ -330,6 +342,25 @@ public class ServerPlacement {
         return true;
     }
 
+    public BuildRegionState getBuildRegions() {
+        return buildRegions;
+    }
+
+    public void applyBuildRegionSnapshot(final BuildRegionState snapshot) {
+        buildRegions.clear();
+        if (snapshot == null || snapshot.isEmpty()) {
+            return;
+        }
+        for (final BuildRegion source : snapshot.getRegions()) {
+            final BuildRegion target = buildRegions.getOrCreate(source.getRegionName(), source.getRequiredBlocks());
+            if (source.isScanned()) {
+                target.recordScan(source.getPlacedBlocks(), source.getLastScanMillis());
+            }
+            target.clearClaimants();
+            source.getClaimants().forEach(target::addClaimer);
+        }
+    }
+
     public StockingAreaDefinition getStockingArea() {
         return stockingArea;
     }
@@ -390,6 +421,10 @@ public class ServerPlacement {
 
         if (!materialProgress.isEmpty()) {
             obj.add("materials", MaterialProgressSerializer.toJson(materialProgress));
+        }
+
+        if (!buildRegions.isEmpty()) {
+            obj.add("buildRegions", BuildRegionSerializer.toJson(buildRegions));
         }
 
         if (stockingArea != null) {

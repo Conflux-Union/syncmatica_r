@@ -276,7 +276,37 @@ public final class SyncmaticaCommand {
                 .then(CommandManager.literal("setStockingarea")
                         .then(CommandManager.argument("pos1", BlockPosArgumentType.blockPos())
                                 .then(CommandManager.argument("pos2", BlockPosArgumentType.blockPos())
-                                        .executes(SyncmaticaCommand::handleSetStockingArea))));
+                                        .executes(SyncmaticaCommand::handleSetStockingArea))))
+                .then(CommandManager.literal("rescanBuild")
+                        .executes(SyncmaticaCommand::handleRescanBuild));
+    }
+
+    /**
+     * Build progress is counted per chunk column and kept, on the grounds that a
+     * block cannot change while its chunk is unloaded. Editing the world outside
+     * the game breaks that assumption, and this throws the counts away so they
+     * are taken again from what is actually there.
+     */
+    private static int handleRescanBuild(final CommandContext<ServerCommandSource> context) {
+        final Context syncmaticaContext = Syncmatica.getContext(Syncmatica.SERVER_CONTEXT);
+        if (syncmaticaContext == null || syncmaticaContext.getBuildService() == null) {
+            context.getSource().sendError(literal("Syncmatica_r build service unavailable"));
+            return 0;
+        }
+        final String projectName = context.getArgument("project_name", String.class);
+        final Optional<ServerPlacement> placement = syncmaticaContext.getSyncmaticManager().getAll().stream()
+                .filter(candidate -> candidate.getName().equals(projectName))
+                .findFirst();
+        if (!placement.isPresent()) {
+            context.getSource().sendError(literal("Unknown Syncmatica_r project: " + projectName));
+            return 0;
+        }
+        if (!syncmaticaContext.getBuildService().rescan(placement.get())) {
+            context.getSource().sendError(literal("Build completion tracking is disabled"));
+            return 0;
+        }
+        sendFeedback(context, "Build progress of '" + projectName + "' will be measured again");
+        return 1;
     }
 
     private static int handleSetStockingArea(final CommandContext<ServerCommandSource> context) throws CommandSyntaxException {

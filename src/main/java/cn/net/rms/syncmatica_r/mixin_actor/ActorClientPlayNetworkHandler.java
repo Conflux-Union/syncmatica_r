@@ -8,6 +8,7 @@ import cn.net.rms.syncmatica_r.client.hud.MaterialHudOverlay;
 import cn.net.rms.syncmatica_r.communication.ClientCommunicationManager;
 import cn.net.rms.syncmatica_r.communication.CommunicationManager;
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
+import cn.net.rms.syncmatica_r.litematica.ClaimedRegionVisibility;
 import cn.net.rms.syncmatica_r.litematica.LitematicManager;
 import cn.net.rms.syncmatica_r.litematica.ScreenHelper;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
@@ -64,6 +65,7 @@ public class ActorClientPlayNetworkHandler {
         LitematicManager.getInstance().setActiveContext(Syncmatica.getContext(Syncmatica.CLIENT_CONTEXT));
         MaterialHudOverlay.getInstance().bindToClientContext(Syncmatica.getContext(Syncmatica.CLIENT_CONTEXT));
         MaterialHudOverlay.getInstance().scheduleRefresh();
+        ClaimedRegionVisibility.getInstance().bindToClientContext(Syncmatica.getContext(Syncmatica.CLIENT_CONTEXT));
     }
 
     public void packetEvent(final ClientPlayNetworkHandler clientPlayNetworkHandler,

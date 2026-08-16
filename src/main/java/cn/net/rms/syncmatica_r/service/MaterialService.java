@@ -10,6 +10,7 @@ import cn.net.rms.syncmatica_r.service.IServiceConfiguration;
 import cn.net.rms.syncmatica_r.util.NbtHelper;
 import cn.net.rms.syncmatica_r.util.InventoryScanner;
 import cn.net.rms.syncmatica_r.util.SyncmaticaUtil;
+import cn.net.rms.syncmatica_r.util.WorldResolver;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.item.ItemStack;
@@ -877,22 +878,6 @@ public class MaterialService extends AbstractService {
     }
 
     private ServerWorld resolveWorld(final MinecraftServer server, final String dimensionId) {
-        if (ServerPosition.OVERWORLD_DIMENSION_ID.equals(dimensionId)) {
-            return server.getOverworld();
-        }
-        if (ServerPosition.NETHER_DIMENSION_ID.equals(dimensionId)) {
-            return server.getWorld(World.NETHER);
-        }
-        if ("minecraft:the_end".equals(dimensionId)) {
-            return server.getWorld(World.END);
-        }
-        final RegistryKey<World> key = RegistryKey.of(
-//#if MC >= 12001
-//$$                 RegistryKeys.WORLD,
-//#else
-                Registry.WORLD_KEY,
-//#endif
-                IdentifierUtil.require(dimensionId));
-        return server.getWorld(key);
+        return WorldResolver.resolve(server, dimensionId);
     }
 }

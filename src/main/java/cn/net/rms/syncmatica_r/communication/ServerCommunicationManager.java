@@ -11,6 +11,7 @@ import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
 import cn.net.rms.syncmatica_r.material.StockingAreaDefinition;
 import cn.net.rms.syncmatica_r.schematic.SchematicPeek;
 import cn.net.rms.syncmatica_r.schematic.SchematicPeeker;
+import cn.net.rms.syncmatica_r.service.BuildService;
 import cn.net.rms.syncmatica_r.service.MaterialService;
 import cn.net.rms.syncmatica_r.util.IdentifierUtil;
 import cn.net.rms.syncmatica_r.util.SyncmaticaUtil;
@@ -292,9 +293,43 @@ public class ServerCommunicationManager extends CommunicationManager {
             broadcastPlacementUpdate(placement);
             return;
         }
+        if (type == PacketType.BUILD_REGION_CLAIM) {
+            handleBuildRegionClaim(source, packetBuf);
+            return;
+        }
         if (type == PacketType.SET_STOCKING_AREA) {
             handleSetStockingArea(source, packetBuf);
             return;
+        }
+    }
+
+    /**
+     * Claiming a sub-region records who is responsible for building it. The rule
+     * about who may hold one lives in {@link BuildService}; this only resolves the
+     * actors and turns the outcome into a reply.
+     */
+    private void handleBuildRegionClaim(final ExchangeTarget source, final PacketByteBuf packetBuf) {
+        final UUID placementId = packetBuf.readUuid();
+        final String regionName = packetBuf.readString(ProtocolLimits.MAX_SUBREGION_NAME_LENGTH);
+
+        final BuildService buildService = context.getBuildService();
+        if (buildService == null || !buildService.isEnabled()) {
+            return;
+        }
+        final ServerPlacement placement = context.getSyncmaticManager().getPlacement(placementId);
+        if (placement == null) {
+            return;
+        }
+        final ServerPlayerEntity player = playerMap.get(source);
+        if (player == null || !Permissions.check(player, PlacementAccessPolicy.BUILD_CLAIM_PERMISSION, true)) {
+            sendMessage(source, MessageType.ERROR, "syncmatica_r.error.permission_denied");
+            return;
+        }
+        final PlayerIdentifier claimer = context.getPlayerIdentifierProvider().createOrGet(player.getGameProfile());
+        if (buildService.toggleClaim(placement, regionName, claimer) == BuildService.ClaimOutcome.ALREADY_CLAIMED) {
+            final PlayerIdentifier owner = buildService.getClaimant(placement, regionName);
+            sendMessage(source, MessageType.WARNING, "syncmatica_r.error.build.region_taken",
+                    owner == null ? "" : owner.getName());
         }
     }
 

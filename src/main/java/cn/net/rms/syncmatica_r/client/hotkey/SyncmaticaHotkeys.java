@@ -4,6 +4,7 @@ import fi.dy.masa.malilib.config.options.ConfigHotkey;
 import fi.dy.masa.malilib.hotkeys.KeyAction;
 import fi.dy.masa.malilib.hotkeys.KeybindSettings;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -36,6 +37,21 @@ public final class SyncmaticaHotkeys {
             "syncmatica_r.hotkey.open_material_collections.comment"
     );
 
+    /**
+     * Hotkey to open the Build Management GUI.
+     * Default is empty (unassigned).
+     */
+    public static final ConfigHotkey OPEN_BUILD_MANAGEMENT = new ConfigHotkey(
+            "openBuildManagement",
+            "",
+            HOTKEY_SETTINGS,
+            "syncmatica_r.hotkey.open_build_management.comment"
+    );
+
+    private static final List<ConfigHotkey> HOTKEYS = Collections.unmodifiableList(
+            Arrays.asList(OPEN_MATERIAL_COLLECTIONS, OPEN_BUILD_MANAGEMENT)
+    );
+
     private SyncmaticaHotkeys() {
         // Utility class, no instantiation
     }
@@ -46,6 +62,6 @@ public final class SyncmaticaHotkeys {
      * @return immutable list of all ConfigHotkey instances
      */
     public static List<ConfigHotkey> getHotkeys() {
-        return Collections.singletonList(OPEN_MATERIAL_COLLECTIONS);
+        return HOTKEYS;
     }
 }

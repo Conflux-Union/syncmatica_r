@@ -2,6 +2,7 @@
 # Format: old_version_class new_version_class
 # Yarn to Mojang mapping (mojmap) class renames
 net.minecraft.block.Block net.minecraft.world.level.block.Block
+net.minecraft.block.BlockState net.minecraft.world.level.block.state.BlockState
 net.minecraft.block.Blocks net.minecraft.world.level.block.Blocks
 net.minecraft.block.entity.BlockEntity net.minecraft.world.level.block.entity.BlockEntity
 net.minecraft.client.font.TextRenderer net.minecraft.client.gui.Font
@@ -41,6 +42,7 @@ net.minecraft.util.registry.Registry net.minecraft.core.registries.BuiltInRegist
 net.minecraft.util.registry.RegistryKey net.minecraft.resources.ResourceKey
 net.minecraft.util.WorldSavePath net.minecraft.world.level.storage.LevelResource
 net.minecraft.world.World net.minecraft.world.level.Level
+net.minecraft.world.chunk.WorldChunk net.minecraft.world.level.chunk.LevelChunk
 net.minecraft.client.gui.DrawContext net.minecraft.client.gui.GuiGraphicsExtractor
 net.minecraft.client.render.item.ItemRenderer net.minecraft.client.renderer.entity.ItemRenderer
 net.minecraft.client.util.math.MatrixStack com.mojang.blaze3d.vertex.PoseStack
