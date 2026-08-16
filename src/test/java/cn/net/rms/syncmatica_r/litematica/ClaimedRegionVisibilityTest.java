@@ -23,7 +23,48 @@ final class ClaimedRegionVisibilityTest {
         regions.getOrCreate("walls", 100L).addClaimer(new PlayerIdentifier(OTHER, "Bob"));
         regions.getOrCreate("floor", 100L);
 
-        assertEquals(Collections.singleton("roof"), ClaimedRegionVisibility.collectOwnClaims(regions, SELF));
+        assertEquals(Collections.singleton("roof"),
+                ClaimedRegionVisibility.collectOwnUnfinishedClaims(regions, SELF));
+    }
+
+    /**
+     * A finished region is work the player no longer has, so it leaves the set and
+     * the difference against the previous state switches its sub-region off.
+     */
+    @Test
+    void aCompletedRegionDropsOutEvenWhileStillClaimed() {
+        final BuildRegionState regions = new BuildRegionState();
+        final BuildRegion roof = regions.getOrCreate("roof", 100L);
+        roof.addClaimer(new PlayerIdentifier(SELF, "Alice"));
+        roof.recordScan(100L, 1L);
+        regions.getOrCreate("walls", 100L).addClaimer(new PlayerIdentifier(SELF, "Alice"));
+
+        assertEquals(Collections.singleton("walls"),
+                ClaimedRegionVisibility.collectOwnUnfinishedClaims(regions, SELF));
+    }
+
+    @Test
+    void aRegionStillMissingBlocksIsKept() {
+        final BuildRegionState regions = new BuildRegionState();
+        final BuildRegion roof = regions.getOrCreate("roof", 100L);
+        roof.addClaimer(new PlayerIdentifier(SELF, "Alice"));
+        roof.recordScan(99L, 1L);
+
+        assertEquals(Collections.singleton("roof"),
+                ClaimedRegionVisibility.collectOwnUnfinishedClaims(regions, SELF));
+    }
+
+    /**
+     * With completion tracking off nothing is ever scanned, so the option has to
+     * behave exactly as it did before completion entered the picture.
+     */
+    @Test
+    void anUnscannedRegionIsKeptBecauseItReportsNoCompletion() {
+        final BuildRegionState regions = new BuildRegionState();
+        regions.getOrCreate("roof", 100L).addClaimer(new PlayerIdentifier(SELF, "Alice"));
+
+        assertEquals(Collections.singleton("roof"),
+                ClaimedRegionVisibility.collectOwnUnfinishedClaims(regions, SELF));
     }
 
     /**
@@ -37,7 +78,8 @@ final class ClaimedRegionVisibilityTest {
         shared.addClaimer(new PlayerIdentifier(OTHER, "Bob"));
         shared.addClaimer(new PlayerIdentifier(SELF, "Alice"));
 
-        assertEquals(Collections.singleton("roof"), ClaimedRegionVisibility.collectOwnClaims(regions, SELF));
+        assertEquals(Collections.singleton("roof"),
+                ClaimedRegionVisibility.collectOwnUnfinishedClaims(regions, SELF));
     }
 
     @Test

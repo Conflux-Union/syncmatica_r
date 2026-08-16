@@ -142,9 +142,9 @@ Operational notes:
   - The foreign build warning, in `config/syncmatica_r/build_warning_settings.json` under `warn_on_foreign_placement`,
     on by default.
   - Following claims with Litematica's sub-region visibility, in `config/syncmatica_r/build_visibility_settings.json`
-    under `follow_claims`, off by default. With it on, claiming a region enables that sub-region and dropping it
-    disables that sub-region again; regions claimed by others, and regions nobody claimed, are left exactly as the
-    player set them.
+    under `follow_claims`, off by default. With it on, claiming a region enables that sub-region, and dropping it or
+    building it to completion disables that sub-region again; regions claimed by others, and regions nobody claimed,
+    are left exactly as the player set them.
 - Changing these settings after the service started requires a full server restart.
 
 ## Limit Diagnostics on the Client

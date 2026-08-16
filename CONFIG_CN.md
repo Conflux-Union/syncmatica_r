@@ -119,8 +119,8 @@ Syncmatica_r 的所有运行配置都保存在单一的 `config.json` 文件中�
 - 有两个开关属于玩家而不是服主，所以不在这里配置。两个都在区域列表界面顶部，就在它们作用的那些行上方，配置存在客户端：
   - 越界建造提醒，在 `config/syncmatica_r/build_warning_settings.json` 的 `warn_on_foreign_placement`，默认开启
   - Litematica 子区域可见性跟随认领，在 `config/syncmatica_r/build_visibility_settings.json` 的 `follow_claims`，
-    默认关闭。打开后，认领一个区域会打开对应子区域，取消认领会关掉它；别人认领的区域和无人认领的区域完全不动，
-    保持玩家自己设的状态
+    默认关闭。打开后，认领一个区域会打开对应子区域，取消认领或把它建完都会关掉它；别人认领的区域和无人认领的
+    区域完全不动，保持玩家自己设的状态
 - 修改这些配置必须重启服务器才能生效
 
 ## 客户端上限提示

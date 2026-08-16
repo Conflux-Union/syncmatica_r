@@ -40,8 +40,8 @@ Divides a large build between players, so the assignment lives in the game rathe
 - **Foreign Build Warning**: Building inside a region somebody else took warns you, and never cancels the placement
 - **GUI Dashboard**: Access via the **Build Management** button or a configurable hotkey — schematics first, then the
   regions of the one picked. Regions are listed in numeric order, with completed ones at the bottom
-- **Claim-Following Visibility**: Optionally let claiming a region show that Litematica sub-region, and dropping it hide
-  the sub-region again. Off by default; regions claimed by others are never touched
+- **Claim-Following Visibility**: Optionally let claiming a region show that Litematica sub-region, and dropping or
+  finishing it hide the sub-region again. Off by default; regions claimed by others are never touched
 - **Independent of Materials**: Works whether or not material tracking is enabled
 
 ---

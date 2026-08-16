@@ -22,29 +22,35 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
- * Switches a Litematica sub-region on when this player claims it and off again
- * when they drop it.
+ * Switches a Litematica sub-region on while this player still has work in it,
+ * and off again once they drop it or finish it.
  *
  * <p>Splitting a build across players normally means each of them turning off
  * the regions somebody else is responsible for, by hand, every time the
  * assignment changes. The claim list already says who has what, so the toggling
  * can follow it.
  *
- * <p>Only the regions whose claim actually changed are touched. Regions nobody
+ * <p>A region that reaches completion counts as work the player no longer has,
+ * so it is switched off the same way a dropped claim is. On a build with many
+ * regions the finished ones would otherwise keep rendering for the rest of the
+ * session. Knocking one back open puts it below its block count again and
+ * brings the sub-region back with the work.
+ *
+ * <p>Only the regions whose state actually changed are touched. Regions nobody
  * claimed, and regions claimed by others, keep whatever the player set them to —
  * this fills in the tedious part of the bookkeeping rather than taking the
  * setting over.
  *
- * <p>Claims are tracked per placement against the last state this player was
+ * <p>Regions are tracked per placement against the last state this player was
  * seen holding, not against what Litematica currently shows, so a region the
- * player deliberately re-enabled stays enabled until its claim changes again.
+ * player deliberately re-enabled stays enabled until that state changes again.
  */
 public final class ClaimedRegionVisibility {
 
     private static final ClaimedRegionVisibility INSTANCE = new ClaimedRegionVisibility();
 
     private final Consumer<ServerPlacement> listener = this::onPlacementUpdated;
-    /** Which regions of each placement this player was last known to hold. */
+    /** Which regions of each placement this player was last known to owe work on. */
     private final Map<UUID, Set<String>> claimed = new HashMap<>();
 
     private Context context;
@@ -117,7 +123,7 @@ public final class ClaimedRegionVisibility {
         if (self == null) {
             return;
         }
-        final Set<String> current = collectOwnClaims(placement.getBuildRegions(), self);
+        final Set<String> current = collectOwnUnfinishedClaims(placement.getBuildRegions(), self);
         final Set<String> previous = claimed.put(placementId, current);
         apply(litematica, changeBetween(previous == null ? Collections.emptySet() : previous, current));
     }
@@ -145,12 +151,20 @@ public final class ClaimedRegionVisibility {
         }
     }
 
-    static Set<String> collectOwnClaims(final BuildRegionState regions, final UUID self) {
+    /**
+     * The regions the visibility has to show: the ones this player holds and has
+     * not finished. A region nobody has scanned never reports completion, so with
+     * completion tracking off this is just what the player holds.
+     */
+    static Set<String> collectOwnUnfinishedClaims(final BuildRegionState regions, final UUID self) {
         final Set<String> mine = new HashSet<>();
         if (regions == null || self == null) {
             return mine;
         }
         for (final BuildRegion region : regions.getRegions()) {
+            if (region.isComplete()) {
+                continue;
+            }
             for (final PlayerIdentifier claimer : region.getClaimants()) {
                 if (self.equals(claimer.uuid)) {
                     mine.add(region.getRegionName());
@@ -162,9 +176,10 @@ public final class ClaimedRegionVisibility {
     }
 
     /**
-     * What the visibility has to follow: only the regions whose claim actually
-     * moved. Everything else is left alone, including regions somebody else
-     * claimed and regions the player enabled by hand.
+     * What the visibility has to follow: only the regions that actually moved in
+     * or out of the player's outstanding work. Everything else is left alone,
+     * including regions somebody else claimed and regions the player enabled by
+     * hand.
      */
     static ClaimChange changeBetween(final Set<String> previous, final Set<String> current) {
         return new ClaimChange(difference(current, previous), difference(previous, current));

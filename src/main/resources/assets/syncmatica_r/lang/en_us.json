@@ -22,7 +22,7 @@
   "syncmatica_r.gui.label.build.status.percent": "%d%%",
   "syncmatica_r.gui.label.build.unassigned": "Unassigned",
   "syncmatica_r.gui.label.build.empty": "This schematic has no claimable regions yet",
-  "syncmatica_r.gui.button.build.follow_claims": "Show regions I claim: %s",
+  "syncmatica_r.gui.button.build.follow_claims": "Show regions I am building: %s",
   "syncmatica_r.gui.button.build.warn_foreign": "Warn in others' regions: %s",
   "syncmatica_r.gui.tooltip.build.blocks": "%1$d / %2$d blocks placed",
   "syncmatica_r.gui.tooltip.build.claimers": "Assigned to: %s",
