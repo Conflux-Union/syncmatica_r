@@ -408,10 +408,6 @@ public abstract class CommunicationManager {
         placement.applyMaterialProgressSnapshot(snapshot);
     }
 
-    public void receiveMaterialData(final ServerPlacement placement, final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
-        receiveMaterialProgress(placement, buf, exchangeTarget);
-    }
-
     /**
      * Only the server owns stocking areas. A client echoing metadata back writes
      * an empty section so the byte stream keeps the same shape in both
