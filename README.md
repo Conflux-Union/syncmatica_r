@@ -66,6 +66,12 @@ For integrated (single-player) servers, the main config is stored in `<world-fol
 
 See [CONFIG.md](CONFIG.md) for detailed configuration options.
 
+### Mod Integration
+
+Client mods can read the local player's claimed material requirements through the
+side-effect-free [material integration interface](docs/MATERIAL_API.md). The
+interface does not replace Litematica's active material list.
+
 ---
 
 ## Usage

@@ -65,6 +65,11 @@ Syncmatica_r 与 Litematica 模组集成，实现服务器范围内的原理图�
 
 详细配置选项请参阅 [CONFIG_CN.md](CONFIG_CN.md)。
 
+### 模组联动
+
+客户端模组可以通过[材料联动接口](docs/MATERIAL_API.md)读取当前玩家已领取的材料需求。
+该接口没有副作用，也不会替换 Litematica 当前使用的材料列表。
+
 ---
 
 ## 使用方法
