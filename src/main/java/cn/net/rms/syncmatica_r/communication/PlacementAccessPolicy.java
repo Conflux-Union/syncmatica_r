@@ -5,6 +5,12 @@ import java.util.UUID;
 public final class PlacementAccessPolicy {
     public static final String SHARE_PERMISSION = "syncmatica_r.share";
     public static final String CLAIM_PERMISSION = "syncmatica_r.claim";
+    /**
+     * Separate from {@link #CLAIM_PERMISSION} on purpose: signing up to gather a
+     * material and signing up to build part of the schematic are different jobs,
+     * and a server may well want to hand them out to different people.
+     */
+    public static final String BUILD_CLAIM_PERMISSION = "syncmatica_r.build.claim";
     public static final String MANAGE_PERMISSION = "syncmatica_r.manage";
     public static final int MANAGE_PERMISSION_LEVEL = 2;
 

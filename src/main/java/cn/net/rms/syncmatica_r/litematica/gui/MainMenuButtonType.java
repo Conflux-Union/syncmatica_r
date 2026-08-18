@@ -11,6 +11,7 @@ public enum MainMenuButtonType implements IButtonType {
 
     VIEW_SYNCMATICS("syncmatica_r.gui.button.view_syncmatics"),
     MATERIAL_GATHERINGS("syncmatica_r.gui.button.material_gatherings"),
+    BUILD_MANAGEMENT("syncmatica_r.gui.button.build_management"),
     SHARED_SETTINGS("syncmatica_r.gui.button.shared_settings");
 
     private final String labelKey;

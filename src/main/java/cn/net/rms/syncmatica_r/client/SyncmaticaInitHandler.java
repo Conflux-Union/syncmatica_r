@@ -1,9 +1,11 @@
 package cn.net.rms.syncmatica_r.client;
 
-import cn.net.rms.syncmatica_r.client.hotkey.HotkeyCallbackOpenMaterialCollections;
+import cn.net.rms.syncmatica_r.client.hotkey.HotkeyCallbackOpenGui;
 import cn.net.rms.syncmatica_r.client.hotkey.SyncmaticaHotkeyConfig;
 import cn.net.rms.syncmatica_r.client.hotkey.SyncmaticaHotkeyProvider;
 import cn.net.rms.syncmatica_r.client.hotkey.SyncmaticaHotkeys;
+import cn.net.rms.syncmatica_r.litematica.gui.GuiBuildManagement;
+import cn.net.rms.syncmatica_r.litematica.gui.GuiStockingAreaMaterialOverview;
 import fi.dy.masa.malilib.interfaces.IInitializationHandler;
 
 /**
@@ -20,8 +22,10 @@ public final class SyncmaticaInitHandler implements IInitializationHandler {
         // Register keybind provider with malilib
         SyncmaticaHotkeyProvider.init();
 
-        // Set up hotkey callback
+        // Set up hotkey callbacks
         SyncmaticaHotkeys.OPEN_MATERIAL_COLLECTIONS.getKeybind()
-                .setCallback(HotkeyCallbackOpenMaterialCollections.INSTANCE);
+                .setCallback(new HotkeyCallbackOpenGui(() -> new GuiStockingAreaMaterialOverview(null)));
+        SyncmaticaHotkeys.OPEN_BUILD_MANAGEMENT.getKeybind()
+                .setCallback(new HotkeyCallbackOpenGui(GuiBuildManagement::new));
     }
 }

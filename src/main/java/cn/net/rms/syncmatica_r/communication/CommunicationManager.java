@@ -3,6 +3,8 @@ package cn.net.rms.syncmatica_r.communication;
 import cn.net.rms.syncmatica_r.Context;
 import cn.net.rms.syncmatica_r.Feature;
 import cn.net.rms.syncmatica_r.ServerPlacement;
+import cn.net.rms.syncmatica_r.build_management.BuildRegion;
+import cn.net.rms.syncmatica_r.build_management.BuildRegionState;
 import cn.net.rms.syncmatica_r.communication.exchange.DownloadExchange;
 import cn.net.rms.syncmatica_r.communication.exchange.Exchange;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
@@ -118,6 +120,7 @@ public abstract class CommunicationManager {
         putPositionData(metaData, buf, exchangeTarget);
         putMaterialProgress(metaData, buf, exchangeTarget);
         putStockingArea(metaData, buf, exchangeTarget);
+        putBuildRegions(metaData, buf, exchangeTarget);
     }
 
     public void putPositionData(final ServerPlacement metaData, final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
@@ -155,6 +158,7 @@ public abstract class CommunicationManager {
     public void putMaterialData(final ServerPlacement placement, final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
         putMaterialProgress(placement, buf, exchangeTarget);
         putStockingArea(placement, buf, exchangeTarget);
+        putBuildRegions(placement, buf, exchangeTarget);
     }
 
     public ServerPlacement receiveMetaData(final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
@@ -205,6 +209,7 @@ public abstract class CommunicationManager {
         receivePositionData(placement, buf, exchangeTarget);
         receiveMaterialProgress(placement, buf, exchangeTarget);
         receiveStockingArea(placement, buf, exchangeTarget);
+        receiveBuildRegions(placement, buf, exchangeTarget);
 
         return placement;
     }
@@ -218,6 +223,7 @@ public abstract class CommunicationManager {
         final PositionData positionData = readPositionData(buf, exchangeTarget);
         receiveMaterialProgress(placement, buf, exchangeTarget);
         receiveStockingArea(placement, buf, exchangeTarget);
+        receiveBuildRegions(placement, buf, exchangeTarget);
         if (context.isServer() && buf.isReadable()) {
             throw new IllegalArgumentException("Unexpected trailing modification data");
         }
@@ -571,6 +577,91 @@ public abstract class CommunicationManager {
             cleaned.appendCodePoint(c);
         }
         return cleaned.toString().trim();
+    }
+
+    /**
+     * Build regions are appended after the material section, and every new
+     * section has to keep being appended at the end: a peer whose feature set
+     * stops earlier stops reading there too, so anything inserted in front of a
+     * section it does know about would desynchronise the stream. Only the server
+     * writes real data; a client echoing metadata back writes an empty section so
+     * the byte shape stays the same in both directions.
+     */
+    private void putBuildRegions(final ServerPlacement placement, final PacketByteBuf buf,
+                                 final ExchangeTarget exchangeTarget) {
+        if (!supportsBuildManagement(exchangeTarget)) {
+            return;
+        }
+        final Collection<BuildRegion> regions = context.isServer()
+                ? placement.getBuildRegions().getRegions()
+                : Collections.emptyList();
+        final int regionCount = Math.min(regions.size(), ProtocolLimits.MAX_REGION_ENTRIES);
+        buf.writeInt(regionCount);
+        int written = 0;
+        for (final BuildRegion region : regions) {
+            if (written++ >= regionCount) {
+                break;
+            }
+            buf.writeString(region.getRegionName(), ProtocolLimits.MAX_SUBREGION_NAME_LENGTH);
+            buf.writeLong(region.getRequiredBlocks());
+            buf.writeLong(region.getPlacedBlocks());
+            buf.writeLong(region.getLastScanMillis());
+            final Collection<PlayerIdentifier> claimers = region.getClaimants();
+            final int claimantCount = Math.min(claimers.size(), ProtocolLimits.MAX_CLAIMANTS_PER_REGION);
+            buf.writeInt(claimantCount);
+            int claimantsWritten = 0;
+            for (final PlayerIdentifier claimer : claimers) {
+                if (claimantsWritten++ >= claimantCount) {
+                    break;
+                }
+                buf.writeUuid(claimer.uuid);
+                buf.writeString(claimer.getName(), ProtocolLimits.MAX_PLAYER_NAME_LENGTH);
+            }
+        }
+    }
+
+    private void receiveBuildRegions(final ServerPlacement placement, final PacketByteBuf buf,
+                                     final ExchangeTarget exchangeTarget) {
+        if (!supportsBuildManagement(exchangeTarget) || buf.readableBytes() < Integer.BYTES) {
+            return;
+        }
+        final int total = ProtocolLimits.requireCount(buf.readInt(), ProtocolLimits.MAX_REGION_ENTRIES, "region count");
+        // The server owns this state, so a client's copy is read only to be
+        // discarded — but it still has to be consumed to leave the buffer aligned.
+        final boolean apply = !context.isServer() && placement != null;
+        final BuildRegionState snapshot = apply ? new BuildRegionState() : null;
+        final PlayerIdentifierProvider provider = context.getPlayerIdentifierProvider();
+        for (int i = 0; i < total; i++) {
+            final String regionName = buf.readString(ProtocolLimits.MAX_SUBREGION_NAME_LENGTH);
+            final long requiredBlocks = buf.readLong();
+            final long placedBlocks = buf.readLong();
+            final long lastScanMillis = buf.readLong();
+            final int claimantCount = ProtocolLimits.requireCount(
+                    buf.readInt(), ProtocolLimits.MAX_CLAIMANTS_PER_REGION, "region claimant count");
+            final BuildRegion region = apply ? snapshot.getOrCreate(regionName, requiredBlocks) : null;
+            if (region != null && lastScanMillis > 0L) {
+                region.recordScan(placedBlocks, lastScanMillis);
+            }
+            for (int claimant = 0; claimant < claimantCount; claimant++) {
+                final UUID claimerId = buf.readUuid();
+                final String claimerName = buf.readString(ProtocolLimits.MAX_PLAYER_NAME_LENGTH);
+                if (region != null) {
+                    region.addClaimer(provider.createOrGet(claimerId, claimerName));
+                }
+            }
+        }
+        if (apply) {
+            placement.applyBuildRegionSnapshot(snapshot);
+        }
+    }
+
+    private boolean supportsBuildManagement(final ExchangeTarget exchangeTarget) {
+        final FeatureSet localFeatures = context != null ? context.getFeatureSet() : null;
+        final FeatureSet partnerFeatures = exchangeTarget.getFeatureSet();
+        return localFeatures != null
+                && partnerFeatures != null
+                && localFeatures.hasFeature(Feature.BUILD_MANAGEMENT)
+                && partnerFeatures.hasFeature(Feature.BUILD_MANAGEMENT);
     }
 
     protected boolean supportsTimestamps(final ExchangeTarget exchangeTarget) {

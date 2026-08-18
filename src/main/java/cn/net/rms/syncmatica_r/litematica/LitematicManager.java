@@ -52,6 +52,7 @@ public class LitematicManager {
 
     public static void clear() {
         instance = null;
+        BuildClaimWarning.clear();
     }
 
     public Context getActiveContext() {

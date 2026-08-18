@@ -1,22 +1,26 @@
 package cn.net.rms.syncmatica_r.client.hotkey;
 
-import cn.net.rms.syncmatica_r.litematica.gui.GuiStockingAreaMaterialOverview;
 import fi.dy.masa.malilib.hotkeys.IHotkeyCallback;
 import fi.dy.masa.malilib.hotkeys.IKeybind;
 import fi.dy.masa.malilib.hotkeys.KeyAction;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 
+import java.util.function.Supplier;
+
 /**
- * Callback handler for the "Open Material Collections" hotkey.
- * Opens the GuiStockingAreaMaterialOverview when conditions are met.
+ * Opens a Syncmatica screen on a key press.
+ *
+ * <p>Which screen it is comes from the supplier, so every hotkey that just opens
+ * a GUI shares one copy of the version-specific screen calls rather than
+ * repeating them per hotkey.
  */
- public final class HotkeyCallbackOpenMaterialCollections implements IHotkeyCallback {
+public final class HotkeyCallbackOpenGui implements IHotkeyCallback {
 
-    public static final HotkeyCallbackOpenMaterialCollections INSTANCE = new HotkeyCallbackOpenMaterialCollections();
+    private final Supplier<Screen> screenFactory;
 
-    private HotkeyCallbackOpenMaterialCollections() {
-        // Singleton
+    public HotkeyCallbackOpenGui(final Supplier<Screen> screenFactory) {
+        this.screenFactory = screenFactory;
     }
 
     @Override
@@ -38,12 +42,14 @@ import net.minecraft.client.gui.screen.Screen;
             return false;
         }
 
-        // Open the Material Collections GUI (null for overview of all placements)
-        final GuiStockingAreaMaterialOverview overview = new GuiStockingAreaMaterialOverview(null);
+        final Screen screen = screenFactory.get();
+        if (screen == null) {
+            return false;
+        }
         //#if MC >= 260200
-        //$$ client.gui.setScreen(overview);
+        //$$ client.gui.setScreen(screen);
         //#else
-        client.setScreen(overview);
+        client.setScreen(screen);
         //#endif
         return true;
     }

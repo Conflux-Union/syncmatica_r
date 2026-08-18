@@ -6,7 +6,8 @@
   "mixins": [
     "MixinCustomPayloadC2SPacket",
     "MixinMinecraftServer",
-    "MixinServerPlayNetworkHandler"
+    "MixinServerPlayNetworkHandler",
+    "MixinServerWorld"
   ],
   "client": [
     "MixinClientPlayNetworkHandler",

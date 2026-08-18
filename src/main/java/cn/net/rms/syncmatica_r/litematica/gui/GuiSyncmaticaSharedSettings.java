@@ -47,7 +47,10 @@ public class GuiSyncmaticaSharedSettings extends GuiBase
 
         // Hotkey configuration section
         final int hotkeyY = sliderY + sliderHeight + 15;
-        addHotkeyConfigButton(sliderX, hotkeyY, sliderWidth, sliderHeight);
+        addHotkeyConfigButton(sliderX, hotkeyY, sliderWidth, sliderHeight,
+                SyncmaticaHotkeys.OPEN_MATERIAL_COLLECTIONS, "syncmatica_r.gui.label.hotkey.material_collections");
+        addHotkeyConfigButton(sliderX, hotkeyY + sliderHeight + 5, sliderWidth, sliderHeight,
+                SyncmaticaHotkeys.OPEN_BUILD_MANAGEMENT, "syncmatica_r.gui.label.hotkey.build_management");
 
         final String backLabel = StringUtils.translate("syncmatica_r.gui.button.back");
         final int backWidth = getStringWidth(backLabel) + 20;
@@ -57,9 +60,9 @@ public class GuiSyncmaticaSharedSettings extends GuiBase
         addButton(backButton, (IButtonActionListener) (button, mouseButton) -> closeGui(true));
     }
 
-    private void addHotkeyConfigButton(final int x, final int y, final int width, final int height) {
-        final ConfigHotkey hotkey = SyncmaticaHotkeys.OPEN_MATERIAL_COLLECTIONS;
-        final String label = StringUtils.translate("syncmatica_r.gui.label.hotkey.material_collections");
+    private void addHotkeyConfigButton(final int x, final int y, final int width, final int height,
+                                       final ConfigHotkey hotkey, final String labelKey) {
+        final String label = StringUtils.translate(labelKey);
         final String keyValue = hotkey.getKeybind().getStringValue();
         final String displayValue = keyValue.isEmpty()
                 ? StringUtils.translate("syncmatica_r.gui.label.hotkey.none")

@@ -12,6 +12,9 @@ public final class ProtocolLimits {
     public static final int MAX_SUBREGIONS = 256;
     public static final int MAX_MATERIAL_ENTRIES = 512;
     public static final int MAX_CLAIMANTS_PER_MATERIAL = 4;
+    /** One claimable entry per litematic sub-region, so the subregion cap applies. */
+    public static final int MAX_REGION_ENTRIES = MAX_SUBREGIONS;
+    public static final int MAX_CLAIMANTS_PER_REGION = 4;
     public static final int MAX_FEATURE_STRING_LENGTH = 2_048;
     public static final int MAX_VERSION_LENGTH = 64;
     public static final int MAX_FILE_NAME_LENGTH = 255;

@@ -36,6 +36,10 @@ bin/
 
 run/
 
+# config the test JVM writes into its version's working directory
+
+versions/*/config/
+
 # macOS
 
 .DS_Store
