@@ -8,8 +8,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Path;
+import java.util.Map;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtIo;
+import net.minecraft.nbt.NbtList;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -59,6 +61,29 @@ final class MaterialRequirementExtractorTest {
     }
 
     @Test
+    void includesContainerContentsStoredInTheModernItemStackFormat() throws IOException {
+        final File file = writeContainerSchematic("modern-container.litematic", true, 12);
+
+        final Map<MaterialKey, Integer> withoutContents =
+                MaterialRequirementExtractor.extract(file, false, 10L, ONE_MEGABYTE);
+        final Map<MaterialKey, Integer> withContents =
+                MaterialRequirementExtractor.extract(file, true, 10L, ONE_MEGABYTE);
+
+        assertEquals(0, count(withoutContents, "minecraft:diamond"));
+        assertEquals(12, count(withContents, "minecraft:diamond"));
+    }
+
+    @Test
+    void keepsSupportingContainerContentsStoredInTheLegacyItemStackFormat() throws IOException {
+        final File file = writeContainerSchematic("legacy-container.litematic", false, 12);
+
+        final Map<MaterialKey, Integer> withContents =
+                MaterialRequirementExtractor.extract(file, true, 10L, ONE_MEGABYTE);
+
+        assertEquals(12, count(withContents, "minecraft:diamond"));
+    }
+
+    @Test
     void wireCodesStayStableAcrossReorderings() {
         for (final MaterialAvailability availability : MaterialAvailability.values()) {
             assertEquals(availability, MaterialAvailability.fromCode(availability.getCode()));
@@ -80,6 +105,45 @@ final class MaterialRequirementExtractorTest {
         final NbtCompound root = new NbtCompound();
         root.put("Regions", regions);
         return writeCompound(fileName, root);
+    }
+
+    private File writeContainerSchematic(final String fileName, final boolean modernFormat, final int count)
+            throws IOException {
+        final NbtCompound paletteEntry = new NbtCompound();
+        final NbtList palette = new NbtList();
+        palette.add(paletteEntry);
+
+        final NbtCompound item = new NbtCompound();
+        item.putString("id", "minecraft:diamond");
+        if (modernFormat) {
+            item.putInt("count", count);
+        } else {
+            item.putByte("Count", (byte) count);
+        }
+        final NbtList items = new NbtList();
+        items.add(item);
+
+        final NbtCompound container = new NbtCompound();
+        container.put("Items", items);
+        final NbtList tileEntities = new NbtList();
+        tileEntities.add(container);
+
+        final NbtCompound region = new NbtCompound();
+        region.putIntArray("Size", new int[]{1, 1, 1});
+        region.put("BlockStatePalette", palette);
+        region.put("TileEntities", tileEntities);
+        final NbtCompound regions = new NbtCompound();
+        regions.put("region", region);
+        final NbtCompound root = new NbtCompound();
+        root.put("Regions", regions);
+        return writeCompound(fileName, root);
+    }
+
+    private int count(final Map<MaterialKey, Integer> requirements, final String itemId) {
+        return requirements.entrySet().stream()
+                .filter(entry -> entry.getKey().itemId().toString().equals(itemId))
+                .mapToInt(Map.Entry::getValue)
+                .sum();
     }
 
     private File writeCompound(final String fileName, final NbtCompound root) throws IOException {

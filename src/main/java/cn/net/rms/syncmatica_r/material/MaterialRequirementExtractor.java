@@ -387,7 +387,7 @@ public final class MaterialRequirementExtractor {
         if (!identifier.isPresent()) {
             return;
         }
-        final int count = Byte.toUnsignedInt(NbtHelper.getByte(item, "Count"));
+        final int count = resolveItemCount(item);
         if (count <= 0) {
             return;
         }
@@ -396,6 +396,13 @@ public final class MaterialRequirementExtractor {
         if (tag != null) {
             accumulateNestedBlockEntity(tag, totals, depth);
         }
+    }
+
+    private static int resolveItemCount(final NbtCompound item) {
+        if (NbtHelper.containsNumber(item, "count")) {
+            return NbtHelper.getInt(item, "count");
+        }
+        return Byte.toUnsignedInt(NbtHelper.getByte(item, "Count"));
     }
 
     private static void accumulateNestedBlockEntity(final NbtCompound tag, final Map<MaterialKey, Integer> totals,
