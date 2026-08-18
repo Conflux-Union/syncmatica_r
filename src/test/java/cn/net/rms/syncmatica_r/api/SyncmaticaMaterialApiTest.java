@@ -1,6 +1,7 @@
 package cn.net.rms.syncmatica_r.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import cn.net.rms.syncmatica_r.Context;
 import cn.net.rms.syncmatica_r.FileStorage;
@@ -95,6 +96,27 @@ final class SyncmaticaMaterialApiTest {
         assertEquals(2, requirements.size());
         assertEquals(new MaterialRequirement("minecraft:oak_planks", "", 15), requirements.get(0));
         assertEquals(new MaterialRequirement("minecraft:stone", "", 80), requirements.get(1));
+    }
+
+    @Test
+    void returnsAnImmutableSnapshotAndCapsAggregatedAmounts() {
+        final SyncmaticManager manager = newClientManager();
+        final UUID playerId = UUID.randomUUID();
+        final ServerPlacement first = newPlacement("first");
+        addMaterial(first, "minecraft:stone", "", Integer.MAX_VALUE, 0, playerId);
+        manager.addPlacement(first);
+        final ServerPlacement second = newPlacement("second");
+        addMaterial(second, "minecraft:stone", "", 1, 0, playerId);
+        manager.addPlacement(second);
+
+        final List<MaterialRequirement> snapshot =
+                SyncmaticaMaterialApi.getClaimedMaterialRequirements(playerId);
+        first.getMaterialProgress().clear();
+
+        assertEquals(1, snapshot.size());
+        assertEquals(Integer.MAX_VALUE, snapshot.get(0).missingAmount());
+        assertThrows(UnsupportedOperationException.class,
+                () -> snapshot.add(new MaterialRequirement("minecraft:dirt", "", 1)));
     }
 
     private SyncmaticManager newClientManager() {
