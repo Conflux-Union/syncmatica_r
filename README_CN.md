@@ -85,6 +85,10 @@ Syncmatica_r 与 Litematica 模组集成，实现服务器范围内的原理图�
 客户端模组可以通过[材料联动接口](docs/MATERIAL_API.md)读取当前玩家已领取的材料需求。
 该接口没有副作用，也不会替换 Litematica 当前使用的材料列表。
 
+安装 TweakerMore 3.33.x 时，Syncmatica_r 会在 TweakerMore 的 Features 设置中增加
+**自动收集材料列表物品-材料来源**。选择 `Syncmatica_r` 后，自动收集功能会使用当前玩家已认领的
+共享投影材料缺口；默认仍为 `Litematica`。该联动不会修改 Litematica 当前启用的材料列表。
+
 ---
 
 ## 使用方法

@@ -24,14 +24,16 @@
   },
   "mixins": [
     "syncmatica_r.mixin.json",
-    "syncmatica_r.litematica_mixin.json"
+    "syncmatica_r.litematica_mixin.json",
+    "syncmatica_r.tweakermore_mixin.json"
   ],
   "depends": {
     "fabric-permissions-api-v0": "*"
   },
   "suggests": {
     "litematica": "*",
-    "malilib": "*"
+    "malilib": "*",
+    "tweakermore": ">=3.33.0 <3.34.0"
   },
   "icon": "assets/syncmatica_r/icon/logo.png"
 }

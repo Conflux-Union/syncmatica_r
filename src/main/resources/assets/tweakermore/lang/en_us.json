@@ -1,0 +1,6 @@
+{
+  "tweakermore.config.autoCollectMaterialListItemSource": "Auto Collect Material List Item - Material Source",
+  "tweakermore.config.autoCollectMaterialListItemSource.comment": "The source of required materials used by Auto Collect Material List Item. Syncmatica_r reads the local player's claimed material requirements.",
+  "tweakermore.list_entry.autoCollectMaterialListItemSource.litematica": "Litematica",
+  "tweakermore.list_entry.autoCollectMaterialListItemSource.syncmatica_r": "Syncmatica_r"
+}

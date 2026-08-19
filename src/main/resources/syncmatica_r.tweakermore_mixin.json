@@ -1,0 +1,16 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "cn.net.rms.syncmatica_r.tweakermore_mixin",
+  "plugin": "cn.net.rms.syncmatica_r.compat.tweakermore.TweakerMoreMixinPlugin",
+  "compatibilityLevel": "JAVA_8",
+  "mixins": [],
+  "client": [
+    "MixinContainerMaterialListItemCollector",
+    "MixinTweakerMoreConfigs"
+  ],
+  "server": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

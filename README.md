@@ -87,6 +87,12 @@ Client mods can read the local player's claimed material requirements through th
 side-effect-free [material integration interface](docs/MATERIAL_API.md). The
 interface does not replace Litematica's active material list.
 
+When TweakerMore 3.33.x is installed, Syncmatica_r adds an **Auto Collect Material
+List Item - Material Source** option to TweakerMore's Features settings. Selecting
+`Syncmatica_r` makes auto-collect use the local player's claimed shared-placement
+deficits; the default remains `Litematica`. This integration does not modify
+Litematica's active material list.
+
 ---
 
 ## Usage

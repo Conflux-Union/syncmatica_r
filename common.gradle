@@ -66,6 +66,7 @@ configurations {
 
 dependencies {
     def autoImpl = { Object... args -> unobfuscated ? implementation(*args) : modImplementation(*args) }
+    def autoCompileOnly = { Object... args -> unobfuscated ? compileOnly(*args) : modCompileOnly(*args) }
 
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     if (!unobfuscated) {
@@ -82,6 +83,9 @@ dependencies {
         autoImpl "curse.maven:litematica-${project.litematica_minecraft_version}-308892:${project.litematica_fileid}"
         autoImpl "curse.maven:malilib-${project.litematica_minecraft_version}-303119:${project.malilib_fileid}"
     }
+
+    def tweakermoreMinecraftVersion = project.findProperty('tweakermore_minecraft_version') ?: project.minecraft_version
+    autoCompileOnly "maven.modrinth:tweakermore:v3.33.0-mc${tweakermoreMinecraftVersion}"
 
     autoImpl "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
     include(autoImpl("me.lucko:fabric-permissions-api:${fabricPermissionsApiVersion}"))
@@ -125,7 +129,7 @@ processResources {
 
     // Adjust mixin compatibility level for unobfuscated versions
     if (unobfuscated) {
-        filesMatching(['syncmatica_r.mixin.json', 'syncmatica_r.litematica_mixin.json']) {
+        filesMatching(['syncmatica_r.mixin.json', 'syncmatica_r.litematica_mixin.json', 'syncmatica_r.tweakermore_mixin.json']) {
             filter { String line ->
                 return line.replace('"JAVA_8"', '"JAVA_25"')
             }

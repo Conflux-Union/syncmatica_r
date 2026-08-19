@@ -33,6 +33,21 @@ final class MixinRegistrationContractTest {
                 "src/main/java/cn/net/rms/syncmatica_r/litematica_mixin");
     }
 
+    @Test
+    void tweakermoreMixinsAreAllRegistered() throws IOException {
+        assertRegistrationMatchesSources(
+                "src/main/resources/syncmatica_r.tweakermore_mixin.json",
+                "src/main/java/cn/net/rms/syncmatica_r/tweakermore_mixin");
+    }
+
+    @Test
+    void everyMixinConfigurationIsRegisteredInFabricMetadata() throws IOException {
+        final String fabricMetadata = read("src/main/resources/fabric.mod.json");
+        assertEquals(1, countOccurrences(fabricMetadata, "syncmatica_r.mixin.json"));
+        assertEquals(1, countOccurrences(fabricMetadata, "syncmatica_r.litematica_mixin.json"));
+        assertEquals(1, countOccurrences(fabricMetadata, "syncmatica_r.tweakermore_mixin.json"));
+    }
+
     /**
      * Per-version builds may only rewrite the mixin compatibility level. Adding or dropping
      * individual mixin entries there silently disables features on single Minecraft targets
@@ -44,6 +59,7 @@ final class MixinRegistrationContractTest {
         final Set<String> registered = new TreeSet<>();
         registered.addAll(registeredMixins("src/main/resources/syncmatica_r.mixin.json"));
         registered.addAll(registeredMixins("src/main/resources/syncmatica_r.litematica_mixin.json"));
+        registered.addAll(registeredMixins("src/main/resources/syncmatica_r.tweakermore_mixin.json"));
 
         for (final String mixinClass : registered) {
             assertFalse(
@@ -81,5 +97,15 @@ final class MixinRegistrationContractTest {
 
     private String read(final String relativePath) throws IOException {
         return Files.readString(projectRoot.resolve(relativePath), StandardCharsets.UTF_8);
+    }
+
+    private int countOccurrences(final String text, final String needle) {
+        int count = 0;
+        int offset = 0;
+        while ((offset = text.indexOf(needle, offset)) >= 0) {
+            count++;
+            offset += needle.length();
+        }
+        return count;
     }
 }

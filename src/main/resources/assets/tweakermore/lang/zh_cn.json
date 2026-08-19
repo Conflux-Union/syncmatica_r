@@ -1,0 +1,6 @@
+{
+  "tweakermore.config.autoCollectMaterialListItemSource": "自动收集材料列表物品-材料来源",
+  "tweakermore.config.autoCollectMaterialListItemSource.comment": "自动收集材料列表物品使用的所需材料来源。Syncmatica_r 来源会读取本地玩家已认领的材料需求。",
+  "tweakermore.list_entry.autoCollectMaterialListItemSource.litematica": "Litematica",
+  "tweakermore.list_entry.autoCollectMaterialListItemSource.syncmatica_r": "Syncmatica_r"
+}
