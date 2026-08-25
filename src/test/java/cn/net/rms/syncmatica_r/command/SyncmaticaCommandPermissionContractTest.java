@@ -13,7 +13,7 @@ final class SyncmaticaCommandPermissionContractTest {
     private final Path projectRoot = Path.of(System.getProperty("syncmatica.projectRoot"));
 
     @Test
-    void commandUsesFabricPermissionsWithOperatorFallback() throws IOException {
+    void privilegedCommandsKeepTheirPermissionsWithoutBlockingTheRoot() throws IOException {
         final String commandSource = read("src/main/java/cn/net/rms/syncmatica_r/command/SyncmaticaCommand.java");
 
         assertTrue(
@@ -25,12 +25,15 @@ final class SyncmaticaCommandPermissionContractTest {
         assertTrue(
                 commandSource.matches("(?s).*COMMAND_PERMISSION_LEVEL\\s*=\\s*2.*"),
                 "SyncmaticaCommand must keep permission level 2 as the fallback");
-        assertTrue(
-                commandSource.contains("Permissions.require(COMMAND_PERMISSION, COMMAND_PERMISSION_LEVEL)"),
-                "SyncmaticaCommand must use the declared permission node and fallback level");
         assertFalse(
-                commandSource.matches("(?s).*\\n\\s*\\.requires\\(source -> source\\.hasPermissionLevel\\(2\\)\\).*"),
-                "SyncmaticaCommand must not hard-code hasPermissionLevel(2) as the root requirement");
+                commandSource.contains(".requires(Permissions.require(COMMAND_PERMISSION, COMMAND_PERMISSION_LEVEL))"),
+                "the command root must remain visible to placement owners");
+        assertTrue(
+                commandSource.contains(".requires(SyncmaticaCommand::hasCommandPermission)"),
+                "privileged project commands must retain the general command permission");
+        assertTrue(
+                commandSource.contains(".requires(SyncmaticaCommand::hasManagePermission)"),
+                "default stocking-area commands must require elevated management permission");
     }
 
     @Test
@@ -41,8 +44,25 @@ final class SyncmaticaCommandPermissionContractTest {
                 commandSource.contains("\"syncmatica_r.command.load\""),
                 "load subcommand must expose the syncmatica_r.command.load permission node");
         assertTrue(
-                commandSource.contains("Permissions.require(LOAD_PERMISSION, COMMAND_PERMISSION_LEVEL)"),
-                "load subcommand must use the declared permission node and fallback level");
+                commandSource.contains(".requires(SyncmaticaCommand::hasLoadPermission)"),
+                "load subcommand must use its composed permission check");
+        assertTrue(
+                commandSource.contains("hasCommandPermission(source)")
+                        && commandSource.contains(
+                                "Permissions.check(source, LOAD_PERMISSION, COMMAND_PERMISSION_LEVEL)"),
+                "load subcommand must retain both the general and dedicated permission checks");
+    }
+
+    @Test
+    void stockingAreaCommandUsesOwnerAwareAccessPolicy() throws IOException {
+        final String commandSource = read("src/main/java/cn/net/rms/syncmatica_r/command/SyncmaticaCommand.java");
+
+        assertTrue(
+                commandSource.contains("PlacementAccessPolicy.canManageStockingArea"),
+                "stocking-area commands must use the shared owner-aware access policy");
+        assertTrue(
+                commandSource.contains("materialService.isOwnerStockingAreaManagementEnabled()"),
+                "stocking-area commands must honor the materials owner-management setting");
     }
 
     @Test

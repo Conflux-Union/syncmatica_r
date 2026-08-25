@@ -119,8 +119,8 @@ re-registered without a client re-share:
 
 Loaded placements are positioned at the command issuer and broadcast to all connected clients.
 Files not named after their content hash are renamed into the hash-based storage scheme so client
-downloads resolve. The subcommand uses the `syncmatica_r.command.load` permission node with vanilla
-permission level 2 as the fallback.
+downloads resolve. The subcommand requires both `syncmatica_r.command` and
+`syncmatica_r.command.load`, each with vanilla permission level 2 as the fallback.
 
 ### Setting Up Stocking Areas
 
@@ -140,9 +140,11 @@ The area is read from your currently selected sub-region box, so a selection wit
 single box works without highlighting anything first. Litematica keeps drawing the
 box; Syncmatica_r only reads its corners.
 
-Permissions for this path are per-placement: the placement owner, or anyone with
-`syncmatica_r.manage`, may set that placement's area. Setting the **default** area
-always requires `syncmatica_r.manage` (vanilla permission level 2 as fallback).
+Permissions are per-placement for both the selection and command paths: the placement owner, or
+anyone with `syncmatica_r.manage`, may set that placement's area. Servers can set
+`materials.allow_owner_stocking_area_management` to `false` to require `syncmatica_r.manage` for
+both paths. Setting the **default** area always requires `syncmatica_r.manage` (vanilla permission
+level 2 as fallback).
 
 **Create a default stocking area (matches all schematics via sign labels):**
 
@@ -156,14 +158,17 @@ always requires `syncmatica_r.manage` (vanilla permission level 2 as fallback).
 /syncmatica_r <SchematicName> setStockingarea <x1> <y1> <z1> <x2> <y2> <z2>
 ```
 
-**Permission:**
+**Permissions:**
 
-- Permission node: `syncmatica_r.command` (the `load` subcommand additionally checks `syncmatica_r.command.load`)
-- Fallback behavior: if no permissions provider handles the node, vanilla permission level 2 (operators) can use the command.
-- LuckPerms example: `/lp group <group> permission set syncmatica_r.command true`
-- Network permission nodes: `syncmatica_r.share`, `syncmatica_r.claim`, and `syncmatica_r.manage`.
-- Owners may modify or remove their own placements. Managing another player's placement requires
-  `syncmatica_r.manage`, with vanilla permission level 2 as the fallback.
+- A placement owner may run that placement's `setStockingarea` command when
+  `materials.allow_owner_stocking_area_management` is enabled; this action does not require
+  `syncmatica_r.command`.
+- `syncmatica_r.manage` permits stocking-area changes for every placement and the default area,
+  with vanilla permission level 2 as the fallback.
+- `syncmatica_r.command` protects privileged project commands such as `rescanBuild`.
+- `load` requires both `syncmatica_r.command` and `syncmatica_r.command.load`.
+- Other network permission nodes are `syncmatica_r.share`, `syncmatica_r.claim`, and
+  `syncmatica_r.build.claim`.
 
 **How it works:**
 

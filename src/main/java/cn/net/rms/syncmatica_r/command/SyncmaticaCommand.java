@@ -3,6 +3,7 @@ package cn.net.rms.syncmatica_r.command;
 import cn.net.rms.syncmatica_r.Context;
 import cn.net.rms.syncmatica_r.ServerPlacement;
 import cn.net.rms.syncmatica_r.Syncmatica;
+import cn.net.rms.syncmatica_r.communication.PlacementAccessPolicy;
 import cn.net.rms.syncmatica_r.communication.ServerCommunicationManager;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
 import cn.net.rms.syncmatica_r.material.StockingAreaDefinition;
@@ -60,7 +61,6 @@ public final class SyncmaticaCommand {
 
     public static void register(final CommandDispatcher<ServerCommandSource> dispatcher) {
         final LiteralArgumentBuilder<ServerCommandSource> root = CommandManager.literal("syncmatica_r")
-                .requires(Permissions.require(COMMAND_PERMISSION, COMMAND_PERMISSION_LEVEL))
                 .then(loadArgument())
                 .then(projectArgument())
                 .then(defaultArgument());
@@ -69,7 +69,7 @@ public final class SyncmaticaCommand {
 
     private static LiteralArgumentBuilder<ServerCommandSource> loadArgument() {
         return CommandManager.literal("load")
-                .requires(Permissions.require(LOAD_PERMISSION, COMMAND_PERMISSION_LEVEL))
+                .requires(SyncmaticaCommand::hasLoadPermission)
                 .executes(SyncmaticaCommand::handleLoadAll)
                 .then(CommandManager.argument("file", string())
                         .suggests(SyncmaticaCommand::suggestOrphanFiles)
@@ -278,6 +278,7 @@ public final class SyncmaticaCommand {
                                 .then(CommandManager.argument("pos2", BlockPosArgumentType.blockPos())
                                         .executes(SyncmaticaCommand::handleSetStockingArea))))
                 .then(CommandManager.literal("rescanBuild")
+                        .requires(SyncmaticaCommand::hasCommandPermission)
                         .executes(SyncmaticaCommand::handleRescanBuild));
     }
 
@@ -328,6 +329,10 @@ public final class SyncmaticaCommand {
             context.getSource().sendError(literal("Unknown Syncmatica_r project: " + projectName));
             return 0;
         }
+        if (!canManageStockingArea(context.getSource(), placement.get(), materialService)) {
+            context.getSource().sendError(literal("You do not have permission to manage this stocking area"));
+            return 0;
+        }
         final BlockPos first = BlockPosArgumentType.getBlockPos(context, "pos1");
         final BlockPos second = BlockPosArgumentType.getBlockPos(context, "pos2");
         final String dimensionId = context.getSource().getWorld().getRegistryKey().getValue().toString();
@@ -347,9 +352,32 @@ public final class SyncmaticaCommand {
         return 1;
     }
 
+    private static boolean canManageStockingArea(final ServerCommandSource source,
+                                                  final ServerPlacement placement,
+                                                  final MaterialService materialService) {
+        final Entity entity = source.getEntity();
+        final ServerPlayerEntity player = entity instanceof ServerPlayerEntity
+                ? (ServerPlayerEntity) entity
+                : null;
+        final UUID playerId = player == null ? null : SyncmaticaUtil.getProfileId(player.getGameProfile());
+        final UUID ownerId = placement.getOwner() == null ? null : placement.getOwner().uuid;
+        final boolean elevated = Permissions.check(
+                source,
+                PlacementAccessPolicy.MANAGE_PERMISSION,
+                PlacementAccessPolicy.MANAGE_PERMISSION_LEVEL
+        );
+        return PlacementAccessPolicy.canManageStockingArea(
+                playerId,
+                ownerId,
+                elevated,
+                materialService.isOwnerStockingAreaManagementEnabled()
+        );
+    }
+
     private static LiteralArgumentBuilder<ServerCommandSource> defaultArgument() {
 
         return CommandManager.literal("default")
+                .requires(SyncmaticaCommand::hasManagePermission)
                 .then(CommandManager.literal("setStockingarea")
                         .then(CommandManager.argument("pos1", BlockPosArgumentType.blockPos())
                                 .then(CommandManager.argument("pos2", BlockPosArgumentType.blockPos())
@@ -385,6 +413,23 @@ public final class SyncmaticaCommand {
         context.getSource().sendFeedback(literal("Default stocking area updated; scan scheduled"), false);
 //#endif
         return 1;
+    }
+
+    private static boolean hasCommandPermission(final ServerCommandSource source) {
+        return Permissions.check(source, COMMAND_PERMISSION, COMMAND_PERMISSION_LEVEL);
+    }
+
+    private static boolean hasLoadPermission(final ServerCommandSource source) {
+        return hasCommandPermission(source)
+                && Permissions.check(source, LOAD_PERMISSION, COMMAND_PERMISSION_LEVEL);
+    }
+
+    private static boolean hasManagePermission(final ServerCommandSource source) {
+        return Permissions.check(
+                source,
+                PlacementAccessPolicy.MANAGE_PERMISSION,
+                PlacementAccessPolicy.MANAGE_PERMISSION_LEVEL
+        );
     }
 
     private static net.minecraft.text.Text literal(final String message) {

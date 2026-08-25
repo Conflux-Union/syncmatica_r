@@ -363,7 +363,7 @@ public class ServerCommunicationManager extends CommunicationManager {
         final boolean allowed = isDefault
                 ? Permissions.check(player, PlacementAccessPolicy.MANAGE_PERMISSION,
                         PlacementAccessPolicy.MANAGE_PERMISSION_LEVEL)
-                : canManage(source, placement);
+                : canManageStockingArea(source, placement, materialService);
         if (!allowed) {
             sendMessage(source, MessageType.ERROR, "syncmatica_r.error.permission_denied");
             return;
@@ -525,6 +525,28 @@ public class ServerCommunicationManager extends CommunicationManager {
                 PlacementAccessPolicy.MANAGE_PERMISSION_LEVEL
         );
         return PlacementAccessPolicy.canManage(playerId, placement.getOwner().uuid, elevated);
+    }
+
+    private boolean canManageStockingArea(final ExchangeTarget source,
+                                           final ServerPlacement placement,
+                                           final MaterialService materialService) {
+        final ServerPlayerEntity player = playerMap.get(source);
+        if (player == null || placement == null) {
+            return false;
+        }
+        final UUID playerId = SyncmaticaUtil.getProfileId(player.getGameProfile());
+        final UUID ownerId = placement.getOwner() == null ? null : placement.getOwner().uuid;
+        final boolean elevated = Permissions.check(
+                player,
+                PlacementAccessPolicy.MANAGE_PERMISSION,
+                PlacementAccessPolicy.MANAGE_PERMISSION_LEVEL
+        );
+        return PlacementAccessPolicy.canManageStockingArea(
+                playerId,
+                ownerId,
+                elevated,
+                materialService.isOwnerStockingAreaManagementEnabled()
+        );
     }
 
     @Override

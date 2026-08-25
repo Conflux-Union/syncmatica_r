@@ -30,6 +30,7 @@ Syncmatica_r 的所有运行配置都保存在单一的 `config.json` 文件中�
     "scan_interval": 200,
     "scan_blocks_per_tick": 2048,
     "include_container_contents": false,
+    "allow_owner_stocking_area_management": true,
     "max_schematic_megabytes": 64,
     "max_schematic_blocks": 8000000,
     "max_stocking_area_blocks": 1000000
@@ -71,6 +72,7 @@ Syncmatica_r 的所有运行配置都保存在单一的 `config.json` 文件中�
 | scan_interval            | `200`   | `20` 游戏刻   | 自动扫描材料储备区的频率 |
 | scan_blocks_per_tick     | `2048`  | `64`–`65,536` 个方块 | 增量扫描共享的每刻工作预算 |
 | include_container_contents | `false` | —             | 是否统计箱子、潜影盒等容器内的物品 |
+| allow_owner_stocking_area_management | `true` | — | 是否允许投影所有者通过命令或 GUI 设置自己的备货区；关闭后两条路径都要求 `syncmatica_r.manage` |
 | max_schematic_megabytes  | `64`    | `1`–`64` MB   | 压缩文件传输和解压后 NBT 分配的大小上限 |
 | max_schematic_blocks     | `8000000`| `1,000,000`–`64,000,000` | 图纸解码方块数量上限 |
 | max_stocking_area_blocks | `1000000`| `1,024`–`64,000,000` | 备货区允许的最大体积 |
@@ -80,6 +82,8 @@ Syncmatica_r 的所有运行配置都保存在单一的 `config.json` 文件中�
 - 如果服务器扫描时出现卡顿，可以适当降低 `scan_blocks_per_tick` 并增加 `scan_interval`
 - 图纸解析在有资源上限的后台线程执行，嵌套容器最多遍历 10 层，结果回到服务端线程后才会生效
 - 备货区命令只安排增量扫描，不再在命令执行期间一次扫描完整区域
+- `allow_owner_stocking_area_management` 只影响投影专属备货区；默认备货区始终要求
+  `syncmatica_r.manage`
 - 修改这些配置必须重启服务器才能生效
 
 ## `build` — 建造管理（服务器）
@@ -171,5 +175,5 @@ Syncmatica_r 的所有运行配置都保存在单一的 `config.json` 文件中�
 - `syncmatica_r.claim`：认领已有材料需求；权限插件未处理时默认允许。
 - `syncmatica_r.build.claim`：认领共享蓝图的子区域；权限插件未处理时默认允许。和 `syncmatica_r.claim` 分开，
   方便把「收材料」和「建某一块」分给不同的人。
-- `syncmatica_r.manage`：修改或删除其他玩家的放置；默认回退到权限等级 2。
+- `syncmatica_r.manage`：修改或删除其他玩家的放置、管理任意投影的备货区及默认备货区；默认回退到权限等级 2。
 - 放置所有者始终可以修改或删除自己的放置。

@@ -20,4 +20,11 @@ public final class PlacementAccessPolicy {
     public static boolean canManage(final UUID playerId, final UUID ownerId, final boolean elevated) {
         return elevated || (playerId != null && playerId.equals(ownerId));
     }
+
+    public static boolean canManageStockingArea(final UUID playerId,
+                                                 final UUID ownerId,
+                                                 final boolean elevated,
+                                                 final boolean ownerManagementEnabled) {
+        return elevated || (ownerManagementEnabled && playerId != null && playerId.equals(ownerId));
+    }
 }

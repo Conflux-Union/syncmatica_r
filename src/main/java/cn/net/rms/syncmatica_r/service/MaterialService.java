@@ -42,6 +42,7 @@ public class MaterialService extends AbstractService {
     public static final boolean ENABLED_DEFAULT = true;
     public static final int SCAN_INTERVAL_DEFAULT = 200;
     public static final boolean INCLUDE_CONTAINER_CONTENTS_DEFAULT = false;
+    public static final boolean ALLOW_OWNER_STOCKING_AREA_MANAGEMENT_DEFAULT = true;
     public static final int SCAN_BLOCKS_PER_TICK_DEFAULT = 2048;
     public static final int MAX_SCHEMATIC_MEGABYTES_DEFAULT = 64;
     public static final int MAX_SCHEMATIC_BLOCKS_DEFAULT = (int) ProtocolLimits.DEFAULT_MAX_SCHEMATIC_BLOCKS;
@@ -65,6 +66,7 @@ public class MaterialService extends AbstractService {
     private boolean enabled = ENABLED_DEFAULT;
     private int scanInterval = SCAN_INTERVAL_DEFAULT;
     private boolean includeContainerContents = INCLUDE_CONTAINER_CONTENTS_DEFAULT;
+    private boolean ownerStockingAreaManagementEnabled = ALLOW_OWNER_STOCKING_AREA_MANAGEMENT_DEFAULT;
     private int scanBlocksPerTick = SCAN_BLOCKS_PER_TICK_DEFAULT;
     private int maxSchematicMegabytes = MAX_SCHEMATIC_MEGABYTES_DEFAULT;
     private int maxSchematicBlocks = MAX_SCHEMATIC_BLOCKS_DEFAULT;
@@ -95,6 +97,10 @@ public class MaterialService extends AbstractService {
 
     public boolean isEnabled() {
         return enabled;
+    }
+
+    public boolean isOwnerStockingAreaManagementEnabled() {
+        return ownerStockingAreaManagementEnabled;
     }
 
     public void attachPlacement(final ServerPlacement placement) {
@@ -341,6 +347,10 @@ public class MaterialService extends AbstractService {
         configuration.saveBoolean("enabled", ENABLED_DEFAULT);
         configuration.saveInteger("scan_interval", SCAN_INTERVAL_DEFAULT);
         configuration.saveBoolean("include_container_contents", INCLUDE_CONTAINER_CONTENTS_DEFAULT);
+        configuration.saveBoolean(
+                "allow_owner_stocking_area_management",
+                ALLOW_OWNER_STOCKING_AREA_MANAGEMENT_DEFAULT
+        );
         configuration.saveInteger("scan_blocks_per_tick", SCAN_BLOCKS_PER_TICK_DEFAULT);
         configuration.saveInteger("max_schematic_megabytes", MAX_SCHEMATIC_MEGABYTES_DEFAULT);
         configuration.saveInteger("max_schematic_blocks", MAX_SCHEMATIC_BLOCKS_DEFAULT);
@@ -357,6 +367,8 @@ public class MaterialService extends AbstractService {
         configuration.loadBoolean("enabled", value -> enabled = value);
         configuration.loadInteger("scan_interval", value -> scanInterval = Math.max(20, value));
         configuration.loadBoolean("include_container_contents", value -> includeContainerContents = value);
+        configuration.loadBoolean("allow_owner_stocking_area_management",
+                value -> ownerStockingAreaManagementEnabled = value);
         configuration.loadInteger("scan_blocks_per_tick", value -> scanBlocksPerTick = Math.max(64, Math.min(MAX_SCAN_BLOCKS_PER_TICK, value)));
         configuration.loadInteger("max_schematic_megabytes", value -> maxSchematicMegabytes = Math.max(1, Math.min(MAX_SCHEMATIC_MEGABYTES, value)));
         configuration.loadInteger("max_schematic_blocks", value -> maxSchematicBlocks = Math.max(1_000_000, Math.min(MAX_SCHEMATIC_BLOCKS, value)));

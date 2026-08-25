@@ -33,4 +33,30 @@ final class PlacementAccessPolicyTest {
         assertFalse(PlacementAccessPolicy.canManage(UUID.randomUUID(), UUID.randomUUID(), false));
         assertFalse(PlacementAccessPolicy.canManage(null, UUID.randomUUID(), false));
     }
+
+    @Test
+    void ownerCanManageStockingAreaWhenEnabled() {
+        final UUID owner = UUID.randomUUID();
+
+        assertTrue(PlacementAccessPolicy.canManageStockingArea(owner, owner, false, true));
+    }
+
+    @Test
+    void ownerCannotManageStockingAreaWhenDisabled() {
+        final UUID owner = UUID.randomUUID();
+
+        assertFalse(PlacementAccessPolicy.canManageStockingArea(owner, owner, false, false));
+    }
+
+    @Test
+    void unrelatedPlayerCannotManageStockingArea() {
+        assertFalse(PlacementAccessPolicy.canManageStockingArea(
+                UUID.randomUUID(), UUID.randomUUID(), false, true));
+    }
+
+    @Test
+    void elevatedUserCanManageStockingAreaWhenOwnerManagementIsDisabled() {
+        assertTrue(PlacementAccessPolicy.canManageStockingArea(
+                UUID.randomUUID(), null, true, false));
+    }
 }

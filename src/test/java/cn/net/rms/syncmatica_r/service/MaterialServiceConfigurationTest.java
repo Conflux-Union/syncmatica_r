@@ -1,6 +1,7 @@
 package cn.net.rms.syncmatica_r.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.gson.JsonObject;
@@ -25,6 +26,33 @@ final class MaterialServiceConfigurationTest {
 
             assertEquals(64L * 1024L * 1024L, service.getMaxSchematicBytes());
             assertTrue(service.isEnabled());
+        } finally {
+            service.shutdown();
+        }
+    }
+
+    @Test
+    void allowsPlacementOwnersToManageStockingAreasByDefault() {
+        final MaterialService service = new MaterialService();
+        try {
+            final JsonObject defaults = new JsonObject();
+            service.getDefaultConfiguration(new JsonConfiguration(defaults));
+
+            assertTrue(defaults.get("allow_owner_stocking_area_management").getAsBoolean());
+        } finally {
+            service.shutdown();
+        }
+    }
+
+    @Test
+    void canDisablePlacementOwnerStockingAreaManagement() {
+        final MaterialService service = new MaterialService();
+        try {
+            final JsonObject configured = new JsonObject();
+            configured.addProperty("allow_owner_stocking_area_management", false);
+            service.configure(new JsonConfiguration(configured));
+
+            assertFalse(service.isOwnerStockingAreaManagementEnabled());
         } finally {
             service.shutdown();
         }

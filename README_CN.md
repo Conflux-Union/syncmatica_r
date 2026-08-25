@@ -113,8 +113,8 @@ Syncmatica_r 与 Litematica 模组集成，实现服务器范围内的原理图�
 ```
 
 加载的放置定位在命令执行者所在位置，并广播给所有在线客户端。文件名不符合内容哈希命名的
-文件会被重命名为哈希存储格式，以保证客户端下载可用。该子命令使用 `syncmatica_r.command.load`
-权限节点，默认回退到原版权限等级 2。
+文件会被重命名为哈希存储格式，以保证客户端下载可用。该子命令同时要求
+`syncmatica_r.command` 和 `syncmatica_r.command.load`，两者都默认回退到原版权限等级 2。
 
 ### 设置备货区
 
@@ -131,8 +131,9 @@ Syncmatica_r 与 Litematica 模组集成，实现服务器范围内的原理图�
 读取的是当前选中的子区域框，因此只有一个框的选区不需要先点选。框的绘制仍由 Litematica 负责，
 Syncmatica_r 只读取两个角坐标。
 
-这条路径的权限按投影区分：投影所有者，或拥有 `syncmatica_r.manage` 的玩家，可以设置该投影的备货区；
-设置**默认**备货区始终需要 `syncmatica_r.manage`（回退到原版权限等级 2）。
+框选和命令两条路径都按投影检查权限：投影所有者或拥有 `syncmatica_r.manage` 的玩家可以设置该投影的
+备货区。服主可以把 `materials.allow_owner_stocking_area_management` 设为 `false`，让两条路径都只允许
+`syncmatica_r.manage`。设置**默认**备货区始终需要 `syncmatica_r.manage`（回退到原版权限等级 2）。
 
 **创建默认备货区（通过告示牌匹配所有原理图）：**
 
@@ -148,11 +149,12 @@ Syncmatica_r 只读取两个角坐标。
 
 **权限：**
 
-- 权限节点：`syncmatica_r.command`（`load` 子命令额外检查 `syncmatica_r.command.load`）
-- 回退行为：如果没有权限管理器处理该节点，则仍按原版权限等级 2（OP）允许执行。
-- LuckPerms 示例：`/lp group <group> permission set syncmatica_r.command true`
-- 网络权限节点：`syncmatica_r.share`、`syncmatica_r.claim` 和 `syncmatica_r.manage`。
-- 所有者可以修改或移除自己的放置；管理其他玩家的放置需要 `syncmatica_r.manage`，默认回退到权限等级 2。
+- 开启 `materials.allow_owner_stocking_area_management` 时，投影所有者执行该投影的
+  `setStockingarea` 不需要 `syncmatica_r.command`。
+- `syncmatica_r.manage` 可以设置任意投影及默认备货区，默认回退到权限等级 2。
+- `syncmatica_r.command` 保护 `rescanBuild` 等管理命令。
+- `load` 同时要求 `syncmatica_r.command` 和 `syncmatica_r.command.load`。
+- 其他网络权限节点包括 `syncmatica_r.share`、`syncmatica_r.claim` 和 `syncmatica_r.build.claim`。
 
 **工作原理：**
 

@@ -37,6 +37,7 @@ about `debug`. Two additional top-level keys control the optional GitHub update 
     "scan_interval": 200,
     "scan_blocks_per_tick": 2048,
     "include_container_contents": false,
+    "allow_owner_stocking_area_management": true,
     "max_schematic_megabytes": 64,
     "max_schematic_blocks": 8000000,
     "max_stocking_area_blocks": 1000000
@@ -81,6 +82,7 @@ removes material progress/claims from the advertised feature set.
 | scan_interval              | `200`    | `20` ticks       | How often the default stocking area is rescanned when idle. |
 | scan_blocks_per_tick       | `2048`   | `64`–`65,536` blocks | Shared work budget for incremental scans. |
 | include_container_contents | `false`  | —                | When `true`, chests/shulkers inside the schematic contribute their inventories to material counts. |
+| allow_owner_stocking_area_management | `true` | — | When `true`, placement owners may set their own stocking areas through commands or the GUI. When `false`, both paths require `syncmatica_r.manage`. |
 | max_schematic_megabytes    | `64`     | `1`–`64` MB      | Maximum compressed transfer size and decompressed NBT allocation. |
 | max_schematic_blocks       | `8000000`| `1,000,000`–`64,000,000` | Maximum decoded schematic block volume. |
 | max_stocking_area_blocks   | `1000000`| `1,024`–`64,000,000` | Maximum volume accepted for a stocking area. |
@@ -92,6 +94,8 @@ Operational notes:
 - Schematic extraction runs on a bounded background worker. NBT allocation and block volume are both checked before
   results are applied on the server thread; nested container traversal stops after 10 levels.
 - Stocking area commands schedule an incremental scan; they no longer scan the entire cuboid during command execution.
+- `allow_owner_stocking_area_management` affects placement-specific areas only. Default stocking-area changes always
+  require `syncmatica_r.manage`.
 - Changing these settings after the service started requires a full server restart.
 
 ## `build` — Server Build Management
@@ -189,7 +193,8 @@ diagnosing protocol problems.
 - `syncmatica_r.build.claim`: take responsibility for a sub-region of a shared schematic; allowed by default. Separate
   from `syncmatica_r.claim` so gathering a material and building part of the schematic can be handed to different
   people.
-- `syncmatica_r.manage`: modify or delete placements owned by another player; defaults to permission level 2.
+- `syncmatica_r.manage`: modify or delete placements owned by another player, manage any placement's stocking area,
+  and manage the default stocking area; defaults to permission level 2.
 - Placement owners can always modify or delete their own placements.
 
 ## Troubleshooting
