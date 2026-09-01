@@ -128,10 +128,11 @@ public class LitematicManager {
             //#if MC >= 12106
             //$$ final Path placementPath = schem.getSchematicFile();
             //$$ final File placementFile = placementPath != null ? placementPath.toFile() : null;
+            //$$ final FileType fileType = FileType.fromFile(placementPath);
             //#else
             final File placementFile = schem.getSchematicFile();
-            //#endif
             final FileType fileType = FileType.fromFile(placementFile);
+            //#endif
             if (fileType == FileType.VANILLA_STRUCTURE || fileType == FileType.SCHEMATICA_SCHEMATIC) {
                 ScreenHelper.ifPresent(s -> s.addMessage(Message.MessageType.ERROR, "syncmatica_r.error.share_incompatible_schematic"));
                 return null;
