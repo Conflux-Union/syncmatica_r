@@ -89,6 +89,8 @@ dependencies {
 
     autoImpl "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
     include(autoImpl("me.lucko:fabric-permissions-api:${fabricPermissionsApiVersion}"))
+    testImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    testImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
     testImplementation "org.junit.jupiter:junit-jupiter:5.10.3"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 
