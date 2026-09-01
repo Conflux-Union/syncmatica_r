@@ -6,7 +6,7 @@
 
 Syncmatica_r keeps all runtime configuration inside a single `config.json`. The loader merges defaults for every
 service section on startup and rewrites the file whenever it has to insert missing keys or recover from invalid JSON.
-Because of that, always edit the file while the game/server is stopped; changes are only read during the next startup.
+Manual file edits are read on the next startup; server service settings can also be changed live with commands.
 
 ## Location and Lifecycle
 
@@ -18,6 +18,21 @@ Because of that, always edit the file while the game/server is stopped; changes 
   legacy file once. As soon as the modern folder gets created, only `syncmatica_r` is consulted.
 - **Error recovery:** When the JSON cannot be parsed or a section is missing, Syncmatica_r rewrites the entire file with
   the last known good configuration plus defaults. Unknown keys are preserved, but their order may change.
+
+## Live Server Commands
+
+The following commands update the running server and persist the accepted value to `config.json`:
+
+```text
+/syncmatica_r config list [section]
+/syncmatica_r config get <section> <key>
+/syncmatica_r config set <section> <key> <value>
+/syncmatica_r config reset <section> <key>
+```
+
+Sections and keys are suggested by the command interface. Invalid values are rejected instead of clamped. `reset`
+restores one key to its default. These commands require `syncmatica_r.config`, with vanilla permission level 2 as the
+fallback. Client-only update and UI preferences are not exposed.
 
 ## JSON Structure Overview
 
@@ -96,7 +111,8 @@ Operational notes:
 - Stocking area commands schedule an incremental scan; they no longer scan the entire cuboid during command execution.
 - `allow_owner_stocking_area_management` affects placement-specific areas only. Default stocking-area changes always
   require `syncmatica_r.manage`.
-- Changing these settings after the service started requires a full server restart.
+- Command changes apply immediately. Material extraction limits and container-content changes re-extract every shared
+  schematic; changing the stocking-area limit rebuilds active scans.
 
 ## `build` — Server Build Management
 

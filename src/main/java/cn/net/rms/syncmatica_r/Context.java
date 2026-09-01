@@ -3,6 +3,7 @@ package cn.net.rms.syncmatica_r;
 import cn.net.rms.syncmatica_r.communication.CommunicationManager;
 import cn.net.rms.syncmatica_r.communication.FeatureSet;
 import cn.net.rms.syncmatica_r.communication.ProtocolLimits;
+import cn.net.rms.syncmatica_r.communication.ServerCommunicationManager;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifierProvider;
 import cn.net.rms.syncmatica_r.service.*;
 import cn.net.rms.syncmatica_r.service.IServiceConfiguration;
@@ -29,6 +30,9 @@ public class Context {
     private final PlayerIdentifierProvider playerIdentifierProvider;
     private final MaterialService materialService;
     private final BuildService buildService;
+    private ConfigRegistry configRegistry;
+    private ConfigStore configStore;
+    private JsonObject loadedConfiguration;
     private FeatureSet fs = null;
     private boolean isStarted = false;
 
@@ -118,6 +122,20 @@ public class Context {
         return debugService;
     }
 
+    public ConfigRegistry getConfigRegistry() {
+        return configRegistry;
+    }
+
+    public ConfigStore getConfigStore() {
+        return configStore;
+    }
+
+    public JsonObject getLoadedConfiguration() {
+        return loadedConfiguration == null
+                ? null
+                : new Gson().fromJson(loadedConfiguration.toString(), JsonObject.class);
+    }
+
     public FeatureSet getFeatureSet() {
         if (fs == null) {
             generateFeatureSet();
@@ -155,6 +173,16 @@ public class Context {
             features.remove(Feature.BUILD_MANAGEMENT);
         }
         fs = new FeatureSet(features);
+    }
+
+    public void serverFeaturesChanged() {
+        if (!isServer()) {
+            return;
+        }
+        fs = null;
+        if (isStarted && comMan instanceof ServerCommunicationManager) {
+            ((ServerCommunicationManager) comMan).reloadFeatureState();
+        }
     }
 
     public void startup() {
@@ -243,6 +271,18 @@ public class Context {
             }
         }
         needsRewrite |= loadConfigurationForService(debugService, configuration, attemptToLoad);
+        loadedConfiguration = configuration;
+        if (isServer()) {
+            configRegistry = new ConfigRegistry();
+            quota.registerConfigOptions(configRegistry);
+            materialService.registerConfigOptions(configRegistry);
+            buildService.registerConfigOptions(configRegistry);
+            debugService.registerConfigOptions(configRegistry);
+            configStore = new ConfigStore(getConfigFile().toPath(), configuration, configRegistry);
+        } else {
+            configRegistry = null;
+            configStore = null;
+        }
         if (needsRewrite) {
             try (
                     final Writer writer = new BufferedWriter(new FileWriter(getAndCreateConfigFile()))

@@ -25,8 +25,9 @@ public class QuotaService extends AbstractService {
 
     @Override
     public void getDefaultConfiguration(final IServiceConfiguration configuration) {
-        configuration.saveBoolean("enabled", IS_ENABLED_DEFAULT);
-        configuration.saveInteger("limit", QUOTA_LIMIT_DEFAULT);
+        final ConfigRegistry registry = new ConfigRegistry();
+        registerConfigOptions(registry);
+        registry.saveDefaults(getConfigKey(), configuration);
     }
 
     @Override
@@ -36,8 +37,25 @@ public class QuotaService extends AbstractService {
 
     @Override
     public void configure(final IServiceConfiguration configuration) {
-        configuration.loadBoolean("enabled", b -> isEnabled = b);
-        configuration.loadInteger("limit", i -> limit = Math.max(0, i));
+        configuration.loadBoolean("enabled", this::setEnabled);
+        configuration.loadInteger("limit", this::setLimit);
+    }
+
+    public void registerConfigOptions(final ConfigRegistry registry) {
+        registry.add(ConfigOption.bool(
+                getConfigKey(), "enabled", IS_ENABLED_DEFAULT,
+                () -> isEnabled, this::setEnabled));
+        registry.add(ConfigOption.integer(
+                getConfigKey(), "limit", QUOTA_LIMIT_DEFAULT, 0, Integer.MAX_VALUE,
+                () -> limit, this::setLimit));
+    }
+
+    private void setEnabled(final boolean value) {
+        isEnabled = value;
+    }
+
+    private void setLimit(final int value) {
+        limit = Math.max(0, value);
     }
 
     @Override

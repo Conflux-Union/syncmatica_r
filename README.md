@@ -122,6 +122,27 @@ Files not named after their content hash are renamed into the hash-based storage
 downloads resolve. The subcommand requires both `syncmatica_r.command` and
 `syncmatica_r.command.load`, each with vanilla permission level 2 as the fallback.
 
+### Managing Server Configuration
+
+Server service settings can be inspected and changed without restarting:
+
+```text
+/syncmatica_r config list                         # list every server setting
+/syncmatica_r config list materials               # list one section
+/syncmatica_r config get materials max_schematic_blocks
+/syncmatica_r config set materials max_schematic_blocks 64000000
+/syncmatica_r config reset materials max_schematic_blocks
+```
+
+`set` validates the value, applies it immediately, and writes it to `config.json`. `reset` restores
+one setting to its default. Section names, keys, and Boolean values support tab completion. Material
+extraction settings automatically refresh all shared schematics; changing a feature switch also
+refreshes connected clients.
+
+These commands expose the `quota`, `materials`, `build`, and `debug` sections documented in
+[CONFIG.md](CONFIG.md). Client-only preferences are not included. They require
+`syncmatica_r.config`, with vanilla permission level 2 as the fallback.
+
 ### Setting Up Stocking Areas
 
 Stocking areas are container regions the server scans for inventory tracking.
@@ -167,6 +188,7 @@ level 2 as fallback).
   with vanilla permission level 2 as the fallback.
 - `syncmatica_r.command` protects privileged project commands such as `rescanBuild`.
 - `load` requires both `syncmatica_r.command` and `syncmatica_r.command.load`.
+- `syncmatica_r.config` controls live server configuration commands, with vanilla permission level 2 as the fallback.
 - Other network permission nodes are `syncmatica_r.share`, `syncmatica_r.claim`, and
   `syncmatica_r.build.claim`.
 

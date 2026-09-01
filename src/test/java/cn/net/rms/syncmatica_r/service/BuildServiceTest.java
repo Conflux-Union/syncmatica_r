@@ -2,6 +2,7 @@ package cn.net.rms.syncmatica_r.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -309,6 +310,48 @@ final class BuildServiceTest {
                     defaults.get("full_rescan_interval").getAsInt());
         } finally {
             service.shutdown();
+        }
+    }
+
+    @Test
+    void enablingBuildQueuesFreshLayoutAndFullCompletionPass() throws Exception {
+        final Context context = newServerContext();
+        try {
+            context.startup();
+            final UUID hash = writeLitematic(context, "roof");
+            final ServerPlacement placement = new ServerPlacement(
+                    UUID.randomUUID(), "build", hash, PlayerIdentifier.MISSING_PLAYER);
+            placement.move("minecraft:overworld", BlockPos.ORIGIN, BlockRotation.NONE, BlockMirror.NONE);
+            context.getSyncmaticManager().addPlacement(placement);
+            final UUID initialToken = context.getBuildService().pendingLayoutToken(placement.getId());
+
+            context.getConfigStore().set("build", "enabled", "false");
+            assertFalse(context.getBuildService().hasPendingCompletionScan(placement.getId()));
+
+            context.getConfigStore().set("build", "enabled", "true");
+
+            assertNotEquals(initialToken,
+                    context.getBuildService().pendingLayoutToken(placement.getId()));
+            assertTrue(context.getBuildService().hasPendingCompletionScan(placement.getId()));
+        } finally {
+            context.shutdown();
+        }
+    }
+
+    @Test
+    void enablingCompletionRequestsFullPasses() throws Exception {
+        final Context context = newServerContext();
+        try {
+            context.startup();
+            final ServerPlacement placement = attach(context, context.getBuildService(), regions("roof"));
+            context.getConfigStore().set("build", "enabled", "false");
+            context.getConfigStore().set("build", "completion_enabled", "false");
+
+            context.getConfigStore().set("build", "completion_enabled", "true");
+
+            assertTrue(context.getBuildService().hasPendingCompletionScan(placement.getId()));
+        } finally {
+            context.shutdown();
         }
     }
 

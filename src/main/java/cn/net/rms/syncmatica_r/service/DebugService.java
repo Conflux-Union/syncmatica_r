@@ -7,6 +7,7 @@ import org.apache.logging.log4j.LogManager;
 
 public class DebugService extends AbstractService {
 
+    private static final boolean PACKET_LOGGING_DEFAULT = false;
     private boolean doPacketLogging = false;
 
     public void logReceivePacket(final Identifier packageType) {
@@ -27,7 +28,9 @@ public class DebugService extends AbstractService {
 
     @Override
     public void getDefaultConfiguration(final IServiceConfiguration configuration) {
-        configuration.saveBoolean("doPackageLogging", false);
+        final ConfigRegistry registry = new ConfigRegistry();
+        registerConfigOptions(registry);
+        registry.saveDefaults(getConfigKey(), configuration);
     }
 
     @Override
@@ -37,7 +40,17 @@ public class DebugService extends AbstractService {
 
     @Override
     public void configure(final IServiceConfiguration configuration) {
-        configuration.loadBoolean("doPackageLogging", b -> doPacketLogging = b);
+        configuration.loadBoolean("doPackageLogging", this::setPacketLogging);
+    }
+
+    public void registerConfigOptions(final ConfigRegistry registry) {
+        registry.add(ConfigOption.bool(
+                getConfigKey(), "doPackageLogging", PACKET_LOGGING_DEFAULT,
+                () -> doPacketLogging, this::setPacketLogging));
+    }
+
+    private void setPacketLogging(final boolean value) {
+        doPacketLogging = value;
     }
 
     @Override

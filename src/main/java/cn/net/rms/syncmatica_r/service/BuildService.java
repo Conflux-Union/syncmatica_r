@@ -143,6 +143,14 @@ public class BuildService extends AbstractService {
         return enabled;
     }
 
+    UUID pendingLayoutToken(final UUID placementId) {
+        return pendingLayoutTokens.get(placementId);
+    }
+
+    boolean hasPendingCompletionScan(final UUID placementId) {
+        return tracker.hasWork(placementId);
+    }
+
     public void attachPlacement(final ServerPlacement placement) {
         placements.put(placement.getId(), placement);
         seedFromExistingSnapshot(placement);
@@ -1105,25 +1113,94 @@ public class BuildService extends AbstractService {
 
     @Override
     public void getDefaultConfiguration(final IServiceConfiguration configuration) {
-        configuration.saveBoolean("enabled", ENABLED_DEFAULT);
-        configuration.saveBoolean("completion_enabled", COMPLETION_ENABLED_DEFAULT);
-        configuration.saveInteger("scan_blocks_per_tick", SCAN_BLOCKS_PER_TICK_DEFAULT);
-        configuration.saveInteger("scan_interval", SCAN_INTERVAL_DEFAULT);
-        configuration.saveInteger("full_rescan_interval", FULL_RESCAN_INTERVAL_DEFAULT);
+        final ConfigRegistry registry = new ConfigRegistry();
+        registerConfigOptions(registry);
+        registry.saveDefaults(getConfigKey(), configuration);
     }
 
     @Override
     public void configure(final IServiceConfiguration configuration) {
-        configuration.loadBoolean("enabled", value -> enabled = value);
-        configuration.loadBoolean("completion_enabled", value -> completionEnabled = value);
-        configuration.loadInteger("scan_blocks_per_tick", value ->
-                scanBlocksPerTick = Math.max(MIN_SCAN_BLOCKS_PER_TICK, Math.min(MAX_SCAN_BLOCKS_PER_TICK, value)));
-        configuration.loadInteger("scan_interval", value ->
-                scanInterval = Math.max(MIN_SCAN_INTERVAL, value));
+        configuration.loadBoolean("enabled", this::setEnabled);
+        configuration.loadBoolean("completion_enabled", this::setCompletionEnabled);
+        configuration.loadInteger("scan_blocks_per_tick", this::setScanBlocksPerTick);
+        configuration.loadInteger("scan_interval", this::setScanInterval);
         // Zero switches the sweep off, which is a real choice on a server where
         // nothing writes to the world behind the game's back.
-        configuration.loadInteger("full_rescan_interval", value ->
-                fullRescanInterval = value <= 0 ? 0 : Math.max(MIN_FULL_RESCAN_INTERVAL, value));
+        configuration.loadInteger("full_rescan_interval", this::setFullRescanInterval);
+    }
+
+    public void registerConfigOptions(final ConfigRegistry registry) {
+        registry.add(ConfigOption.bool(
+                getConfigKey(), "enabled", ENABLED_DEFAULT, () -> enabled, this::setEnabled));
+        registry.add(ConfigOption.bool(
+                getConfigKey(), "completion_enabled", COMPLETION_ENABLED_DEFAULT,
+                () -> completionEnabled, this::setCompletionEnabled));
+        registry.add(ConfigOption.integer(
+                getConfigKey(), "scan_blocks_per_tick", SCAN_BLOCKS_PER_TICK_DEFAULT,
+                MIN_SCAN_BLOCKS_PER_TICK, MAX_SCAN_BLOCKS_PER_TICK,
+                () -> scanBlocksPerTick, this::setScanBlocksPerTick));
+        registry.add(ConfigOption.integer(
+                getConfigKey(), "scan_interval", SCAN_INTERVAL_DEFAULT,
+                MIN_SCAN_INTERVAL, Integer.MAX_VALUE, () -> scanInterval, this::setScanInterval));
+        registry.add(ConfigOption.integer(
+                getConfigKey(), "full_rescan_interval", FULL_RESCAN_INTERVAL_DEFAULT,
+                value -> value == 0 || value >= MIN_FULL_RESCAN_INTERVAL,
+                "Expected zero or an integer from " + MIN_FULL_RESCAN_INTERVAL + " through "
+                        + Integer.MAX_VALUE,
+                () -> fullRescanInterval, this::setFullRescanInterval));
+    }
+
+    private void setEnabled(final boolean value) {
+        final boolean changed = enabled != value;
+        enabled = value;
+        if (!changed || context == null || !context.isStarted()) {
+            return;
+        }
+        if (enabled) {
+            refreshAllLayouts();
+        } else {
+            for (final UUID placementId : placements.keySet()) {
+                cancelScanFor(placementId);
+                tracker.forget(placementId);
+            }
+        }
+        context.serverFeaturesChanged();
+    }
+
+    private void setCompletionEnabled(final boolean value) {
+        final boolean changed = completionEnabled != value;
+        completionEnabled = value;
+        if (changed && completionEnabled && context != null && context.isStarted()) {
+            for (final UUID placementId : placements.keySet()) {
+                tracker.requestFullPass(placementId);
+            }
+        }
+    }
+
+    private void setScanBlocksPerTick(final int value) {
+        scanBlocksPerTick =
+                Math.max(MIN_SCAN_BLOCKS_PER_TICK, Math.min(MAX_SCAN_BLOCKS_PER_TICK, value));
+    }
+
+    private void setScanInterval(final int value) {
+        scanInterval = Math.max(MIN_SCAN_INTERVAL, value);
+    }
+
+    private void setFullRescanInterval(final int value) {
+        fullRescanInterval = value <= 0 ? 0 : Math.max(MIN_FULL_RESCAN_INTERVAL, value);
+    }
+
+    private void refreshAllLayouts() {
+        pendingLayoutTokens.clear();
+        deferredLayouts.clear();
+        deferredLayoutIds.clear();
+        for (final ServerPlacement placement : placements.values()) {
+            cancelScanFor(placement.getId());
+            blocksCache.remove(placement.getId());
+            lastScanTick.remove(placement.getId());
+            scheduleLayoutLoad(placement);
+            tracker.requestFullPass(placement.getId());
+        }
     }
 
     public boolean isCompletionEnabled() {

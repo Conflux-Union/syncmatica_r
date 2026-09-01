@@ -103,6 +103,14 @@ public class MaterialService extends AbstractService {
         return ownerStockingAreaManagementEnabled;
     }
 
+    UUID pendingExtractionToken(final UUID placementId) {
+        return pendingExtractionTokens.get(placementId);
+    }
+
+    boolean hasDefaultStockingScan() {
+        return defaultScanState != null;
+    }
+
     public void attachPlacement(final ServerPlacement placement) {
         placements.put(placement.getId(), placement);
         stockingAreas.put(placement.getId(), placement.getStockingArea());
@@ -344,17 +352,9 @@ public class MaterialService extends AbstractService {
 
     @Override
     public void getDefaultConfiguration(final IServiceConfiguration configuration) {
-        configuration.saveBoolean("enabled", ENABLED_DEFAULT);
-        configuration.saveInteger("scan_interval", SCAN_INTERVAL_DEFAULT);
-        configuration.saveBoolean("include_container_contents", INCLUDE_CONTAINER_CONTENTS_DEFAULT);
-        configuration.saveBoolean(
-                "allow_owner_stocking_area_management",
-                ALLOW_OWNER_STOCKING_AREA_MANAGEMENT_DEFAULT
-        );
-        configuration.saveInteger("scan_blocks_per_tick", SCAN_BLOCKS_PER_TICK_DEFAULT);
-        configuration.saveInteger("max_schematic_megabytes", MAX_SCHEMATIC_MEGABYTES_DEFAULT);
-        configuration.saveInteger("max_schematic_blocks", MAX_SCHEMATIC_BLOCKS_DEFAULT);
-        configuration.saveInteger("max_stocking_area_blocks", MAX_STOCKING_AREA_BLOCKS_DEFAULT);
+        final ConfigRegistry registry = new ConfigRegistry();
+        registerConfigOptions(registry);
+        registry.saveDefaults(getConfigKey(), configuration);
     }
 
     @Override
@@ -364,16 +364,114 @@ public class MaterialService extends AbstractService {
 
     @Override
     public void configure(final IServiceConfiguration configuration) {
-        configuration.loadBoolean("enabled", value -> enabled = value);
-        configuration.loadInteger("scan_interval", value -> scanInterval = Math.max(20, value));
-        configuration.loadBoolean("include_container_contents", value -> includeContainerContents = value);
+        configuration.loadBoolean("enabled", this::setEnabled);
+        configuration.loadInteger("scan_interval", this::setScanInterval);
+        configuration.loadBoolean("include_container_contents", this::setIncludeContainerContents);
         configuration.loadBoolean("allow_owner_stocking_area_management",
-                value -> ownerStockingAreaManagementEnabled = value);
-        configuration.loadInteger("scan_blocks_per_tick", value -> scanBlocksPerTick = Math.max(64, Math.min(MAX_SCAN_BLOCKS_PER_TICK, value)));
-        configuration.loadInteger("max_schematic_megabytes", value -> maxSchematicMegabytes = Math.max(1, Math.min(MAX_SCHEMATIC_MEGABYTES, value)));
-        configuration.loadInteger("max_schematic_blocks", value -> maxSchematicBlocks = Math.max(1_000_000, Math.min(MAX_SCHEMATIC_BLOCKS, value)));
-        configuration.loadInteger("max_stocking_area_blocks", value -> maxStockingAreaBlocks =
-                Math.max(1_024, Math.min(MAX_STOCKING_AREA_BLOCKS, value)));
+                this::setOwnerStockingAreaManagementEnabled);
+        configuration.loadInteger("scan_blocks_per_tick", this::setScanBlocksPerTick);
+        configuration.loadInteger("max_schematic_megabytes", this::setMaxSchematicMegabytes);
+        configuration.loadInteger("max_schematic_blocks", this::setMaxSchematicBlocks);
+        configuration.loadInteger("max_stocking_area_blocks", this::setMaxStockingAreaBlocks);
+    }
+
+    public void registerConfigOptions(final ConfigRegistry registry) {
+        registry.add(ConfigOption.bool(
+                getConfigKey(), "enabled", ENABLED_DEFAULT, () -> enabled, this::setEnabled));
+        registry.add(ConfigOption.integer(
+                getConfigKey(), "scan_interval", SCAN_INTERVAL_DEFAULT, 20, Integer.MAX_VALUE,
+                () -> scanInterval, this::setScanInterval));
+        registry.add(ConfigOption.bool(
+                getConfigKey(), "include_container_contents", INCLUDE_CONTAINER_CONTENTS_DEFAULT,
+                () -> includeContainerContents, this::setIncludeContainerContents));
+        registry.add(ConfigOption.bool(
+                getConfigKey(), "allow_owner_stocking_area_management",
+                ALLOW_OWNER_STOCKING_AREA_MANAGEMENT_DEFAULT,
+                () -> ownerStockingAreaManagementEnabled, this::setOwnerStockingAreaManagementEnabled));
+        registry.add(ConfigOption.integer(
+                getConfigKey(), "scan_blocks_per_tick", SCAN_BLOCKS_PER_TICK_DEFAULT,
+                64, MAX_SCAN_BLOCKS_PER_TICK, () -> scanBlocksPerTick, this::setScanBlocksPerTick));
+        registry.add(ConfigOption.integer(
+                getConfigKey(), "max_schematic_megabytes", MAX_SCHEMATIC_MEGABYTES_DEFAULT,
+                1, MAX_SCHEMATIC_MEGABYTES, () -> maxSchematicMegabytes, this::setMaxSchematicMegabytes));
+        registry.add(ConfigOption.integer(
+                getConfigKey(), "max_schematic_blocks", MAX_SCHEMATIC_BLOCKS_DEFAULT,
+                1_000_000, MAX_SCHEMATIC_BLOCKS, () -> maxSchematicBlocks, this::setMaxSchematicBlocks));
+        registry.add(ConfigOption.integer(
+                getConfigKey(), "max_stocking_area_blocks", MAX_STOCKING_AREA_BLOCKS_DEFAULT,
+                1_024, MAX_STOCKING_AREA_BLOCKS, () -> maxStockingAreaBlocks, this::setMaxStockingAreaBlocks));
+    }
+
+    private void setEnabled(final boolean value) {
+        final boolean changed = enabled != value;
+        enabled = value;
+        if (!changed || context == null || !context.isStarted()) {
+            return;
+        }
+        if (enabled) {
+            refreshAllRequirements();
+        }
+        context.serverFeaturesChanged();
+    }
+
+    private void setScanInterval(final int value) {
+        scanInterval = Math.max(20, value);
+    }
+
+    private void setIncludeContainerContents(final boolean value) {
+        final boolean changed = includeContainerContents != value;
+        includeContainerContents = value;
+        if (changed && context != null && context.isStarted()) {
+            refreshAllRequirements();
+        }
+    }
+
+    private void setOwnerStockingAreaManagementEnabled(final boolean value) {
+        ownerStockingAreaManagementEnabled = value;
+    }
+
+    private void setScanBlocksPerTick(final int value) {
+        scanBlocksPerTick = Math.max(64, Math.min(MAX_SCAN_BLOCKS_PER_TICK, value));
+    }
+
+    private void setMaxSchematicMegabytes(final int value) {
+        final int normalized = Math.max(1, Math.min(MAX_SCHEMATIC_MEGABYTES, value));
+        final boolean changed = maxSchematicMegabytes != normalized;
+        maxSchematicMegabytes = normalized;
+        if (changed && context != null && context.isStarted()) {
+            refreshAllRequirements();
+        }
+    }
+
+    private void setMaxSchematicBlocks(final int value) {
+        final int normalized = Math.max(1_000_000, Math.min(MAX_SCHEMATIC_BLOCKS, value));
+        final boolean changed = maxSchematicBlocks != normalized;
+        maxSchematicBlocks = normalized;
+        if (changed && context != null && context.isStarted()) {
+            refreshAllRequirements();
+        }
+    }
+
+    private void setMaxStockingAreaBlocks(final int value) {
+        final int normalized = Math.max(1_024, Math.min(MAX_STOCKING_AREA_BLOCKS, value));
+        final boolean changed = maxStockingAreaBlocks != normalized;
+        maxStockingAreaBlocks = normalized;
+        if (!changed || context == null || !context.isStarted()) {
+            return;
+        }
+        activePlacementScans.clear();
+        placementScanQueue.clear();
+        defaultScanState = null;
+        tickCounter = scanInterval;
+    }
+
+    private void refreshAllRequirements() {
+        pendingExtractionTokens.clear();
+        deferredExtractions.clear();
+        deferredExtractionIds.clear();
+        for (final ServerPlacement placement : placements.values()) {
+            scheduleRequirementsLoad(placement);
+        }
     }
 
     @Override

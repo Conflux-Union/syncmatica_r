@@ -10,6 +10,8 @@ import cn.net.rms.syncmatica_r.material.StockingAreaDefinition;
 import cn.net.rms.syncmatica_r.schematic.SchematicPeek;
 import cn.net.rms.syncmatica_r.schematic.SchematicPeeker;
 import cn.net.rms.syncmatica_r.service.MaterialService;
+import cn.net.rms.syncmatica_r.service.ConfigOption;
+import cn.net.rms.syncmatica_r.service.ConfigRegistry;
 import cn.net.rms.syncmatica_r.util.SyncmaticaUtil;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.LiteralMessage;
@@ -37,6 +39,7 @@ import net.minecraft.util.math.BlockPos;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -52,6 +55,7 @@ import static com.mojang.brigadier.arguments.StringArgumentType.string;
 public final class SyncmaticaCommand {
     private static final String COMMAND_PERMISSION = "syncmatica_r.command";
     private static final String LOAD_PERMISSION = "syncmatica_r.command.load";
+    private static final String CONFIG_PERMISSION = "syncmatica_r.config";
     private static final int COMMAND_PERMISSION_LEVEL = 2;
     private static final String LITEMATIC_EXTENSION = ".litematic";
     private static final Map<String, CachedPeek> PEEK_CACHE = new HashMap<>();
@@ -62,9 +66,151 @@ public final class SyncmaticaCommand {
     public static void register(final CommandDispatcher<ServerCommandSource> dispatcher) {
         final LiteralArgumentBuilder<ServerCommandSource> root = CommandManager.literal("syncmatica_r")
                 .then(loadArgument())
+                .then(configArgument())
                 .then(projectArgument())
                 .then(defaultArgument());
         dispatcher.register(root);
+    }
+
+    private static LiteralArgumentBuilder<ServerCommandSource> configArgument() {
+        return CommandManager.literal("config")
+                .requires(SyncmaticaCommand::hasConfigPermission)
+                .then(CommandManager.literal("list")
+                        .executes(context -> handleConfigList(context, null))
+                        .then(CommandManager.argument("section", string())
+                                .suggests(SyncmaticaCommand::suggestConfigSections)
+                                .executes(context -> handleConfigList(
+                                        context, context.getArgument("section", String.class)))))
+                .then(configReadArgument("get", SyncmaticaCommand::handleConfigGet))
+                .then(configReadArgument("reset", SyncmaticaCommand::handleConfigReset))
+                .then(CommandManager.literal("set")
+                        .then(CommandManager.argument("section", string())
+                                .suggests(SyncmaticaCommand::suggestConfigSections)
+                                .then(CommandManager.argument("key", string())
+                                        .suggests(SyncmaticaCommand::suggestConfigKeys)
+                                        .then(CommandManager.argument("value", string())
+                                                .suggests(SyncmaticaCommand::suggestConfigValues)
+                                                .executes(SyncmaticaCommand::handleConfigSet)))));
+    }
+
+    private static LiteralArgumentBuilder<ServerCommandSource> configReadArgument(
+            final String operation,
+            final com.mojang.brigadier.Command<ServerCommandSource> handler
+    ) {
+        return CommandManager.literal(operation)
+                .then(CommandManager.argument("section", string())
+                        .suggests(SyncmaticaCommand::suggestConfigSections)
+                        .then(CommandManager.argument("key", string())
+                                .suggests(SyncmaticaCommand::suggestConfigKeys)
+                                .executes(handler)));
+    }
+
+    private static CompletableFuture<Suggestions> suggestConfigSections(
+            final CommandContext<ServerCommandSource> context,
+            final SuggestionsBuilder builder
+    ) {
+        final ConfigRegistry registry = configRegistry();
+        if (registry != null) {
+            registry.sections().forEach(builder::suggest);
+        }
+        return builder.buildFuture();
+    }
+
+    private static CompletableFuture<Suggestions> suggestConfigKeys(
+            final CommandContext<ServerCommandSource> context,
+            final SuggestionsBuilder builder
+    ) {
+        final ConfigRegistry registry = configRegistry();
+        if (registry != null) {
+            registry.keys(context.getArgument("section", String.class)).forEach(builder::suggest);
+        }
+        return builder.buildFuture();
+    }
+
+    private static CompletableFuture<Suggestions> suggestConfigValues(
+            final CommandContext<ServerCommandSource> context,
+            final SuggestionsBuilder builder
+    ) {
+        final ConfigRegistry registry = configRegistry();
+        if (registry == null) {
+            return builder.buildFuture();
+        }
+        final ConfigOption<?> option = registry.find(
+                context.getArgument("section", String.class),
+                context.getArgument("key", String.class)
+        );
+        if (option != null && option.getDefaultValue() instanceof Boolean) {
+            builder.suggest("true");
+            builder.suggest("false");
+        }
+        return builder.buildFuture();
+    }
+
+    private static ConfigRegistry configRegistry() {
+        final Context context = Syncmatica.getContext(Syncmatica.SERVER_CONTEXT);
+        return context == null ? null : context.getConfigRegistry();
+    }
+
+    private static ConfigCommandLogic configLogic() {
+        final Context context = Syncmatica.getContext(Syncmatica.SERVER_CONTEXT);
+        if (context == null || context.getConfigRegistry() == null || context.getConfigStore() == null) {
+            throw new IllegalStateException("Syncmatica_r server configuration unavailable");
+        }
+        return new ConfigCommandLogic(context.getConfigRegistry(), context.getConfigStore());
+    }
+
+    private static int handleConfigList(
+            final CommandContext<ServerCommandSource> context,
+            final String section
+    ) {
+        try {
+            final List<String> entries = configLogic().list(section);
+            entries.forEach(entry -> sendPrivateFeedback(context, entry));
+            return entries.isEmpty() ? 0 : 1;
+        } catch (final IllegalArgumentException | IllegalStateException exception) {
+            context.getSource().sendError(literal(exception.getMessage()));
+            return 0;
+        }
+    }
+
+    private static int handleConfigGet(final CommandContext<ServerCommandSource> context) {
+        try {
+            sendPrivateFeedback(context, configLogic().get(
+                    context.getArgument("section", String.class),
+                    context.getArgument("key", String.class)
+            ));
+            return 1;
+        } catch (final IllegalArgumentException | IllegalStateException exception) {
+            context.getSource().sendError(literal(exception.getMessage()));
+            return 0;
+        }
+    }
+
+    private static int handleConfigSet(final CommandContext<ServerCommandSource> context) {
+        try {
+            sendPrivateFeedback(context, configLogic().set(
+                    context.getArgument("section", String.class),
+                    context.getArgument("key", String.class),
+                    context.getArgument("value", String.class)
+            ));
+            return 1;
+        } catch (final IOException | IllegalArgumentException | IllegalStateException exception) {
+            context.getSource().sendError(literal("Failed to update configuration: " + exception.getMessage()));
+            return 0;
+        }
+    }
+
+    private static int handleConfigReset(final CommandContext<ServerCommandSource> context) {
+        try {
+            sendPrivateFeedback(context, configLogic().reset(
+                    context.getArgument("section", String.class),
+                    context.getArgument("key", String.class)
+            ));
+            return 1;
+        } catch (final IOException | IllegalArgumentException | IllegalStateException exception) {
+            context.getSource().sendError(literal("Failed to reset configuration: " + exception.getMessage()));
+            return 0;
+        }
     }
 
     private static LiteralArgumentBuilder<ServerCommandSource> loadArgument() {
@@ -250,6 +396,17 @@ public final class SyncmaticaCommand {
 //#endif
     }
 
+    private static void sendPrivateFeedback(
+            final CommandContext<ServerCommandSource> context,
+            final String message
+    ) {
+//#if MC >= 12001
+//$$         context.getSource().sendFeedback(() -> literal(message), false);
+//#else
+        context.getSource().sendFeedback(literal(message), false);
+//#endif
+    }
+
     private static final class CachedPeek {
         private final long lastModified;
         private final long length;
@@ -422,6 +579,10 @@ public final class SyncmaticaCommand {
     private static boolean hasLoadPermission(final ServerCommandSource source) {
         return hasCommandPermission(source)
                 && Permissions.check(source, LOAD_PERMISSION, COMMAND_PERMISSION_LEVEL);
+    }
+
+    private static boolean hasConfigPermission(final ServerCommandSource source) {
+        return Permissions.check(source, CONFIG_PERMISSION, COMMAND_PERMISSION_LEVEL);
     }
 
     private static boolean hasManagePermission(final ServerCommandSource source) {

@@ -116,6 +116,25 @@ Syncmatica_r 与 Litematica 模组集成，实现服务器范围内的原理图�
 文件会被重命名为哈希存储格式，以保证客户端下载可用。该子命令同时要求
 `syncmatica_r.command` 和 `syncmatica_r.command.load`，两者都默认回退到原版权限等级 2。
 
+### 管理服务器配置
+
+服务器服务配置可以直接在游戏内查询和修改，无需重启：
+
+```text
+/syncmatica_r config list                         # 列出全部服务器配置
+/syncmatica_r config list materials               # 列出指定模块
+/syncmatica_r config get materials max_schematic_blocks
+/syncmatica_r config set materials max_schematic_blocks 64000000
+/syncmatica_r config reset materials max_schematic_blocks
+```
+
+`set` 会先校验取值，通过后立即生效并写入 `config.json`。`reset` 每次只把一个配置项恢复为默认值。
+模块名、配置项和布尔值支持 Tab 补全。修改材料提取配置后会自动重新提取全部共享项目；修改功能总开关
+还会刷新在线客户端状态。
+
+命令覆盖 [CONFIG_CN.md](CONFIG_CN.md) 中的 `quota`、`materials`、`build` 和 `debug` 模块，
+不包含客户端本地偏好。执行命令需要 `syncmatica_r.config` 权限，默认回退到原版权限等级 2。
+
 ### 设置备货区
 
 备货区是服务端扫描库存的容器区域。既可以在游戏里用 Litematica 的工具物品直接框选，
@@ -154,6 +173,7 @@ Syncmatica_r 只读取两个角坐标。
 - `syncmatica_r.manage` 可以设置任意投影及默认备货区，默认回退到权限等级 2。
 - `syncmatica_r.command` 保护 `rescanBuild` 等管理命令。
 - `load` 同时要求 `syncmatica_r.command` 和 `syncmatica_r.command.load`。
+- `syncmatica_r.config` 控制在线修改服务器配置的命令，默认回退到原版权限等级 2。
 - 其他网络权限节点包括 `syncmatica_r.share`、`syncmatica_r.claim` 和 `syncmatica_r.build.claim`。
 
 **工作原理：**

@@ -414,11 +414,20 @@ public class ServerCommunicationManager extends CommunicationManager {
             return;
         }
         if (exchange instanceof VersionHandshakeServer && exchange.isSuccessful()) {
-            broadcastTargets.add(exchange.getPartner());
+            if (!broadcastTargets.contains(exchange.getPartner())) {
+                broadcastTargets.add(exchange.getPartner());
+            }
         }
         if (exchange instanceof ModifyExchangeServer && exchange.isSuccessful()) {
             final ServerPlacement placement = ((ModifyExchangeServer) exchange).getPlacement();
             broadcastPlacementUpdate(placement);
+        }
+    }
+
+    public void reloadFeatureState() {
+        purgeStaleTargets();
+        for (final ExchangeTarget client : new ArrayList<>(broadcastTargets)) {
+            startExchange(new VersionHandshakeServer(client, context));
         }
     }
 

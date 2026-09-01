@@ -54,6 +54,22 @@ final class SyncmaticaCommandPermissionContractTest {
     }
 
     @Test
+    void configSubcommandUsesDedicatedPermissionNodeAndExposesAllOperations() throws IOException {
+        final String commandSource = read("src/main/java/cn/net/rms/syncmatica_r/command/SyncmaticaCommand.java");
+
+        assertTrue(
+                commandSource.contains("\"syncmatica_r.config\""),
+                "config subcommand must expose the syncmatica_r.config permission node");
+        assertTrue(
+                commandSource.contains(".requires(SyncmaticaCommand::hasConfigPermission)"),
+                "config subcommand must use its dedicated permission check");
+        assertTrue(commandSource.contains("CommandManager.literal(\"list\")"));
+        assertTrue(commandSource.contains("configReadArgument(\"get\""));
+        assertTrue(commandSource.contains("CommandManager.literal(\"set\")"));
+        assertTrue(commandSource.contains("configReadArgument(\"reset\""));
+    }
+
+    @Test
     void stockingAreaCommandUsesOwnerAwareAccessPolicy() throws IOException {
         final String commandSource = read("src/main/java/cn/net/rms/syncmatica_r/command/SyncmaticaCommand.java");
 
