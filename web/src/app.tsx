@@ -54,6 +54,7 @@ import { Tabs } from "./components/ui/tabs";
 import { Toast } from "./components/ui/toast";
 import itemNamesEn from "./item-names-en.json";
 import itemNamesZh from "./item-names-zh.json";
+import logoUrl from "./logo.png";
 import { usePolling } from "./use-polling";
 
 type Theme = "light" | "dark";
@@ -64,8 +65,7 @@ const itemNames: Record<Language, Record<string, string>> = {
 
 const translations = {
   en: {
-    appName: "Syncmatica",
-    eyebrow: "Server workspace",
+    appName: "Syncmatica Revolution",
     navigationLabel: "Primary navigation",
     projects: "Projects",
     materials: "Material Summary",
@@ -89,15 +89,24 @@ const translations = {
     filterMaterials: "Filter materials",
     sortProjects: "Sort projects",
     sortMaterials: "Sort materials",
+    stockingArea: "Stocking area",
+    allStockingAreas: "All stocking areas",
     recent: "Recently modified",
     name: "Name",
     missing: "Missing",
     mostMissing: "Most missing",
+    pagination: "Pagination",
+    previousPage: "Previous",
+    nextPage: "Next",
+    pageOf: "Page {page} of {total}",
     owner: "Owner",
     modified: "Modified",
     item: "Item",
     required: "Required",
     supplied: "Supplied",
+    unitBox: "box",
+    unitStack: "stack",
+    unitItem: "item",
     progress: "Progress",
     actions: "Actions",
     tryAgain: "Try again",
@@ -146,8 +155,7 @@ const translations = {
     notScanned: "Not scanned",
   },
   zh: {
-    appName: "Syncmatica",
-    eyebrow: "服务器工作区",
+    appName: "Syncmatica Revolution",
     navigationLabel: "主导航",
     projects: "项目",
     materials: "材料汇总",
@@ -171,15 +179,24 @@ const translations = {
     filterMaterials: "筛选材料",
     sortProjects: "项目排序",
     sortMaterials: "材料排序",
+    stockingArea: "备货区",
+    allStockingAreas: "全部备货区",
     recent: "最近修改",
     name: "名称",
     missing: "缺少",
     mostMissing: "缺少最多",
+    pagination: "分页",
+    previousPage: "上一页",
+    nextPage: "下一页",
+    pageOf: "第 {page} / {total} 页",
     owner: "所有者",
     modified: "修改时间",
     item: "物品",
     required: "需要",
     supplied: "已有",
+    unitBox: "盒",
+    unitStack: "组",
+    unitItem: "个",
     progress: "进度",
     actions: "操作",
     tryAgain: "重试",
@@ -187,14 +204,14 @@ const translations = {
     loadingProjects: "正在加载项目",
     loadingMaterials: "正在加载材料",
     loadingProject: "正在加载项目",
-    loadingArea: "正在加载库存区",
+    loadingArea: "正在加载备货区",
     loadingRegions: "正在加载建造区域",
     projectDetails: "项目详情",
     file: "文件",
     position: "位置",
     lastEditor: "最后修改者",
     materialTab: "材料",
-    stockingTab: "库存区",
+    stockingTab: "备货区",
     regionsTab: "建造区域",
     claimMaterial: "认领材料",
     unclaimMaterial: "取消认领材料",
@@ -214,12 +231,12 @@ const translations = {
     maxY: "最大 Y",
     maxZ: "最大 Z",
     volume: "体积",
-    saveArea: "保存库存区",
+    saveArea: "保存备货区",
     saving: "正在保存…",
     ownerOnly: "只有项目所有者可以编辑此区域。",
-    noArea: "尚未配置库存区。",
+    noArea: "尚未配置备货区。",
     invalidBounds: "最小坐标不能大于最大坐标。",
-    saved: "库存区已保存。",
+    saved: "备货区已保存。",
     claimUpdated: "认领状态已更新。",
     region: "区域",
     blocks: "方块",
@@ -231,8 +248,12 @@ const translations = {
 
 type Copy = (typeof translations)[Language];
 
+function detectLanguage(): Language {
+  return navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en";
+}
+
 function App() {
-  const [language, setLanguage] = useState<Language>("en");
+  const [language, setLanguage] = useState<Language>(detectLanguage);
   const [theme, setTheme] = useState<Theme>("light");
   const [session, setSession] = useState<Session | null>();
   const navigate = useNavigate();
@@ -281,8 +302,8 @@ function App() {
     <div className="app-shell" data-theme={theme} lang={language === "zh" ? "zh-CN" : "en"}>
       <aside className="sidebar">
         <Link className="brand" to="/">
-          <span aria-hidden="true" className="brand-mark">S</span>
-          <span><strong>{copy.appName}</strong><small>{copy.eyebrow}</small></span>
+          <img alt="" aria-hidden="true" className="brand-logo" src={logoUrl} />
+          <span><strong>{copy.appName}</strong></span>
         </Link>
         <nav aria-label={copy.navigationLabel} className="primary-navigation">
           <NavLink className={({ isActive }) => `navigation-link${isActive ? " navigation-link-active" : ""}`} end to="/">
@@ -452,13 +473,26 @@ interface PageProps {
 }
 
 function MaterialSummaryPage({ api, copy, language }: PageProps) {
-  const [rows, setRows] = useState<MaterialSummary[]>([]);
+  const [rows, setRows] = useState<(MaterialSummary | Material)[]>([]);
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("");
   const [sort, setSort] = useState("missing");
-  const load = useCallback((signal: AbortSignal) => api.materialSummary(signal), [api]);
-  const receive = useCallback((value: MaterialSummary[]) => { setRows(value); setLoading(false); setError(""); }, []);
+  const [area, setArea] = useState("");
+  const load = useCallback(
+    (signal: AbortSignal) => Promise.all([
+      api.projects(signal),
+      area ? api.materials(area, signal) : api.materialSummary(signal),
+    ]),
+    [api, area],
+  );
+  const receive = useCallback(([nextProjects, nextRows]: [ProjectSummary[], (MaterialSummary | Material)[]]) => {
+    setProjects(nextProjects);
+    setRows(nextRows);
+    setLoading(false);
+    setError("");
+  }, []);
   const fail = useCallback((failure: unknown) => { setLoading(false); setError(errorMessage(failure, language)); }, [language]);
   usePolling(load, receive, fail);
   const visible = rows
@@ -476,14 +510,55 @@ function MaterialSummaryPage({ api, copy, language }: PageProps) {
         <label className="search-field"><Search aria-hidden="true" size={18} /><span className="sr-only">{copy.filterMaterials}</span>
           <input aria-label={copy.filterMaterials} onChange={(event) => setFilter(event.target.value)} value={filter} />
         </label>
+        <label className="sr-only" htmlFor="material-area">{copy.stockingArea}</label>
+        <select aria-label={copy.stockingArea} id="material-area" onChange={(event) => setArea(event.target.value)} value={area}>
+          <option value="">{copy.allStockingAreas}</option>
+          {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+        </select>
         <select aria-label={copy.sortMaterials} onChange={(event) => setSort(event.target.value)} value={sort}>
           <option value="missing">{copy.mostMissing}</option><option value="name">{copy.name}</option>
         </select>
       </Toolbar>
       {loading ? <Skeleton label={copy.loadingMaterials} /> : error ? <ErrorState error={error} label={copy.tryAgain} onRetry={() => void load(new AbortController().signal).then(receive).catch(fail)} /> :
         visible.length === 0 ? <EmptyState icon={<ListChecks />} title={copy.noMaterials} /> :
-          <MaterialTable copy={copy} language={language} rows={visible} />}
+          <MaterialTable copy={copy} key={`${area}\0${filter}\0${sort}`} language={language} rows={visible} />}
     </>
+  );
+}
+
+const MATERIAL_PAGE_SIZE = 20;
+// Inventory counting convention: one shulker box holds 27 stacks of 64 items.
+const BOX_ITEMS = 27 * 64;
+const STACK_ITEMS = 64;
+
+function formatQuantity(value: number, language: Language, copy: Copy) {
+  const boxes = Math.floor(value / BOX_ITEMS);
+  const stacks = Math.floor((value % BOX_ITEMS) / STACK_ITEMS);
+  const items = value % STACK_ITEMS;
+  const parts: string[] = [];
+  const push = (count: number, unit: string) => {
+    if (count === 0) return;
+    if (language === "zh") {
+      parts.push(`${count}${unit}`);
+    } else {
+      const plural = count === 1 ? unit : unit === copy.unitBox ? `${unit}es` : `${unit}s`;
+      parts.push(`${count} ${plural}`);
+    }
+  };
+  push(boxes, copy.unitBox);
+  push(stacks, copy.unitStack);
+  push(items, copy.unitItem);
+  if (parts.length === 0) push(0, copy.unitItem);
+  return parts.join(language === "zh" ? "" : ", ");
+}
+
+function QuantityCell({ value, language, copy }: { value: number; language: Language; copy: Copy }) {
+  return (
+    <td>
+      <span className="quantity" data-tooltip={value.toLocaleString()}>
+        {formatQuantity(value, language, copy)}
+      </span>
+    </td>
   );
 }
 
@@ -494,20 +569,35 @@ function MaterialTable({ copy, language, rows, session, onClaim }: {
   session?: Session;
   onClaim?: (row: Material, claim: boolean) => void;
 }) {
+  const [page, setPage] = useState(0);
+  const pageCount = Math.max(1, Math.ceil(rows.length / MATERIAL_PAGE_SIZE));
+  const current = Math.min(page, pageCount - 1);
+  const paged = rows.slice(current * MATERIAL_PAGE_SIZE, (current + 1) * MATERIAL_PAGE_SIZE);
   return (
-    <DataTable label={copy.materials}>
-      <thead><tr><th>{copy.item}</th><th>{copy.required}</th><th>{copy.supplied}</th><th>{copy.missing}</th><th>{copy.progress}</th>{onClaim && <th>{copy.actions}</th>}</tr></thead>
-      <tbody>{rows.map((row) => {
-        const material = "claimants" in row ? row : undefined;
-        const mine = material?.claimants.some((player) => player.id === session?.playerId) ?? false;
-        return <tr key={`${row.itemId}\0${row.variant}`}>
-          <td><strong>{materialName(row, language)}</strong>{row.variant && <small>{row.variant}</small>}{material && <small>{material.claimants.length ? `${copy.claimants}: ${material.claimants.map((player) => player.name).join(", ")}` : copy.unclaimed}</small>}</td>
-          <td>{row.required.toLocaleString()}</td><td>{row.supplied.toLocaleString()}</td><td>{row.missing.toLocaleString()}</td>
-          <td><div className="progress-cell"><Progress label={`${row.progressPercent}%`} value={row.progressPercent} /><span>{row.progressPercent}%</span></div></td>
-          {onClaim && material && <td><Button onClick={() => onClaim(material, !mine)} size="default" variant={mine ? "outline" : "primary"}>{mine ? copy.unclaimMaterial : copy.claimMaterial}</Button></td>}
-        </tr>;
-      })}</tbody>
-    </DataTable>
+    <>
+      <DataTable label={copy.materials}>
+        <thead><tr><th>{copy.item}</th><th>{copy.required}</th><th>{copy.supplied}</th><th>{copy.missing}</th><th>{copy.progress}</th>{onClaim && <th>{copy.actions}</th>}</tr></thead>
+        <tbody>{paged.map((row) => {
+          const material = "claimants" in row ? row : undefined;
+          const mine = material?.claimants.some((player) => player.id === session?.playerId) ?? false;
+          return <tr key={`${row.itemId}\0${row.variant}`}>
+            <td><strong>{materialName(row, language)}</strong>{row.variant && <small>{row.variant}</small>}{material && <small>{material.claimants.length ? `${copy.claimants}: ${material.claimants.map((player) => player.name).join(", ")}` : copy.unclaimed}</small>}</td>
+            <QuantityCell copy={copy} language={language} value={row.required} />
+            <QuantityCell copy={copy} language={language} value={row.supplied} />
+            <QuantityCell copy={copy} language={language} value={row.missing} />
+            <td><div className="progress-cell"><Progress label={`${row.progressPercent}%`} value={row.progressPercent} /><span>{row.progressPercent}%</span></div></td>
+            {onClaim && material && <td><Button onClick={() => onClaim(material, !mine)} size="default" variant={mine ? "outline" : "primary"}>{mine ? copy.unclaimMaterial : copy.claimMaterial}</Button></td>}
+          </tr>;
+        })}</tbody>
+      </DataTable>
+      {rows.length > MATERIAL_PAGE_SIZE && (
+        <nav aria-label={copy.pagination} className="table-pagination">
+          <Button disabled={current === 0} onClick={() => setPage(current - 1)} size="default" variant="outline">{copy.previousPage}</Button>
+          <span>{copy.pageOf.replace("{page}", String(current + 1)).replace("{total}", String(pageCount))}</span>
+          <Button disabled={current === pageCount - 1} onClick={() => setPage(current + 1)} size="default" variant="outline">{copy.nextPage}</Button>
+        </nav>
+      )}
+    </>
   );
 }
 
@@ -550,6 +640,7 @@ function ProjectMaterials({ api, copy, id, language, session }: PageProps & { id
   const [rows, setRows] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [sort, setSort] = useState("missing");
   const [toast, setToast] = useState<string | null>(null);
   const load = useCallback((signal: AbortSignal) => api.materials(id, signal), [api, id]);
   const receive = useCallback((value: Material[]) => { setRows(value); setLoading(false); setError(""); }, []);
@@ -575,7 +666,23 @@ function ProjectMaterials({ api, copy, id, language, session }: PageProps & { id
   }
   const hasOwnClaims = rows.some((row) =>
     row.claimants.some((player) => player.id === session.playerId));
-  return <section className="tab-section">{loading ? <Skeleton label={copy.loadingMaterials} /> : error ? <ErrorState error={error} label={copy.tryAgain} onRetry={() => void load(new AbortController().signal).then(receive).catch(fail)} /> : rows.length ? <><div className="tab-actions">{hasOwnClaims && <Button onClick={() => void releaseAll()} size="default" variant="outline">{copy.unclaimAllMaterials}</Button>}</div><MaterialTable copy={copy} language={language} onClaim={(row, value) => void claim(row, value)} rows={rows} session={session} /></> : <EmptyState icon={<ListChecks />} title={copy.noMaterials} />}<Toast message={toast} /></section>;
+  const visible = [...rows].sort((a, b) => sort === "name"
+    ? materialName(a, language).localeCompare(materialName(b, language), language === "zh" ? "zh-CN" : "en")
+    : b.missing - a.missing);
+  return <section className="tab-section">
+    {loading ? <Skeleton label={copy.loadingMaterials} /> : error ? <ErrorState error={error} label={copy.tryAgain} onRetry={() => void load(new AbortController().signal).then(receive).catch(fail)} /> : rows.length ? <>
+      <div className="tab-actions">
+        {hasOwnClaims && <Button onClick={() => void releaseAll()} size="default" variant="outline">{copy.unclaimAllMaterials}</Button>}
+        <label className="sr-only" htmlFor="material-sort">{copy.sortMaterials}</label>
+        <select aria-label={copy.sortMaterials} id="material-sort" onChange={(event) => setSort(event.target.value)} value={sort}>
+          <option value="missing">{copy.mostMissing}</option>
+          <option value="name">{copy.name}</option>
+        </select>
+      </div>
+      <MaterialTable copy={copy} key={sort} language={language} onClaim={(row, value) => void claim(row, value)} rows={visible} session={session} />
+    </> : <EmptyState icon={<ListChecks />} title={copy.noMaterials} />}
+    <Toast message={toast} />
+  </section>;
 }
 
 type AreaDraft = Omit<StockingArea, "volume">;

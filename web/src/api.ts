@@ -113,7 +113,7 @@ const messages: Record<string, Record<Language, string>> = {
   region_not_found: { en: "This build region no longer exists.", zh: "该建造区域已不存在。" },
   request_too_large: { en: "The submitted data is too large.", zh: "提交的数据过大。" },
   server_timeout: { en: "The server did not respond in time.", zh: "服务器未及时响应。" },
-  stocking_area_not_found: { en: "No stocking area is configured.", zh: "尚未配置库存区。" },
+  stocking_area_not_found: { en: "No stocking area is configured.", zh: "尚未配置备货区。" },
   stocking_area_too_large: { en: "The stocking area is too large.", zh: "库存区范围过大。" },
   unauthorized: { en: "Please sign in to continue.", zh: "请登录后继续。" },
 };

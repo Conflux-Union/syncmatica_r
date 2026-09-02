@@ -69,6 +69,13 @@ function renderApp(path = "/") {
   );
 }
 
+function bodyRowNames() {
+  return screen
+    .getAllByRole("row")
+    .slice(1)
+    .map((row) => row.querySelector("strong")?.textContent ?? "");
+}
+
 describe("App authentication", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
@@ -186,6 +193,7 @@ describe("App project views", () => {
       "fetch",
       routeFetch({
         "/api/v1/auth/session": session,
+        "/api/v1/projects": [],
         "/api/v1/materials/summary": [
           {
             itemId: "minecraft:stone",
@@ -339,7 +347,7 @@ describe("App project views", () => {
     await user.click(screen.getByRole("button", { name: "切换到中文" }));
     expect(screen.getByText("主世界 · 10, 64, 20")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("tab", { name: "库存区" }));
+    await user.click(screen.getByRole("tab", { name: "备货区" }));
     expect(await screen.findByLabelText("维度 · 主世界")).toHaveValue("minecraft:overworld");
   });
 
@@ -403,10 +411,201 @@ describe("App project views", () => {
   });
 });
 
+describe("App material views", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("sorts project materials by name or missing amount", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        "/api/v1/auth/session": session,
+        "/api/v1/projects/project-1": detail,
+        "/api/v1/projects/project-1/materials": [
+          {
+            itemId: "minecraft:stone",
+            translationKey: "block.minecraft.stone",
+            fallbackName: "Stone",
+            variant: "",
+            required: 100,
+            supplied: 20,
+            missing: 80,
+            progressPercent: 20,
+            claimants: [],
+          },
+          {
+            itemId: "minecraft:oak_planks",
+            translationKey: "block.minecraft.oak_planks",
+            fallbackName: "Oak Planks",
+            variant: "",
+            required: 5,
+            supplied: 2,
+            missing: 3,
+            progressPercent: 40,
+            claimants: [],
+          },
+        ],
+      }),
+    );
+    renderApp("/projects/project-1");
+
+    await screen.findByText("Stone");
+    expect(bodyRowNames()).toEqual(["Stone", "Oak Planks"]);
+
+    await user.selectOptions(screen.getByLabelText("Sort materials"), "name");
+    expect(bodyRowNames()).toEqual(["Oak Planks", "Stone"]);
+  });
+
+  it("paginates long material lists", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        "/api/v1/auth/session": session,
+        "/api/v1/projects": [],
+        "/api/v1/materials/summary": Array.from({ length: 25 }, (_, index) => ({
+          itemId: `custom:item-${index}`,
+          translationKey: "custom.missing_block",
+          fallbackName: `Item ${index}`,
+          variant: "",
+          required: 30,
+          supplied: 5,
+          missing: 25 - index,
+          progressPercent: 20,
+        })),
+      }),
+    );
+    renderApp("/materials");
+
+    await screen.findByText("Item 0");
+    expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
+    expect(screen.getAllByRole("row")).toHaveLength(21);
+    expect(screen.queryByText("Item 20")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await screen.findByText("Item 20");
+    expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
+    expect(screen.getAllByRole("row")).toHaveLength(6);
+    expect(screen.queryByText("Item 0")).not.toBeInTheDocument();
+  });
+
+  it("filters the summary to a single project's stocking area", async () => {
+    const user = userEvent.setup();
+    const fetcher = routeFetch({
+      "/api/v1/auth/session": session,
+      "/api/v1/projects": [project],
+      "/api/v1/materials/summary": [
+        {
+          itemId: "minecraft:stone",
+          translationKey: "block.minecraft.stone",
+          fallbackName: "Stone",
+          variant: "",
+          required: 10,
+          supplied: 2,
+          missing: 8,
+          progressPercent: 20,
+        },
+      ],
+      "/api/v1/projects/project-1/materials": [
+        {
+          itemId: "minecraft:oak_planks",
+          translationKey: "block.minecraft.oak_planks",
+          fallbackName: "Oak Planks",
+          variant: "",
+          required: 50,
+          supplied: 10,
+          missing: 40,
+          progressPercent: 20,
+          claimants: [],
+        },
+      ],
+    });
+    vi.stubGlobal("fetch", fetcher);
+    renderApp("/materials");
+
+    await screen.findByText("Stone");
+    expect(
+      screen.getByRole("option", { name: "All stocking areas" }),
+    ).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("Stocking area"), "project-1");
+    expect(await screen.findByText("Oak Planks")).toBeInTheDocument();
+    expect(screen.queryByText("Stone")).not.toBeInTheDocument();
+    expect(fetcher).toHaveBeenCalledWith(
+      "/api/v1/projects/project-1/materials",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("shows box/stack/item quantities with the raw amount on hover", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        "/api/v1/auth/session": session,
+        "/api/v1/projects": [],
+        "/api/v1/materials/summary": [
+          {
+            itemId: "minecraft:stone",
+            translationKey: "block.minecraft.stone",
+            fallbackName: "Stone",
+            variant: "",
+            required: 5_000,
+            supplied: 64,
+            missing: 4_436,
+            progressPercent: 1,
+          },
+        ],
+      }),
+    );
+    renderApp("/materials");
+
+    expect(await screen.findByText("2 boxes, 24 stacks, 8 items")).toBeInTheDocument();
+    expect(screen.getByText("1 stack")).toBeInTheDocument();
+    expect(screen.getByText("2 boxes, 15 stacks, 20 items")).toBeInTheDocument();
+    expect(document.querySelector('[data-tooltip="5,000"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-tooltip="64"]')).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "切换到中文" }));
+    expect(screen.getByText("2盒24组8个")).toBeInTheDocument();
+    expect(screen.getByText("1组")).toBeInTheDocument();
+  });
+});
+
 describe("App preferences and polling", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it("shows the mod logo and the Revolution brand", async () => {
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        "/api/v1/auth/session": session,
+        "/api/v1/projects": [],
+      }),
+    );
+    const { container } = renderApp();
+    await screen.findByText("No projects yet");
+
+    expect(screen.getByText("Syncmatica Revolution")).toBeInTheDocument();
+    expect(screen.queryByText("Server workspace")).not.toBeInTheDocument();
+    expect(container.querySelector("img.brand-logo")).toBeInTheDocument();
+  });
+
+  it("starts in the browser language", () => {
+    Object.defineProperty(window.navigator, "language", {
+      configurable: true,
+      value: "zh-CN",
+    });
+    vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise(() => {})));
+    renderApp();
+    Reflect.deleteProperty(window.navigator, "language");
+
+    expect(screen.getByLabelText("正在加载会话")).toBeInTheDocument();
   });
 
   it("switches language and theme", async () => {

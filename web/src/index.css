@@ -2,33 +2,33 @@
 
 :root {
   color-scheme: light;
-  --background: #f4f7f6;
-  --foreground: #17201d;
+  --background: #f4f6f9;
+  --foreground: #171d26;
   --surface: #ffffff;
-  --surface-raised: #fbfdfc;
-  --muted: #e8efec;
-  --muted-foreground: #66746f;
-  --border: #d9e2de;
-  --accent: #16755a;
+  --surface-raised: #fbfcfe;
+  --muted: #e7edf5;
+  --muted-foreground: #64748b;
+  --border: #d8e0ec;
+  --accent: #1971c2;
   --accent-foreground: #ffffff;
   --danger: #b42318;
-  --ring: #168767;
+  --ring: #228be6;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --background: #101614;
-  --foreground: #edf5f1;
-  --surface: #18201e;
-  --surface-raised: #1d2724;
-  --muted: #27332f;
-  --muted-foreground: #a9b9b2;
-  --border: #34423d;
-  --accent: #63d7ae;
-  --accent-foreground: #09271e;
+  --background: #0f141b;
+  --foreground: #edf2f9;
+  --surface: #171e27;
+  --surface-raised: #1c2530;
+  --muted: #26313e;
+  --muted-foreground: #a6b4c4;
+  --border: #333f4e;
+  --accent: #4dabf7;
+  --accent-foreground: #0a2540;
   --danger: #ff8a80;
-  --ring: #72e6bd;
+  --ring: #74c0fc;
 }
 
 @theme inline {
@@ -89,14 +89,26 @@ a { color: inherit; }
   text-decoration: none;
 }
 
-.brand-mark, .login-logo, .card-icon, .empty-icon {
+.login-logo, .card-icon, .empty-icon {
   display: grid;
   place-items: center;
   background: var(--accent);
   color: var(--accent-foreground);
 }
 
-.brand-mark { width: 2.25rem; height: 2.25rem; border-radius: 0.7rem; font-weight: 800; }
+/* The mod logo is a dark drawing on transparency, so it needs a light tile to
+   stay visible in both themes. */
+.brand-logo {
+  display: block;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  background: #ffffff;
+  object-fit: contain;
+  padding: 0.2rem;
+}
+
 .brand strong, .brand small { display: block; }
 .brand strong { letter-spacing: -0.015em; }
 .brand small { margin-top: 0.1rem; color: var(--muted-foreground); font-size: 0.72rem; }
@@ -206,6 +218,8 @@ input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible
 .error-state p { margin: 0; color: var(--danger); }
 
 .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 0.9rem; background: var(--surface); }
+.table-pagination { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.75rem; }
+.table-pagination span { color: var(--muted-foreground); font-size: 0.86rem; }
 table { width: 100%; min-width: 46rem; border-collapse: collapse; }
 th, td { padding: 0.9rem 1rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
 th { background: var(--surface-raised); color: var(--muted-foreground); font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase; }
@@ -213,6 +227,26 @@ tbody tr:last-child td { border-bottom: 0; }
 td { font-size: 0.9rem; }
 td strong, td small { display: block; }
 td small { max-width: 24rem; margin-top: 0.25rem; color: var(--muted-foreground); overflow-wrap: anywhere; }
+.quantity { position: relative; border-bottom: 1px dotted var(--muted-foreground); cursor: help; }
+.quantity::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 0.35rem);
+  left: 50%;
+  z-index: 30;
+  border-radius: 0.45rem;
+  background: var(--foreground);
+  color: var(--background);
+  padding: 0.3rem 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(-50%) scale(0.9);
+  pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+.quantity:hover::after { opacity: 1; transform: translateX(-50%) scale(1); }
 .progress-cell { display: flex; min-width: 9rem; align-items: center; gap: 0.6rem; }
 .progress { width: 7rem; height: 0.45rem; overflow: hidden; border-radius: 999px; background: var(--muted); }
 .progress span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width 180ms ease; }
@@ -227,6 +261,7 @@ td small { max-width: 24rem; margin-top: 0.25rem; color: var(--muted-foreground)
 .tabs button { min-height: 44px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted-foreground); padding: 0.7rem 1rem; white-space: nowrap; }
 .tabs button.active { border-bottom-color: var(--accent); color: var(--accent); font-weight: 650; }
 .tab-section { padding-top: 1.25rem; }
+.tab-actions { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1.25rem; }
 
 .coordinate-form { max-width: 46rem; }
 .coordinate-form label, .form label { display: grid; gap: 0.4rem; color: var(--muted-foreground); font-size: 0.8rem; font-weight: 600; }
@@ -277,7 +312,7 @@ td small { max-width: 24rem; margin-top: 0.25rem; color: var(--muted-foreground)
 
 @media (max-width: 30rem) {
   .brand small { display: none; }
-  .toolbar { align-items: stretch; flex-direction: column; }
+  .toolbar, .tab-actions { align-items: stretch; flex-direction: column; }
   .search-field, select { width: 100%; }
   .page-heading { margin-bottom: 1.5rem; }
   .page-heading h1 { font-size: 2.2rem; }
@@ -292,5 +327,6 @@ td small { max-width: 24rem; margin-top: 0.25rem; color: var(--muted-foreground)
   .progress span {
     transition: none;
   }
+  .quantity::after { transition: none; }
   .skeleton-stack span { animation: none; }
 }
