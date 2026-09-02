@@ -18,6 +18,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -56,6 +57,30 @@ final class WebCredentialStoreTest {
         assertEquals(Optional.of(player), store.authenticate("aLiCe", "secret".toCharArray()));
         assertEquals(Optional.empty(), store.authenticate("Alice", "wrong".toCharArray()));
         assertEquals(Optional.empty(), store.authenticate("OldName", "secret".toCharArray()));
+    }
+
+    @Test
+    void unknownNamesPerformOneDummyDerivationWithoutPersistingDummyCredential()
+            throws Exception {
+        final Path file = temporaryDirectory.resolve("web-credentials.json");
+        final AtomicInteger derivations = new AtomicInteger();
+        final WebPasswordHasher countingHasher =
+                new WebPasswordHasher(1_000, new java.security.SecureRandom(),
+                        derivations::incrementAndGet);
+        final WebCredentialStore store = new WebCredentialStore(file, countingHasher);
+
+        assertEquals(Optional.empty(),
+                store.authenticate("Unknown", "wrong".toCharArray()));
+
+        assertEquals(1, derivations.get());
+        assertFalse(Files.exists(file), "the in-process dummy record must not be persisted");
+
+        store.set(UUID.randomUUID(), "Alice", "secret".toCharArray());
+        derivations.set(0);
+        assertEquals(Optional.empty(),
+                store.authenticate("Alice", "wrong".toCharArray()));
+        assertEquals(1, derivations.get(),
+                "unknown and known-invalid names must each perform one derivation");
     }
 
     @Test

@@ -14,6 +14,7 @@ import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
 import cn.net.rms.syncmatica_r.communication.exchange.Exchange;
 import com.google.gson.JsonObject;
 import io.netty.buffer.Unpooled;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -107,6 +108,30 @@ final class ServiceConfigRegistryTest {
             assertTrue(loaded.has("build"));
             assertTrue(loaded.has("debug"));
             assertEquals(loaded, context.getConfigStore().snapshot());
+        } finally {
+            context.shutdown();
+        }
+    }
+
+    @Test
+    void malformedExistingServiceValuesAreRewrittenWithoutBreakingValidValues()
+            throws Exception {
+        final Path root = tempDir.resolve("strict");
+        final Path folder = root.resolve(cn.net.rms.syncmatica_r.Syncmatica.MOD_ID);
+        Files.createDirectories(folder);
+        Files.writeString(folder.resolve("config.json"),
+                "{\"quota\":{\"enabled\":\"true\",\"limit\":1.5},"
+                        + "\"materials\":{\"enabled\":false},"
+                        + "\"build\":{\"enabled\":\"false\"}}");
+
+        final Context context = newContext(true, "strict");
+        try {
+            final JsonObject loaded = context.getLoadedConfiguration();
+            assertFalse(loaded.getAsJsonObject("quota").get("enabled").getAsBoolean());
+            assertEquals(40_000_000,
+                    loaded.getAsJsonObject("quota").get("limit").getAsInt());
+            assertFalse(context.getMaterialService().isEnabled());
+            assertTrue(loaded.getAsJsonObject("build").get("enabled").getAsBoolean());
         } finally {
             context.shutdown();
         }

@@ -125,6 +125,7 @@ dependencies {
         exclude group: "io.netty"
         exclude group: "org.apache.logging.log4j"
     }
+    testImplementation "io.undertow:undertow-core:${undertowVersion}"
     shadowInclude ("io.undertow:undertow-core:${undertowVersion}") {
         exclude group: "io.netty"
         exclude group: "org.apache.logging.log4j"

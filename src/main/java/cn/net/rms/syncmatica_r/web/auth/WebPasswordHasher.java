@@ -19,6 +19,7 @@ public final class WebPasswordHasher {
 
     private final int iterations;
     private final SecureRandom random;
+    private final Runnable derivationHook;
 
     public WebPasswordHasher() {
         this(DEFAULT_ITERATIONS);
@@ -29,11 +30,20 @@ public final class WebPasswordHasher {
     }
 
     WebPasswordHasher(final int iterations, final SecureRandom random) {
+        this(iterations, random, () -> { });
+    }
+
+    WebPasswordHasher(
+            final int iterations,
+            final SecureRandom random,
+            final Runnable derivationHook
+    ) {
         if (iterations <= 0 || iterations > MAX_ACCEPTED_ITERATIONS) {
             throw new IllegalArgumentException("Invalid PBKDF2 iteration count");
         }
         this.iterations = iterations;
         this.random = Objects.requireNonNull(random, "random");
+        this.derivationHook = Objects.requireNonNull(derivationHook, "derivationHook");
     }
 
     /**
@@ -84,7 +94,16 @@ public final class WebPasswordHasher {
         }
     }
 
-    private static byte[] derive(final char[] password, final byte[] salt, final int iterations) {
+    PasswordRecord dummyRecord() {
+        return new PasswordRecord(
+                CURRENT_VERSION,
+                iterations,
+                Base64.getEncoder().encodeToString(new byte[SALT_BYTES]),
+                Base64.getEncoder().encodeToString(new byte[HASH_BITS / Byte.SIZE]));
+    }
+
+    private byte[] derive(final char[] password, final byte[] salt, final int iterations) {
+        derivationHook.run();
         final PBEKeySpec specification = new PBEKeySpec(password, salt, iterations, HASH_BITS);
         try {
             return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")

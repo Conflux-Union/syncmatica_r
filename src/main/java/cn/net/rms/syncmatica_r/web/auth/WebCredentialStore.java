@@ -27,6 +27,7 @@ public final class WebCredentialStore {
 
     private final Path credentialFile;
     private final WebPasswordHasher hasher;
+    private final WebPasswordHasher.PasswordRecord dummyPassword;
     private final AtomicFileMover atomicFileMover;
     private Map<UUID, Credential> credentials;
     private boolean writesBlocked;
@@ -52,6 +53,7 @@ public final class WebCredentialStore {
         this.credentialFile = Objects.requireNonNull(credentialFile, "credentialFile")
                 .toAbsolutePath();
         this.hasher = Objects.requireNonNull(hasher, "hasher");
+        dummyPassword = hasher.dummyRecord();
         this.atomicFileMover = Objects.requireNonNull(atomicFileMover, "atomicFileMover");
         final LoadResult loaded = load();
         credentials = loaded.credentials;
@@ -120,6 +122,7 @@ public final class WebCredentialStore {
             Objects.requireNonNull(currentName, "currentName");
             final Credential credential = findByName(currentName);
             if (credential == null) {
+                hasher.verify(password, dummyPassword);
                 return Optional.empty();
             }
             return hasher.verify(password, credential.passwordRecord)

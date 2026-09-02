@@ -20,13 +20,15 @@ public class MixinMinecraftServer {
     @Inject(method = "startServer", at = @At("RETURN"))
     private static <S extends MinecraftServer> void initSyncmatica(final Function<Thread, S> serverFactory, final CallbackInfoReturnable<S> ci) {
         final MinecraftServer returnValue = ci.getReturnValue();
-        Syncmatica.initServer(
+        final Context context = Syncmatica.initServer(
                 new ServerCommunicationManager(),
                 new FileStorage(),
                 new SyncmaticManager(),
                 !returnValue.isDedicated(),
                 returnValue.getSavePath(WorldSavePath.ROOT).toFile()
-        ).startup();
+        );
+        context.attachMinecraftServer(returnValue);
+        context.startup();
     }
 
     @Inject(method = "shutdown", at = @At("TAIL"))

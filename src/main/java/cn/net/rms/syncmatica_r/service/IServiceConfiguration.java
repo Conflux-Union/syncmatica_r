@@ -12,4 +12,21 @@ public interface IServiceConfiguration {
     void loadInteger(String key, IntConsumer loader);
 
     void saveInteger(String key, Integer value);
+
+    default void loadString(final String key, final Consumer<String> loader) {
+    }
+
+    default void saveString(final String key, final String value) {
+    }
+
+    default void replaceInteger(final String key, final Integer value) {
+        saveInteger(key, value);
+    }
+
+    default void replaceString(final String key, final String value) {
+        saveString(key, value);
+    }
+
+    default void reportError() {
+    }
 }

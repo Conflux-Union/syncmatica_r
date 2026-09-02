@@ -8,6 +8,7 @@ import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifierProvider;
 import cn.net.rms.syncmatica_r.service.*;
 import cn.net.rms.syncmatica_r.service.IServiceConfiguration;
 import cn.net.rms.syncmatica_r.util.VersionComparator;
+import cn.net.rms.syncmatica_r.web.WebService;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -15,6 +16,7 @@ import com.google.gson.JsonObject;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.Arrays;
+import net.minecraft.server.MinecraftServer;
 
 public class Context {
 
@@ -30,11 +32,19 @@ public class Context {
     private final PlayerIdentifierProvider playerIdentifierProvider;
     private final MaterialService materialService;
     private final BuildService buildService;
+    private final WebService webService;
+    private MinecraftServer minecraftServer;
     private ConfigRegistry configRegistry;
     private ConfigStore configStore;
     private JsonObject loadedConfiguration;
     private FeatureSet fs = null;
     private boolean isStarted = false;
+    private boolean quotaStarted;
+    private boolean materialStarted;
+    private boolean buildStarted;
+    private boolean debugStarted;
+    private boolean managerStarted;
+    private boolean webStarted;
 
     public Context(
             final IFileStorage fs,
@@ -68,10 +78,13 @@ public class Context {
             materialService.setContext(this);
             buildService = new BuildService();
             buildService.setContext(this);
+            webService = new WebService();
+            webService.setContext(this);
         } else {
             quota = null;
             materialService = null;
             buildService = null;
+            webService = null;
         }
         playerIdentifierProvider = new PlayerIdentifierProvider(this);
         debugService = new DebugService();
@@ -110,6 +123,24 @@ public class Context {
 
     public BuildService getBuildService() {
         return buildService;
+    }
+
+    public WebService getWebService() {
+        return webService;
+    }
+
+    public MinecraftServer getMinecraftServer() {
+        return minecraftServer;
+    }
+
+    public void attachMinecraftServer(final MinecraftServer minecraftServer) {
+        if (!server) {
+            throw new IllegalStateException("A client context cannot own a Minecraft server");
+        }
+        if (this.minecraftServer != null && this.minecraftServer != minecraftServer) {
+            throw new IllegalStateException("Minecraft server is already attached");
+        }
+        this.minecraftServer = minecraftServer;
     }
 
     public long getMaxTransferBytes() {
@@ -186,14 +217,39 @@ public class Context {
     }
 
     public void startup() {
-        startupServices();
-        isStarted = true;
-        synMan.startup();
+        if (isStarted) {
+            return;
+        }
+        try {
+            if (quota != null) {
+                quota.startup();
+                quotaStarted = true;
+            }
+            if (materialService != null) {
+                materialService.startup();
+                materialStarted = true;
+            }
+            if (buildService != null) {
+                buildService.startup();
+                buildStarted = true;
+            }
+            debugService.startup();
+            debugStarted = true;
+            synMan.startup();
+            managerStarted = true;
+            if (webService != null) {
+                webService.startup();
+                webStarted = true;
+            }
+            isStarted = true;
+        } catch (final RuntimeException | Error failure) {
+            rollbackStartup(failure);
+            throw failure;
+        }
     }
 
     public void shutdown() {
-        synMan.shutdown();
-        shutdownServices();
+        stopStartedServices(null);
         playerIdentifierProvider.clear();
         isStarted = false;
     }
@@ -268,6 +324,9 @@ public class Context {
             }
             if (buildService != null) {
                 needsRewrite |= loadConfigurationForService(buildService, configuration, attemptToLoad);
+            }
+            if (webService != null) {
+                needsRewrite |= loadConfigurationForService(webService, configuration, attemptToLoad);
             }
         }
         needsRewrite |= loadConfigurationForService(debugService, configuration, attemptToLoad);
@@ -394,30 +453,48 @@ public class Context {
         return needsRewrite;
     }
 
-    private void startupServices() {
-        if (quota != null) {
-            quota.startup();
-        }
-        if (materialService != null) {
-            materialService.startup();
-        }
-        if (buildService != null) {
-            buildService.startup();
-        }
-        debugService.startup();
+    private void rollbackStartup(final Throwable failure) {
+        stopStartedServices(failure);
+        playerIdentifierProvider.clear();
+        isStarted = false;
     }
 
-    private void shutdownServices() {
-        if (quota != null) {
-            quota.shutdown();
+    private void stopStartedServices(final Throwable startupFailure) {
+        if (webStarted) {
+            stop(webService::shutdown, startupFailure);
+            webStarted = false;
         }
-        if (materialService != null) {
-            materialService.shutdown();
+        if (managerStarted) {
+            stop(synMan::shutdown, startupFailure);
+            managerStarted = false;
         }
-        if (buildService != null) {
-            buildService.shutdown();
+        if (debugStarted) {
+            stop(debugService::shutdown, startupFailure);
+            debugStarted = false;
         }
-        debugService.shutdown();
+        if (buildStarted) {
+            stop(buildService::shutdown, startupFailure);
+            buildStarted = false;
+        }
+        if (materialStarted) {
+            stop(materialService::shutdown, startupFailure);
+            materialStarted = false;
+        }
+        if (quotaStarted) {
+            stop(quota::shutdown, startupFailure);
+            quotaStarted = false;
+        }
+    }
+
+    private static void stop(final Runnable operation, final Throwable startupFailure) {
+        try {
+            operation.run();
+        } catch (final RuntimeException | Error shutdownFailure) {
+            if (startupFailure == null) {
+                throw shutdownFailure;
+            }
+            startupFailure.addSuppressed(shutdownFailure);
+        }
     }
 
     public static class DuplicateContextAssignmentException extends RuntimeException {
