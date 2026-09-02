@@ -106,6 +106,13 @@ public class MaterialService extends AbstractService {
         DISABLED
     }
 
+    public enum ReleaseClaimsOutcome {
+        RELEASED,
+        ALREADY_RELEASED,
+        UNKNOWN_PLACEMENT,
+        DISABLED
+    }
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -149,6 +156,30 @@ public class MaterialService extends AbstractService {
     public ClaimOutcome toggleClaim(final ServerPlacement placement, final MaterialKey key,
                                     final PlayerIdentifier player) {
         return setClaim(placement, key, player, !isClaimedBy(placement, key, player));
+    }
+
+    public ReleaseClaimsOutcome releaseClaims(final ServerPlacement placement,
+                                              final PlayerIdentifier player) {
+        if (!enabled) {
+            return ReleaseClaimsOutcome.DISABLED;
+        }
+        if (placement == null || player == null) {
+            return ReleaseClaimsOutcome.UNKNOWN_PLACEMENT;
+        }
+        boolean changed = false;
+        for (final MaterialProgressEntry entry : placement.getMaterialProgress().getEntries()) {
+            if (entry.hasClaimer(player)) {
+                entry.removeClaimer(player);
+                changed = true;
+            }
+        }
+        if (!changed) {
+            return ReleaseClaimsOutcome.ALREADY_RELEASED;
+        }
+        placement.setLastModifiedBy(player);
+        placement.touchModified(System.currentTimeMillis());
+        persistAndBroadcast(placement);
+        return ReleaseClaimsOutcome.RELEASED;
     }
 
     public boolean isClaimedBy(final ServerPlacement placement, final MaterialKey key,

@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
@@ -56,6 +55,8 @@ public final class WebRouter {
             Pattern.compile("^/api/v1/projects/([^/]+)/materials$");
     private static final Pattern MATERIAL_CLAIM =
             Pattern.compile("^/api/v1/projects/([^/]+)/materials/([^/]+)/claim$");
+    private static final Pattern MATERIAL_CLAIMS =
+            Pattern.compile("^/api/v1/projects/([^/]+)/material-claims/me$");
     private static final Pattern STOCKING =
             Pattern.compile("^/api/v1/projects/([^/]+)/stocking-area$");
     private static final Pattern BUILD_REGIONS =
@@ -316,6 +317,32 @@ public final class WebRouter {
             }
             return;
         }
+        matcher = MATERIAL_CLAIMS.matcher(path);
+        if (matcher.matches()) {
+            if (!"DELETE".equals(method)) {
+                methodNotAllowed(exchange, "DELETE");
+                return;
+            }
+            if (!requireCsrf(exchange, identity)) {
+                return;
+            }
+            if (!permission(identity.playerId, PlacementAccessPolicy.CLAIM_PERMISSION, true)) {
+                error(exchange, StatusCodes.FORBIDDEN, "permission_denied", "Permission denied");
+                return;
+            }
+            final UUID placementId = uuid(matcher.group(1));
+            final ProjectOperation<MaterialService.ReleaseClaimsOutcome> operation = game(() -> {
+                if (facade.getProject(placementId).isEmpty()) {
+                    return ProjectOperation.missing();
+                }
+                return ProjectOperation.found(
+                        facade.releaseMaterialClaims(placementId, identity.player()));
+            });
+            if (requireProject(exchange, operation)) {
+                releaseClaimsOutcome(exchange, operation.value);
+            }
+            return;
+        }
         matcher = STOCKING.matcher(path);
         if (matcher.matches()) {
             final UUID placementId = uuid(matcher.group(1));
@@ -494,7 +521,7 @@ public final class WebRouter {
         return false;
     }
 
-    private static boolean requireSameOrigin(final HttpServerExchange exchange) {
+    private boolean requireSameOrigin(final HttpServerExchange exchange) {
         final String fetchSite = exchange.getRequestHeaders().getFirst("Sec-Fetch-Site");
         if (fetchSite != null && !"same-origin".equalsIgnoreCase(fetchSite)) {
             error(exchange, StatusCodes.FORBIDDEN,
@@ -505,7 +532,7 @@ public final class WebRouter {
         if (origin == null) {
             return true;
         }
-        final String expected = exchange.getRequestScheme() + "://"
+        final String expected = originScheme(secureCookie, exchange.getRequestScheme()) + "://"
                 + exchange.getRequestHeaders().getFirst(Headers.HOST);
         if (stripTrailingSlash(origin).equalsIgnoreCase(expected)) {
             return true;
@@ -519,6 +546,10 @@ public final class WebRouter {
         return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
     }
 
+    static String originScheme(final boolean secureCookie, final String requestScheme) {
+        return secureCookie ? "https" : requestScheme;
+    }
+
     private void materialOutcome(final HttpServerExchange exchange,
                                  final MaterialService.ClaimOutcome outcome) {
         switch (outcome) {
@@ -528,6 +559,20 @@ public final class WebRouter {
                     error(exchange, StatusCodes.CONFLICT, "claim_conflict", "Already claimed");
             case UNKNOWN_MATERIAL ->
                     error(exchange, StatusCodes.NOT_FOUND, "material_not_found", "Material not found");
+            case DISABLED ->
+                    error(exchange, StatusCodes.CONFLICT, "feature_disabled", "Feature disabled");
+        }
+    }
+
+    private void releaseClaimsOutcome(
+            final HttpServerExchange exchange,
+            final MaterialService.ReleaseClaimsOutcome outcome
+    ) {
+        switch (outcome) {
+            case RELEASED, ALREADY_RELEASED ->
+                    json(exchange, StatusCodes.OK, Map.of("outcome", outcome.name().toLowerCase()));
+            case UNKNOWN_PLACEMENT ->
+                    error(exchange, StatusCodes.NOT_FOUND, "project_not_found", "Project not found");
             case DISABLED ->
                     error(exchange, StatusCodes.CONFLICT, "feature_disabled", "Feature disabled");
         }
@@ -662,6 +707,7 @@ public final class WebRouter {
                 || PROJECT.matcher(path).matches()
                 || MATERIALS.matcher(path).matches()
                 || MATERIAL_CLAIM.matcher(path).matches()
+                || MATERIAL_CLAIMS.matcher(path).matches()
                 || STOCKING.matcher(path).matches()
                 || BUILD_REGIONS.matcher(path).matches()
                 || BUILD_CLAIM.matcher(path).matches();
@@ -741,7 +787,7 @@ public final class WebRouter {
     }
 
     private static String decode(final String value) {
-        return URLDecoder.decode(value, StandardCharsets.UTF_8);
+        return value;
     }
 
     private static String requiredString(final JsonObject body, final String key, final int maximum) {
@@ -756,10 +802,16 @@ public final class WebRouter {
     }
 
     private static int requiredInt(final JsonObject body, final String key) {
-        if (!body.has(key) || !body.get(key).isJsonPrimitive()) {
+        if (!body.has(key)
+                || !body.get(key).isJsonPrimitive()
+                || !body.getAsJsonPrimitive(key).isNumber()) {
             throw new IllegalArgumentException("Missing " + key);
         }
-        return body.get(key).getAsInt();
+        try {
+            return body.getAsJsonPrimitive(key).getAsBigDecimal().intValueExact();
+        } catch (final ArithmeticException | NumberFormatException exception) {
+            throw new IllegalArgumentException("Invalid " + key, exception);
+        }
     }
 
     private static void methodNotAllowed(final HttpServerExchange exchange, final String allow) {

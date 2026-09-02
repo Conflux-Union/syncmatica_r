@@ -117,6 +117,7 @@ public class ClientCommunicationManager extends CommunicationManager {
             LitematicManager.clear();
             Syncmatica.restartClient();
             ActorClientPlayNetworkHandler.getInstance().packetEvent(id, packetBuf);
+            return;
         }
     }
 

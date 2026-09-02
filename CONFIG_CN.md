@@ -56,13 +56,22 @@ Syncmatica_r 的所有运行配置都保存在单一的 `config.json` 文件中�
     "scan_interval": 1200,
     "full_rescan_interval": 36000
   },
+  "web": {
+    "enabled": false,
+    "bind_address": "127.0.0.1",
+    "port": 8080,
+    "session_hours": 24,
+    "secure_cookie": false,
+    "max_request_bytes": 65536,
+    "request_timeout_seconds": 10
+  },
   "debug": {
     "doPackageLogging": false
   }
 }
 ```
 
-如果你是客户端用户，可以放心删除 `quota`、`materials` 和 `build` 模块。将来如果开启服务器，系统会自动重新生成这些配置；根级的更新检查开关只在客户端生效，服务器会忽略它们。
+如果你是客户端用户，可以放心删除 `quota`、`materials`、`build` 和 `web` 模块。将来如果开启服务器，系统会自动重新生成这些配置；根级的更新检查开关只在客户端生效，服务器会忽略它们。
 
 ## `quota` — 上传流量控制（服务器）
 
@@ -140,6 +149,36 @@ Syncmatica_r 的所有运行配置都保存在单一的 `config.json` 文件中�
   - Litematica 子区域可见性跟随认领，对应 `General.followClaims`，默认关闭。打开后，认领一个区域会打开对应子区域，
     取消认领或把它建完都会关掉它；别人认领的区域和无人认领的区域完全不动，保持玩家自己设的状态
 - 修改这些配置必须重启服务器才能生效
+
+## `web` — 可选网页界面（服务器）
+
+网页服务默认关闭。修改本模块后请重启服务器。
+
+| 配置项                    | 默认值        | 有效范围 | 作用 |
+|---------------------------|---------------|----------|------|
+| enabled                   | `false`       | `true` / `false` | 服务器启动时是否启动网页服务。 |
+| bind_address              | `127.0.0.1`   | 非空且可解析的主机名或 IP 地址 | HTTP 监听地址。 |
+| port                      | `8080`        | `1`–`65,535` | HTTP 监听端口。 |
+| session_hours             | `24`          | `1`–`8,760` 小时 | 浏览器会话有效期。 |
+| secure_cookie             | `false`       | `true` / `false` | 为会话 Cookie 添加 `Secure` 标记；用户通过 HTTPS 访问时应开启。 |
+| max_request_bytes         | `65536`       | `1,024`–`1,048,576` 字节 | 接受的 JSON 请求体大小上限。 |
+| request_timeout_seconds   | `10`          | `1`–`120` 秒 | 登录校验和 Minecraft 服务端操作的超时时间。 |
+
+使用反向代理时建议保留默认的 `127.0.0.1`，由反向代理提供 HTTPS，并让浏览器始终通过同一来源访问；
+同时把 `secure_cookie` 设为 `true`。只有明确需要其他主机直接访问时才修改 `bind_address`，`port` 用于选择
+监听端口。
+
+启用服务后，玩家在游戏内运行 `/syncmatica_r web setpassword <password>` 设置网页密码，运行
+`/syncmatica_r web disable` 停用密码。密码会显示在命令历史中，也可能写入服务端日志。
+密码凭据会跨重启保存在 `config/syncmatica_r/web-credentials.json`；集成服务器则保存在
+`<世界文件夹>/syncmatica_r/web-credentials.json`。浏览器会话只保存在内存中，因此服务器每次重启后
+所有浏览器都需要重新登录，但原密码仍然有效。
+
+登录后的网页只开放有限的项目管理功能：
+
+- 查看共享项目、材料和建造进度，以及项目专属备货区。
+- 按照与游戏内操作相同的服务端权限认领或取消认领材料和建造区域，并修改或清除项目专属备货区。
+- **不开放**项目删除、原理图上传下载、默认备货区、服务器配置修改和手动重扫。
 
 ## 客户端上限提示
 

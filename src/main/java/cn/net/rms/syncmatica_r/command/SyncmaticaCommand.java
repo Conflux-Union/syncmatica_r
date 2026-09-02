@@ -13,6 +13,7 @@ import cn.net.rms.syncmatica_r.service.MaterialService;
 import cn.net.rms.syncmatica_r.service.ConfigOption;
 import cn.net.rms.syncmatica_r.service.ConfigRegistry;
 import cn.net.rms.syncmatica_r.util.SyncmaticaUtil;
+import cn.net.rms.syncmatica_r.web.WebPasswordProtocol;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.LiteralMessage;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -51,6 +52,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import static com.mojang.brigadier.arguments.StringArgumentType.string;
+import static com.mojang.brigadier.arguments.StringArgumentType.greedyString;
 
 public final class SyncmaticaCommand {
     private static final String COMMAND_PERMISSION = "syncmatica_r.command";
@@ -67,9 +69,104 @@ public final class SyncmaticaCommand {
         final LiteralArgumentBuilder<ServerCommandSource> root = CommandManager.literal("syncmatica_r")
                 .then(loadArgument())
                 .then(configArgument())
+                .then(webArgument())
                 .then(projectArgument())
                 .then(defaultArgument());
         dispatcher.register(root);
+    }
+
+    private static LiteralArgumentBuilder<ServerCommandSource> webArgument() {
+        return CommandManager.literal("web")
+                .then(CommandManager.literal("setpassword")
+                        .then(CommandManager.argument("password", greedyString())
+                                .executes(SyncmaticaCommand::handleWebSetPassword)))
+                .then(CommandManager.literal("disable")
+                        .executes(SyncmaticaCommand::handleWebDisablePassword));
+    }
+
+    private static int handleWebSetPassword(
+            final CommandContext<ServerCommandSource> commandContext
+    ) {
+        try {
+            final char[] password =
+                    commandContext.getArgument("password", String.class).toCharArray();
+            return updateWebPassword(
+                    commandContext,
+                    WebPasswordProtocol.decode(WebPasswordProtocol.encodeSet(password))
+            );
+        } catch (final IllegalArgumentException invalidPassword) {
+            commandContext.getSource().sendError(literal(invalidPassword.getMessage()));
+            return 0;
+        }
+    }
+
+    private static int handleWebDisablePassword(
+            final CommandContext<ServerCommandSource> commandContext
+    ) {
+        return updateWebPassword(
+                commandContext,
+                WebPasswordProtocol.decode(WebPasswordProtocol.encodeDisable())
+        );
+    }
+
+    private static int updateWebPassword(
+            final CommandContext<ServerCommandSource> commandContext,
+            final WebPasswordProtocol.Request request
+    ) {
+        final ServerCommandSource source = commandContext.getSource();
+        final Entity entity = source.getEntity();
+        if (!(entity instanceof ServerPlayerEntity)) {
+            request.close();
+            source.sendError(literal("This command is only available to players"));
+            return 0;
+        }
+        final Context syncmaticaContext = Syncmatica.getContext(Syncmatica.SERVER_CONTEXT);
+        if (syncmaticaContext == null
+                || syncmaticaContext.getWebService() == null
+                || !syncmaticaContext.getWebService().isPasswordUpdateAvailable()) {
+            request.close();
+            source.sendError(literal("Syncmatica_r web service is disabled"));
+            return 0;
+        }
+        final ServerPlayerEntity player = (ServerPlayerEntity) entity;
+        syncmaticaContext.getWebService().updatePassword(
+                SyncmaticaUtil.getProfileId(player.getGameProfile()),
+                SyncmaticaUtil.getProfileName(player.getGameProfile()),
+                request,
+                result -> sendWebPasswordResult(commandContext, result)
+        );
+        return 1;
+    }
+
+    private static void sendWebPasswordResult(
+            final CommandContext<ServerCommandSource> context,
+            final WebPasswordProtocol.Result result
+    ) {
+        switch (result) {
+            case PASSWORD_SET:
+                sendPrivateFeedback(context,
+                        "Web password updated. Existing sessions were signed out.");
+                break;
+            case PASSWORD_DISABLED:
+                sendPrivateFeedback(context,
+                        "Web password disabled. Existing sessions were signed out.");
+                break;
+            case BUSY:
+                context.getSource().sendError(literal(
+                        "The authentication service is busy. Try again."));
+                break;
+            case UNAVAILABLE:
+                context.getSource().sendError(literal(
+                        "Web password updates are unavailable."));
+                break;
+            case INVALID_REQUEST:
+                context.getSource().sendError(literal(
+                        "Password must contain 10–128 valid UTF-8 characters."));
+                break;
+            default:
+                context.getSource().sendError(literal(
+                        "Could not update the Web password."));
+        }
     }
 
     private static LiteralArgumentBuilder<ServerCommandSource> configArgument() {

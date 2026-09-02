@@ -70,6 +70,20 @@ final class SyncmaticaCommandPermissionContractTest {
     }
 
     @Test
+    void webSubcommandSetsAndDisablesPasswordWithoutOpeningAGui() throws IOException {
+        final String commandSource = read("src/main/java/cn/net/rms/syncmatica_r/command/SyncmaticaCommand.java");
+
+        assertTrue(commandSource.contains("CommandManager.literal(\"web\")"));
+        assertTrue(commandSource.contains("CommandManager.literal(\"setpassword\")"));
+        assertTrue(commandSource.contains("CommandManager.argument(\"password\", greedyString())"));
+        assertTrue(commandSource.contains("CommandManager.literal(\"disable\")"));
+        assertTrue(commandSource.contains("handleWebSetPassword"));
+        assertTrue(commandSource.contains("handleWebDisablePassword"));
+        assertTrue(commandSource.contains("getWebService().updatePassword"));
+        assertFalse(commandSource.contains("openWebPasswordScreen"));
+    }
+
+    @Test
     void stockingAreaCommandUsesOwnerAwareAccessPolicy() throws IOException {
         final String commandSource = read("src/main/java/cn/net/rms/syncmatica_r/command/SyncmaticaCommand.java");
 

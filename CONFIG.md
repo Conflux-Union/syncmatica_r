@@ -64,13 +64,22 @@ about `debug`. Two additional top-level keys control the optional GitHub update 
     "scan_interval": 1200,
     "full_rescan_interval": 36000
   },
+  "web": {
+    "enabled": false,
+    "bind_address": "127.0.0.1",
+    "port": 8080,
+    "session_hours": 24,
+    "secure_cookie": false,
+    "max_request_bytes": 65536,
+    "request_timeout_seconds": 10
+  },
   "debug": {
     "doPackageLogging": false
   }
 }
 ```
 
-Clients can safely delete the `quota`, `materials` and `build` sections; the loader will re-create them when the game
+Clients can safely delete the `quota`, `materials`, `build` and `web` sections; the loader will re-create them when the game
 later runs as a server. The two top-level update keys are ignored on servers.
 
 ## `quota` — Server Upload Control
@@ -166,6 +175,38 @@ Operational notes:
     building it to completion disables that sub-region again; regions claimed by others, and regions nobody claimed,
     are left exactly as the player set them.
 - Changing these settings after the service started requires a full server restart.
+
+## `web` — Optional Web Interface (Server)
+
+The web service is disabled by default. Restart the server after changing this section.
+
+| Key                       | Default       | Accepted value | Purpose |
+|---------------------------|---------------|----------------|---------|
+| enabled                   | `false`       | `true` / `false` | Starts the web service when the server starts. |
+| bind_address              | `127.0.0.1`   | Non-blank resolvable host name or IP address | Interface on which the HTTP listener accepts connections. |
+| port                      | `8080`        | `1`–`65,535` | HTTP listener port. |
+| session_hours             | `24`          | `1`–`8,760` hours | Browser session lifetime. |
+| secure_cookie             | `false`       | `true` / `false` | Adds the `Secure` flag to the session cookie; enable it when users connect over HTTPS. |
+| max_request_bytes         | `65536`       | `1,024`–`1,048,576` bytes | Maximum accepted JSON request body. |
+| request_timeout_seconds   | `10`          | `1`–`120` seconds | Timeout for authentication and Minecraft-server operations. |
+
+Keep the default `127.0.0.1` bind when placing the service behind a reverse proxy. Terminate HTTPS at the proxy, keep
+the browser-facing site on one origin, and set `secure_cookie` to `true`. Change `bind_address` only when direct access
+from another host is intentionally required; `port` selects the listener port.
+
+After the service is enabled, a player runs `/syncmatica_r web setpassword <password>` in game to set their web
+password, or `/syncmatica_r web disable` to disable it. The password is visible in command history and may be written
+to server logs. Password credentials persist across restarts in `config/syncmatica_r/web-credentials.json`, or
+`<world-folder>/syncmatica_r/web-credentials.json` for an integrated server. Browser sessions are held in memory, so
+every server restart signs all browsers out even though their passwords remain valid.
+
+The authenticated site deliberately exposes a limited project-management surface:
+
+- View shared projects, material and build progress, and project-specific stocking areas.
+- Claim or release materials and build regions, and update or clear a project-specific stocking area subject to the
+  same server permissions as the in-game operations.
+- It does **not** expose project deletion, schematic upload/download, the default stocking area, server configuration
+  changes, or manual rescans.
 
 ## Limit Diagnostics on the Client
 

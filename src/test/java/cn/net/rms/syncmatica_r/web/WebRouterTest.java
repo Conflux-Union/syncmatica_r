@@ -41,6 +41,8 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.BlockMirror;
 import net.minecraft.util.BlockRotation;
@@ -240,6 +242,12 @@ final class WebRouterTest {
     }
 
     @Test
+    void secureCookiesExpectThePublicHttpsOriginBehindAReverseProxy() {
+        assertEquals("https", WebRouter.originScheme(true, "http"));
+        assertEquals("http", WebRouter.originScheme(false, "http"));
+    }
+
+    @Test
     void malformedAndNullJsonMapToBadRequest() throws Exception {
         for (final String body : List.of("{", "null")) {
             final HttpResponse<String> response =
@@ -337,6 +345,8 @@ final class WebRouterTest {
         assertEquals(403, put(materialClaimPath(), "{}", auth.cookie, null).statusCode());
         assertEquals(200, put(materialClaimPath(), "{}", auth.cookie, auth.csrf).statusCode());
         assertEquals(200, delete(materialClaimPath(), auth.cookie, auth.csrf).statusCode());
+        assertEquals(200, delete("/api/v1/projects/" + placement.getId()
+                + "/material-claims/me", auth.cookie, auth.csrf).statusCode());
 
         final HttpResponse<String> logout =
                 post("/api/v1/auth/logout", "{}", auth.cookie, auth.csrf);
@@ -373,6 +383,9 @@ final class WebRouterTest {
                 + "\"minZ\":2,\"maxX\":3,\"maxY\":4,\"maxZ\":5}";
         assertEquals(200, put(project + "/stocking-area", area, auth.cookie, auth.csrf).statusCode());
         assertEquals(200, get(project + "/stocking-area", auth.cookie).statusCode());
+        final String fractionalArea = area.replace("\"minX\":0", "\"minX\":0.5");
+        assertEquals(400,
+                put(project + "/stocking-area", fractionalArea, auth.cookie, auth.csrf).statusCode());
         assertEquals(200, delete(project + "/stocking-area", auth.cookie, auth.csrf).statusCode());
         assertEquals(200, put(buildClaimPath(), "{}", auth.cookie, auth.csrf).statusCode());
         assertEquals(200, delete(buildClaimPath(), auth.cookie, auth.csrf).statusCode());
@@ -464,6 +477,18 @@ final class WebRouterTest {
         assertEquals(404, api.statusCode());
         assertEquals("not_found", json(api).get("code").getAsString());
         assertEquals(404, get("/api", null).statusCode());
+    }
+
+    @Test
+    void servesFrontendAssetsReferencedByIndex() throws Exception {
+        final HttpResponse<String> index = get("/", null);
+        final Matcher references =
+                Pattern.compile("(?:src|href)=\"([^\"]+)\"").matcher(index.body());
+        assertTrue(references.find());
+        do {
+            final String path = references.group(1);
+            assertEquals(200, get(path, null).statusCode(), path);
+        } while (references.find());
     }
 
     private Auth auth() throws Exception {

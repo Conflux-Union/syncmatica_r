@@ -70,7 +70,7 @@ After first run, configuration files are created at:
 
 | File | Location | Purpose |
 |------|----------|---------|
-| Main config | `config/syncmatica_r/config.json` | Server quota, material tracking and build management settings |
+| Main config | `config/syncmatica_r/config.json` | Server quota, material tracking, build management and optional web settings |
 | Client settings | `config/syncmatica_r/client.json` | MaLiLib-managed HUD, build preference and hotkey settings |
 | Material list | `config/syncmatica_r/material_list_settings.json` | Client sort mode and filter preferences |
 | Client notices | `config/syncmatica_r/client_notices.json` | Dismissed migration notice version |
@@ -79,6 +79,22 @@ For integrated (single-player) servers, the main config is stored in `<world-fol
 Existing client setting files are imported into `client.json` on first run and left in place.
 
 See [CONFIG.md](CONFIG.md) for detailed configuration options.
+
+### Optional Web Interface
+
+The authenticated web interface is disabled by default. Enable the `web` section, choose its bind address and port,
+then restart the server. For remote access, keep it bound to `127.0.0.1` behind an HTTPS reverse proxy and set
+`secure_cookie` to `true`.
+
+Players run `/syncmatica_r web setpassword <password>` in game to set their password, or
+`/syncmatica_r web disable` to disable it. The password is visible in command history and may be written to server
+logs. Passwords persist in
+`config/syncmatica_r/web-credentials.json` (or `<world-folder>/syncmatica_r/web-credentials.json` in single-player),
+but browser sessions are cleared whenever the server restarts.
+
+The site supports project viewing, material/build progress and claims, and project-specific stocking areas. It does
+not provide project deletion, schematic upload/download, default stocking-area management, configuration changes, or
+manual rescans. See [CONFIG.md](CONFIG.md#web--optional-web-interface-server) for every web setting and its range.
 
 ### Mod Integration
 
@@ -138,7 +154,7 @@ one setting to its default. Section names, keys, and Boolean values support tab 
 extraction settings automatically refresh all shared schematics; changing a feature switch also
 refreshes connected clients.
 
-These commands expose the `quota`, `materials`, `build`, and `debug` sections documented in
+These commands expose the `quota`, `materials`, `build`, `web`, and `debug` sections documented in
 [CONFIG.md](CONFIG.md). Client-only preferences are not included. They require
 `syncmatica_r.config`, with vanilla permission level 2 as the fallback.
 

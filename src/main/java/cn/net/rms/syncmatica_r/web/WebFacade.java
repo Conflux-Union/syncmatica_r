@@ -185,6 +185,14 @@ public final class WebFacade {
                 context.getSyncmaticManager().getPlacement(placementId), key, player, claimed);
     }
 
+    public MaterialService.ReleaseClaimsOutcome releaseMaterialClaims(
+            final UUID placementId,
+            final PlayerIdentifier player
+    ) {
+        return context.getMaterialService().releaseClaims(
+                context.getSyncmaticManager().getPlacement(placementId), player);
+    }
+
     public BuildService.ClaimOutcome setBuildClaim(final UUID placementId, final String regionName,
                                                    final PlayerIdentifier player, final boolean claimed) {
         return context.getBuildService().setClaim(

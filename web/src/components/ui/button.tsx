@@ -5,19 +5,22 @@ import type { ButtonHTMLAttributes } from "react";
 import { twMerge } from "tailwind-merge";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
         ghost: "text-muted-foreground hover:bg-muted hover:text-foreground",
+        primary: "bg-[var(--accent)] text-[var(--accent-foreground)] hover:opacity-90",
+        outline: "border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--muted)]",
       },
       size: {
-        icon: "size-11",
+        default: "min-h-11 px-4",
+        icon: "size-11 p-0",
       },
     },
     defaultVariants: {
       variant: "ghost",
-      size: "icon",
+      size: "default",
     },
   },
 );

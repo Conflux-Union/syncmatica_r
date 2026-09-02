@@ -69,7 +69,7 @@ Syncmatica_r 与 Litematica 模组集成，实现服务器范围内的原理图�
 
 | 文件 | 位置 | 用途 |
 |------|------|------|
-| 主配置 | `config/syncmatica_r/config.json` | 服务端配额、材料追踪与建造管理设置 |
+| 主配置 | `config/syncmatica_r/config.json` | 服务端配额、材料追踪、建造管理与可选网页设置 |
 | 客户端设置 | `config/syncmatica_r/client.json` | 由 MaLiLib 管理的 HUD、建造偏好与热键设置 |
 | 材料列表 | `config/syncmatica_r/material_list_settings.json` | 客户端排序与过滤偏好 |
 | 客户端提醒 | `config/syncmatica_r/client_notices.json` | 已关闭的迁移提醒版本 |
@@ -78,6 +78,20 @@ Syncmatica_r 与 Litematica 模组集成，实现服务器范围内的原理图�
 首次运行时，现有客户端设置文件会导入 `client.json`，原文件不会删除。
 
 详细配置选项请参阅 [CONFIG_CN.md](CONFIG_CN.md)。
+
+### 可选网页界面
+
+需要登录的网页界面默认关闭。启用 `web` 模块、设置监听地址和端口后，需要重启服务器。远程访问时建议
+保持监听 `127.0.0.1`，在前面部署 HTTPS 反向代理，并将 `secure_cookie` 设为 `true`。
+
+玩家在游戏内运行 `/syncmatica_r web setpassword <password>` 设置密码，运行
+`/syncmatica_r web disable` 停用密码。密码会显示在命令历史中，也可能写入服务端日志。密码会持久保存在
+`config/syncmatica_r/web-credentials.json`（单人游戏为
+`<世界文件夹>/syncmatica_r/web-credentials.json`），但服务器重启会清除全部浏览器会话。
+
+网页支持查看项目、材料/建造进度与认领，以及项目专属备货区；不提供项目删除、原理图上传下载、
+默认备货区管理、配置修改或手动重扫。全部网页配置项和取值范围见
+[CONFIG_CN.md](CONFIG_CN.md#web--可选网页界面服务器)。
 
 ### 模组联动
 
@@ -131,7 +145,7 @@ Syncmatica_r 与 Litematica 模组集成，实现服务器范围内的原理图�
 模块名、配置项和布尔值支持 Tab 补全。修改材料提取配置后会自动重新提取全部共享项目；修改功能总开关
 还会刷新在线客户端状态。
 
-命令覆盖 [CONFIG_CN.md](CONFIG_CN.md) 中的 `quota`、`materials`、`build` 和 `debug` 模块，
+命令覆盖 [CONFIG_CN.md](CONFIG_CN.md) 中的 `quota`、`materials`、`build`、`web` 和 `debug` 模块，
 不包含客户端本地偏好。执行命令需要 `syncmatica_r.config` 权限，默认回退到原版权限等级 2。
 
 ### 设置备货区

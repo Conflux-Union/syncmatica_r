@@ -12,9 +12,12 @@ import io.undertow.server.handlers.GracefulShutdownHandler;
 import java.time.Duration;
 import java.net.InetAddress;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.UUID;
 import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
@@ -142,6 +145,59 @@ public final class WebService implements IService {
 
     public int getRequestTimeoutSeconds() {
         return requestTimeoutSeconds;
+    }
+
+    public synchronized boolean isPasswordUpdateAvailable() {
+        return enabled
+                && authenticationExecutor != null
+                && authenticationCoordinator != null
+                && minecraftExecutor != null;
+    }
+
+    public void updatePassword(
+            final UUID playerId,
+            final String currentName,
+            final WebPasswordProtocol.Request request,
+            final Consumer<WebPasswordProtocol.Result> completion
+    ) {
+        final ThreadPoolExecutor auth;
+        final WebAuthenticationCoordinator coordinator;
+        final MinecraftThreadExecutor minecraft;
+        synchronized (this) {
+            auth = authenticationExecutor;
+            coordinator = authenticationCoordinator;
+            minecraft = minecraftExecutor;
+        }
+        if (!enabled || auth == null || coordinator == null || minecraft == null) {
+            request.close();
+            completion.accept(WebPasswordProtocol.Result.UNAVAILABLE);
+            return;
+        }
+        try {
+            auth.execute(() -> {
+                WebPasswordProtocol.Result result;
+                try (WebPasswordProtocol.Request ownedRequest = request) {
+                    if (ownedRequest.action() == WebPasswordProtocol.Action.SET) {
+                        coordinator.set(
+                                playerId, currentName, ownedRequest.password());
+                        result = WebPasswordProtocol.Result.PASSWORD_SET;
+                    } else {
+                        coordinator.disable(playerId);
+                        result = WebPasswordProtocol.Result.PASSWORD_DISABLED;
+                    }
+                } catch (final Exception failure) {
+                    result = WebPasswordProtocol.Result.FAILED;
+                }
+                final WebPasswordProtocol.Result completedResult = result;
+                minecraft.submit(() -> {
+                    completion.accept(completedResult);
+                    return null;
+                });
+            });
+        } catch (final RejectedExecutionException rejected) {
+            request.close();
+            completion.accept(WebPasswordProtocol.Result.BUSY);
+        }
     }
 
     @Override

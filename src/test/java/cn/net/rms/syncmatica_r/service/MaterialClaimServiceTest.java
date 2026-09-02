@@ -145,6 +145,34 @@ final class MaterialClaimServiceTest {
         }
     }
 
+    @Test
+    void releasesAllClaimsInOnePlacementUpdate() {
+        final Context context = newServerContext();
+        try {
+            final ServerPlacement placement = placement(context);
+            final MaterialKey dirt =
+                    new MaterialKey(IdentifierUtil.require("minecraft:dirt"), "");
+            placement.getMaterialProgress().getOrCreate(dirt, 32);
+            final PlayerIdentifier alice = player(context, "Alice");
+            final AtomicInteger updates = new AtomicInteger();
+            context.getSyncmaticManager().addServerPlacementConsumer(updated -> updates.incrementAndGet());
+            context.getMaterialService().setClaim(placement, STONE, alice, true);
+            context.getMaterialService().setClaim(placement, dirt, alice, true);
+            updates.set(0);
+
+            assertEquals(MaterialService.ReleaseClaimsOutcome.RELEASED,
+                    context.getMaterialService().releaseClaims(placement, alice));
+            assertEquals(1, updates.get());
+            assertNull(context.getMaterialService().getClaimant(placement, STONE));
+            assertNull(context.getMaterialService().getClaimant(placement, dirt));
+            assertEquals(MaterialService.ReleaseClaimsOutcome.ALREADY_RELEASED,
+                    context.getMaterialService().releaseClaims(placement, alice));
+            assertEquals(1, updates.get());
+        } finally {
+            context.shutdown();
+        }
+    }
+
     private ServerPlacement placement(final Context context) {
         final ServerPlacement placement = new ServerPlacement(
                 UUID.randomUUID(), "materials", UUID.randomUUID(), PlayerIdentifier.MISSING_PLAYER);

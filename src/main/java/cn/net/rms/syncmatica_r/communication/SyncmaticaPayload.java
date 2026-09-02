@@ -40,11 +40,7 @@
 //$$         return PACKET_ID;
 //$$     }
 //$$
-//#if MC >= 260100
-//$$     private static void write(final PacketByteBuf buf, final SyncmaticaPayload payload) {
-//#else
 //$$     private static void write(final SyncmaticaPayload payload, final PacketByteBuf buf) {
-//#endif
 //$$         buf.writeIdentifier(payload.id);
 //$$         buf.writeBytes(payload.data);
 //$$     }
