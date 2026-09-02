@@ -12,7 +12,7 @@ const buttonVariants = cva(
         ghost: "text-muted-foreground hover:bg-muted hover:text-foreground",
       },
       size: {
-        icon: "size-10",
+        icon: "size-11",
       },
     },
     defaultVariants: {
