@@ -71,13 +71,12 @@ After first run, configuration files are created at:
 | File | Location | Purpose |
 |------|----------|---------|
 | Main config | `config/syncmatica_r/config.json` | Server quota, material tracking and build management settings |
-| HUD settings | `config/syncmatica_r/hud_settings.json` | Client HUD scale and enable toggle |
+| Client settings | `config/syncmatica_r/client.json` | MaLiLib-managed HUD, build preference and hotkey settings |
 | Material list | `config/syncmatica_r/material_list_settings.json` | Client sort mode and filter preferences |
-| Build warnings | `config/syncmatica_r/build_warning_settings.json` | Client toggle for the foreign build warning |
-| Build visibility | `config/syncmatica_r/build_visibility_settings.json` | Client toggle for following claims with Litematica sub-region visibility |
 | Client notices | `config/syncmatica_r/client_notices.json` | Dismissed migration notice version |
 
 For integrated (single-player) servers, the main config is stored in `<world-folder>/syncmatica_r/config.json`.
+Existing client setting files are imported into `client.json` on first run and left in place.
 
 See [CONFIG.md](CONFIG.md) for detailed configuration options.
 

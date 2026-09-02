@@ -70,13 +70,12 @@ Syncmatica_r 与 Litematica 模组集成，实现服务器范围内的原理图�
 | 文件 | 位置 | 用途 |
 |------|------|------|
 | 主配置 | `config/syncmatica_r/config.json` | 服务端配额、材料追踪与建造管理设置 |
-| HUD 设置 | `config/syncmatica_r/hud_settings.json` | 客户端 HUD 缩放与开关 |
+| 客户端设置 | `config/syncmatica_r/client.json` | 由 MaLiLib 管理的 HUD、建造偏好与热键设置 |
 | 材料列表 | `config/syncmatica_r/material_list_settings.json` | 客户端排序与过滤偏好 |
-| 建造提醒 | `config/syncmatica_r/build_warning_settings.json` | 客户端越界建造提醒开关 |
-| 建造可见性 | `config/syncmatica_r/build_visibility_settings.json` | 客户端开关：Litematica 子区域可见性是否跟随认领 |
 | 客户端提醒 | `config/syncmatica_r/client_notices.json` | 已关闭的迁移提醒版本 |
 
 整合包（单人）服务端的主配置存储在 `<世界存档>/syncmatica_r/config.json`。
+首次运行时，现有客户端设置文件会导入 `client.json`，原文件不会删除。
 
 详细配置选项请参阅 [CONFIG_CN.md](CONFIG_CN.md)。
 

@@ -1,131 +1,84 @@
 package cn.net.rms.syncmatica_r.litematica.gui;
 
-import cn.net.rms.syncmatica_r.client.HudPreferences;
+import cn.net.rms.syncmatica_r.Syncmatica;
+import cn.net.rms.syncmatica_r.client.ClientConfigs;
 import cn.net.rms.syncmatica_r.client.hotkey.SyncmaticaHotkeys;
-import cn.net.rms.syncmatica_r.client.hud.MaterialHudOverlay;
-import fi.dy.masa.malilib.config.options.ConfigHotkey;
-import fi.dy.masa.malilib.gui.GuiBase;
+import fi.dy.masa.malilib.config.IConfigBase;
+import fi.dy.masa.malilib.gui.GuiConfigsBase;
+import fi.dy.masa.malilib.gui.button.ButtonBase;
 import fi.dy.masa.malilib.gui.button.ButtonGeneric;
 import fi.dy.masa.malilib.gui.button.IButtonActionListener;
-import fi.dy.masa.malilib.gui.interfaces.ISliderCallback;
-import fi.dy.masa.malilib.gui.widgets.WidgetSlider;
 import fi.dy.masa.malilib.util.StringUtils;
 
-public class GuiSyncmaticaSharedSettings extends GuiBase
-        implements ButtonListenerHotkeyConfig.IHotkeyListeningHost {
+import java.util.List;
 
-    private ButtonListenerHotkeyConfig activeHotkeyListener;
+public class GuiSyncmaticaSharedSettings extends GuiConfigsBase {
+
+    private ConfigTab activeTab = ConfigTab.GENERAL;
 
     public GuiSyncmaticaSharedSettings() {
-        title = StringUtils.translate("syncmatica_r.gui.title.shared_settings");
-    }
-
-    @Override
-    public void setHotkeyListener(final ButtonListenerHotkeyConfig listener) {
-        this.activeHotkeyListener = listener;
+        super(10, 50, Syncmatica.MOD_ID, null, "syncmatica_r.gui.title.configs");
+        useTitleHierarchy = false;
     }
 
     @Override
     public void initGui() {
         super.initGui();
+        clearOptions();
 
-        final int sliderWidth = 220;
-        final int sliderHeight = 20;
-        final int sliderX = width / 2 - sliderWidth / 2;
-        final int sliderY = height / 2 - sliderHeight / 2;
-        final int toggleY = sliderY - sliderHeight - 10;
-
-        final ButtonGeneric hudToggle = new ButtonGeneric(sliderX, toggleY, sliderWidth, sliderHeight,
-                buildHudToggleLabel());
-        addButton(hudToggle, (button, mouseButton) -> {
-            HudPreferences.setHudEnabled(!HudPreferences.isHudEnabled());
-            hudToggle.setDisplayString(buildHudToggleLabel());
-            MaterialHudOverlay.getInstance().scheduleRefresh();
-        });
-
-        addWidget(new WidgetSlider(sliderX, sliderY, sliderWidth, sliderHeight, new HudScaleSliderCallback()));
-
-        // Hotkey configuration section
-        final int hotkeyY = sliderY + sliderHeight + 15;
-        addHotkeyConfigButton(sliderX, hotkeyY, sliderWidth, sliderHeight,
-                SyncmaticaHotkeys.OPEN_MATERIAL_COLLECTIONS, "syncmatica_r.gui.label.hotkey.material_collections");
-        addHotkeyConfigButton(sliderX, hotkeyY + sliderHeight + 5, sliderWidth, sliderHeight,
-                SyncmaticaHotkeys.OPEN_BUILD_MANAGEMENT, "syncmatica_r.gui.label.hotkey.build_management");
-
-        final String backLabel = StringUtils.translate("syncmatica_r.gui.button.back");
-        final int backWidth = getStringWidth(backLabel) + 20;
-        final int backX = width / 2 - backWidth / 2;
-        final int backY = height - 30;
-        final ButtonGeneric backButton = new ButtonGeneric(backX, backY, backWidth, 20, backLabel);
-        addButton(backButton, (IButtonActionListener) (button, mouseButton) -> closeGui(true));
+        int x = 10;
+        x += createTabButton(x, ConfigTab.GENERAL);
+        createTabButton(x, ConfigTab.HOTKEYS);
     }
 
-    private void addHotkeyConfigButton(final int x, final int y, final int width, final int height,
-                                       final ConfigHotkey hotkey, final String labelKey) {
-        final String label = StringUtils.translate(labelKey);
-        final String keyValue = hotkey.getKeybind().getStringValue();
-        final String displayValue = keyValue.isEmpty()
-                ? StringUtils.translate("syncmatica_r.gui.label.hotkey.none")
-                : keyValue.replace(",", "+");
-        final String prefix = label + ": ";
-
-        final ButtonGeneric hotkeyButton = new ButtonGeneric(x, y, width, height, prefix + displayValue);
-        addButton(hotkeyButton, new ButtonListenerHotkeyConfig(hotkey, hotkeyButton, this, prefix));
-    }
-
-//#if MC >= 12110
-//$$     @Override
-//$$     public boolean onKeyTyped(final net.minecraft.client.input.KeyInput keyInput) {
-//$$         if (activeHotkeyListener != null && activeHotkeyListener.isListening()
-//$$                 && activeHotkeyListener.onKeyPressed(keyInput.key(), keyInput.scancode(), keyInput.modifiers())) {
-//$$             return true;
-//$$         }
-//$$         return super.onKeyTyped(keyInput);
-//$$     }
-//#else
     @Override
-    public boolean keyPressed(final int keyCode, final int scanCode, final int modifiers) {
-        if (activeHotkeyListener != null && activeHotkeyListener.isListening()
-                && activeHotkeyListener.onKeyPressed(keyCode, scanCode, modifiers)) {
-            return true;
-        }
-        return super.keyPressed(keyCode, scanCode, modifiers);
-    }
-//#endif
-
-    private String buildHudToggleLabel() {
-        final String stateKey = HudPreferences.isHudEnabled()
-                ? "syncmatica_r.gui.label.toggle_on"
-                : "syncmatica_r.gui.label.toggle_off";
-        final String stateValue = StringUtils.translate(stateKey);
-        return StringUtils.translate("syncmatica_r.gui.button.hud_toggle", stateValue);
+    public List<ConfigOptionWrapper> getConfigs() {
+        final List<? extends IConfigBase> configs = activeTab == ConfigTab.GENERAL
+                ? ClientConfigs.General.OPTIONS
+                : SyncmaticaHotkeys.getHotkeys();
+        return ConfigOptionWrapper.createFor(configs);
     }
 
-    private static final class HudScaleSliderCallback implements ISliderCallback {
+    @Override
+    protected boolean useKeybindSearch() {
+        return activeTab == ConfigTab.HOTKEYS;
+    }
 
-        @Override
-        public int getMaxSteps() {
-            return 100;
+    private int createTabButton(final int x, final ConfigTab tab) {
+        final ButtonGeneric button = new ButtonGeneric(x, 26, -1, 20, tab.getDisplayName());
+        button.setEnabled(activeTab != tab);
+        addButton(button, new TabButtonListener(tab));
+        return button.getWidth() + 2;
+    }
+
+    private enum ConfigTab {
+        GENERAL("syncmatica_r.gui.button.config.general"),
+        HOTKEYS("syncmatica_r.gui.button.config.hotkeys");
+
+        private final String translationKey;
+
+        ConfigTab(final String translationKey) {
+            this.translationKey = translationKey;
+        }
+
+        private String getDisplayName() {
+            return StringUtils.translate(translationKey);
+        }
+    }
+
+    private final class TabButtonListener implements IButtonActionListener {
+
+        private final ConfigTab tab;
+
+        private TabButtonListener(final ConfigTab tab) {
+            this.tab = tab;
         }
 
         @Override
-        public double getValueRelative() {
-            return HudPreferences.getRelativeScale();
-        }
-
-        @Override
-        public void setValueRelative(final double value) {
-            HudPreferences.setRelativeScale(value);
-            final double scale = HudPreferences.getHudScale();
-            final MaterialHudOverlay overlay = MaterialHudOverlay.getInstance();
-            overlay.setHudScale(scale);
-            overlay.scheduleRefresh();
-        }
-
-        @Override
-        public String getFormattedDisplayValue() {
-            return StringUtils.translate("syncmatica_r.gui.label.hud_scale_value",
-                    (int) Math.round(HudPreferences.getHudScale() * 100d));
+        public void actionPerformedWithButton(final ButtonBase button, final int mouseButton) {
+            activeTab = tab;
+            reCreateListWidget();
+            initGui();
         }
     }
 }

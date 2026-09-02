@@ -157,12 +157,12 @@ Operational notes:
   reads as complete — the same rule the material list counts by.
 - Claims are keyed by region name, so they survive a re-share, a re-extraction and a restart. A region that disappears
   from the schematic loses its claim with it.
-- Two switches are the player's rather than the operator's, so they are not configured here. Both sit on the region list
-  screen, above the rows they act on, and are stored client side:
-  - The foreign build warning, in `config/syncmatica_r/build_warning_settings.json` under `warn_on_foreign_placement`,
+- Two switches are the player's rather than the operator's, so they are not configured here. Both are available in the
+  MaLiLib client settings screen and above the region list, and are stored in `config/syncmatica_r/client.json`:
+  - The foreign build warning, under `General.warnOnForeignPlacement`,
     on by default.
-  - Following claims with Litematica's sub-region visibility, in `config/syncmatica_r/build_visibility_settings.json`
-    under `follow_claims`, off by default. With it on, claiming a region enables that sub-region, and dropping it or
+  - Following claims with Litematica's sub-region visibility, under `General.followClaims`, off by default. With it on,
+    claiming a region enables that sub-region, and dropping it or
     building it to completion disables that sub-region again; regions claimed by others, and regions nobody claimed,
     are left exactly as the player set them.
 - Changing these settings after the service started requires a full server restart.

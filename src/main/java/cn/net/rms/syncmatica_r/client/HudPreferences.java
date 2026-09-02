@@ -1,90 +1,23 @@
 package cn.net.rms.syncmatica_r.client;
 
-import cn.net.rms.syncmatica_r.Syncmatica;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-
 public final class HudPreferences {
 
     private static final double MIN_SCALE = 0.6d;
     private static final double MAX_SCALE = 1.4d;
-    private static final double DEFAULT_SCALE = 1.0d;
-    private static final boolean DEFAULT_ENABLED = true;
-    private static final String FIELD_SCALE = "hud_scale";
-    private static final String FIELD_ENABLED = "hud_enabled";
-    private static final File CONFIG_FILE = resolveConfigFile();
-    private static final File LEGACY_CONFIG_FILE = resolveLegacyConfigFile();
-
-    private static double hudScale = DEFAULT_SCALE;
-    private static boolean hudEnabled = DEFAULT_ENABLED;
 
     private HudPreferences() {
     }
 
     public static void load() {
-        hudScale = DEFAULT_SCALE;
-        hudEnabled = DEFAULT_ENABLED;
-        File source = CONFIG_FILE;
-        boolean loadedFromLegacy = false;
-        if (!source.exists() && LEGACY_CONFIG_FILE.exists()) {
-            source = LEGACY_CONFIG_FILE;
-            loadedFromLegacy = true;
-        }
-        if (!source.exists()) {
-            return;
-        }
-        try (BufferedReader reader = new BufferedReader(new FileReader(source))) {
-            final JsonObject root = new Gson().fromJson(reader, JsonObject.class);
-            if (root != null) {
-                if (root.has(FIELD_SCALE)) {
-                    setHudScaleInternal(root.get(FIELD_SCALE).getAsDouble(), false);
-                }
-                if (root.has(FIELD_ENABLED)) {
-                    hudEnabled = root.get(FIELD_ENABLED).getAsBoolean();
-                }
-            }
-        } catch (final Exception ignored) {
-            hudScale = DEFAULT_SCALE;
-            hudEnabled = DEFAULT_ENABLED;
-            return;
-        }
-        if (loadedFromLegacy && !CONFIG_FILE.exists()) {
-            save();
-        }
+        ClientConfigs.INSTANCE.load();
     }
 
     public static void save() {
-        try {
-            final File folder = CONFIG_FILE.getParentFile();
-            if (folder != null) {
-                folder.mkdirs();
-            }
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter(CONFIG_FILE))) {
-                final JsonObject root = new JsonObject();
-                root.addProperty(FIELD_SCALE, hudScale);
-                root.addProperty(FIELD_ENABLED, hudEnabled);
-                new Gson().toJson(root, writer);
-            }
-        } catch (final IOException ignored) {
-        }
+        ClientConfigs.INSTANCE.save();
     }
 
     public static void setHudScale(final double scale) {
-        setHudScaleInternal(scale, true);
-    }
-
-    private static void setHudScaleInternal(final double scale, final boolean persist) {
-        hudScale = clampScale(scale);
-        if (persist) {
-            save();
-        }
+        ClientConfigs.General.HUD_SCALE.setDoubleValue(clampScale(scale));
     }
 
     public static double clampScale(final double scale) {
@@ -92,16 +25,15 @@ public final class HudPreferences {
     }
 
     public static double getHudScale() {
-        return hudScale;
+        return ClientConfigs.General.HUD_SCALE.getDoubleValue();
     }
 
     public static boolean isHudEnabled() {
-        return hudEnabled;
+        return ClientConfigs.General.HUD_ENABLED.getBooleanValue();
     }
 
     public static void setHudEnabled(final boolean enabled) {
-        hudEnabled = enabled;
-        save();
+        ClientConfigs.General.HUD_ENABLED.setBooleanValue(enabled);
     }
 
     public static double getMinScale() {
@@ -113,7 +45,7 @@ public final class HudPreferences {
     }
 
     public static double getRelativeScale() {
-        return (hudScale - MIN_SCALE) / (MAX_SCALE - MIN_SCALE);
+        return (getHudScale() - MIN_SCALE) / (MAX_SCALE - MIN_SCALE);
     }
 
     public static void setRelativeScale(final double relative) {
@@ -121,15 +53,4 @@ public final class HudPreferences {
         setHudScale(MIN_SCALE + clamped * (MAX_SCALE - MIN_SCALE));
     }
 
-    private static File resolveConfigFile() {
-        final File configRoot = new File("config");
-        final File preferredFolder = new File(configRoot, Syncmatica.MOD_ID);
-        return new File(preferredFolder, "hud_settings.json");
-    }
-
-    private static File resolveLegacyConfigFile() {
-        final File configRoot = new File("config");
-        final File legacyFolder = new File(configRoot, Syncmatica.LEGACY_MOD_ID);
-        return new File(legacyFolder, "hud_settings.json");
-    }
 }

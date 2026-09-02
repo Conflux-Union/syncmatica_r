@@ -34,8 +34,14 @@ public final class SyncmaticaHotkeys {
             "openMaterialCollections",
             "",
             HOTKEY_SETTINGS,
-            "syncmatica_r.hotkey.open_material_collections.comment"
-    );
+            "syncmatica_r.hotkey.open_material_collections.comment",
+            "syncmatica_r.gui.label.hotkey.material_collections"
+    ) {
+        @Override
+        public String getConfigGuiDisplayName() {
+            return getPrettyName();
+        }
+    };
 
     /**
      * Hotkey to open the Build Management GUI.
@@ -45,8 +51,14 @@ public final class SyncmaticaHotkeys {
             "openBuildManagement",
             "",
             HOTKEY_SETTINGS,
-            "syncmatica_r.hotkey.open_build_management.comment"
-    );
+            "syncmatica_r.hotkey.open_build_management.comment",
+            "syncmatica_r.gui.label.hotkey.build_management"
+    ) {
+        @Override
+        public String getConfigGuiDisplayName() {
+            return getPrettyName();
+        }
+    };
 
     private static final List<ConfigHotkey> HOTKEYS = Collections.unmodifiableList(
             Arrays.asList(OPEN_MATERIAL_COLLECTIONS, OPEN_BUILD_MANAGEMENT)

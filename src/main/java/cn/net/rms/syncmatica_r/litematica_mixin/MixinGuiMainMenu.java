@@ -1,11 +1,13 @@
 package cn.net.rms.syncmatica_r.litematica_mixin;
 
+import cn.net.rms.syncmatica_r.Syncmatica;
 import cn.net.rms.syncmatica_r.litematica.gui.ButtonListenerChangeMenu;
 import cn.net.rms.syncmatica_r.litematica.gui.MainMenuButtonType;
 import fi.dy.masa.litematica.gui.GuiMainMenu;
 import fi.dy.masa.litematica.selection.SelectionMode;
 import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.gui.button.ButtonGeneric;
+import fi.dy.masa.malilib.gui.widgets.WidgetLabel;
 import fi.dy.masa.malilib.util.StringUtils;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -19,6 +21,10 @@ public class MixinGuiMainMenu extends GuiBase {
     public void initGui(final CallbackInfo ci) {
         final int width = getButtonWidth();
         final int x = 52 + 2 * width;
+        final String versionLabel =
+                StringUtils.translate("syncmatica_r.gui.label.version", Syncmatica.getVersion());
+        addWidget(new WidgetLabel(x, 10, width, 10, 0xFFFFFFFF, versionLabel));
+
         int y = 30;
         createChangeMenuButton(x, y, width, MainMenuButtonType.VIEW_SYNCMATICS);
         y += 22;

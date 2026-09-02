@@ -21,10 +21,8 @@ public class SyncmaticaClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         BreakingChangeNotice.initialize();
-        HudPreferences.load();
+        ClientConfigs.INSTANCE.load();
         MaterialListPreferences.load();
-        BuildWarningPreferences.load();
-        BuildVisibilityPreferences.load();
         BuildClaimWarning.register();
         MaterialHudOverlay.getInstance().setHudScale(HudPreferences.getHudScale());
         MaterialHudOverlay.getInstance().register();
