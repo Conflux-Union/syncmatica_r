@@ -13,6 +13,8 @@ build/
 out/
 classes/
 .worktrees/
+web/node_modules/
+web/dist/
 
 # eclipse
 

@@ -1,0 +1,194 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  --background: #f5f7f8;
+  --foreground: #192024;
+  --surface: #ffffff;
+  --muted: #e8edef;
+  --muted-foreground: #657278;
+  --border: #dce3e6;
+  --accent: #16735b;
+  --accent-foreground: #ffffff;
+  --ring: #168767;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-ring: var(--ring);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+button,
+a {
+  font: inherit;
+}
+
+.app-shell {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: 17rem minmax(0, 1fr);
+}
+
+.sidebar {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2rem;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  padding: 1.5rem 1rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-inline: 0.5rem;
+}
+
+.brand-mark {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border-radius: 0.65rem;
+  background: var(--accent);
+  color: var(--accent-foreground);
+  font-weight: 750;
+}
+
+.brand strong,
+.brand small {
+  display: block;
+}
+
+.brand strong {
+  letter-spacing: -0.015em;
+}
+
+.brand small {
+  margin-top: 0.1rem;
+  color: var(--muted-foreground);
+  font-size: 0.72rem;
+}
+
+.primary-navigation {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.navigation-link {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  border-radius: 0.55rem;
+  color: var(--muted-foreground);
+  padding: 0.7rem 0.75rem;
+  text-decoration: none;
+  transition:
+    color 140ms ease,
+    background 140ms ease;
+}
+
+.navigation-link:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.navigation-link-active {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.navigation-link:focus-visible,
+.language-button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
+.language-button {
+  margin-top: auto;
+  align-self: flex-start;
+}
+
+.main-content {
+  padding: clamp(2rem, 6vw, 5rem);
+}
+
+.page-heading {
+  max-width: 45rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 2rem;
+}
+
+.page-heading p {
+  margin: 0 0 0.6rem;
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.page-heading h1 {
+  margin: 0;
+  font-size: clamp(2.1rem, 5vw, 4.25rem);
+  letter-spacing: -0.055em;
+  line-height: 0.98;
+}
+
+.page-heading span {
+  display: block;
+  margin-top: 1rem;
+  color: var(--muted-foreground);
+  font-size: 1rem;
+}
+
+@media (max-width: 42rem) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .sidebar {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1rem;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 1rem;
+  }
+
+  .primary-navigation {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-row: 2;
+  }
+
+  .language-button {
+    margin-top: 0;
+  }
+
+  .main-content {
+    padding: 2.5rem 1.25rem;
+  }
+}

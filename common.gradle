@@ -11,6 +11,7 @@ def javaRelease = mcVersionNumber >= 260100 ? 25 : (mcVersionNumber >= 12100 ? 2
 def toolchainVersion = javaRelease >= 17 ? javaRelease : 17
 def preprocessRootProject = rootProject.file("versions/mainProject").text.trim()
 def poiVersion = '5.5.1'
+def undertowVersion = '2.3.26.Final'
 def fabricPermissionsApiVersion = '0.3.1'
 if (mcVersionNumber >= 260100) {
     fabricPermissionsApiVersion = '0.7.0'
@@ -120,10 +121,56 @@ dependencies {
     shadowInclude ("org.apache.poi:poi-ooxml-lite:${poiVersion}") {
         exclude group: "org.apache.logging.log4j", module: "log4j-api"
     }
+    implementation ("io.undertow:undertow-core:${undertowVersion}") {
+        exclude group: "io.netty"
+        exclude group: "org.apache.logging.log4j"
+    }
+    shadowInclude ("io.undertow:undertow-core:${undertowVersion}") {
+        exclude group: "io.netty"
+        exclude group: "org.apache.logging.log4j"
+    }
+}
+
+def webDirectory = rootProject.file("web")
+def npmExecutable = System.getProperty("os.name").toLowerCase().contains("windows") ? "npm.cmd" : "npm"
+
+if (rootProject.tasks.findByName("webInstall") == null) {
+    rootProject.tasks.register("webInstall", Exec) {
+        group = "web"
+        description = "Installs pinned frontend dependencies."
+        workingDir webDirectory
+        commandLine npmExecutable, "ci"
+        inputs.files(rootProject.file("web/package.json"), rootProject.file("web/package-lock.json"))
+        outputs.dir(rootProject.file("web/node_modules"))
+    }
+}
+
+if (rootProject.tasks.findByName("webBuild") == null) {
+    rootProject.tasks.register("webBuild", Exec) {
+        group = "web"
+        description = "Builds the frontend assets."
+        dependsOn rootProject.tasks.named("webInstall")
+        workingDir webDirectory
+        commandLine npmExecutable, "run", "build"
+        inputs.files(
+                rootProject.file("web/index.html"),
+                rootProject.file("web/package.json"),
+                rootProject.file("web/package-lock.json"),
+                rootProject.file("web/tsconfig.json"),
+                rootProject.file("web/vite.config.ts")
+        )
+        inputs.dir(rootProject.file("web/src"))
+        outputs.dir(rootProject.file("web/dist"))
+    }
 }
 
 processResources {
+    dependsOn rootProject.tasks.named("webBuild")
     inputs.property "version", project.version
+
+    from(rootProject.file("web/dist")) {
+        into "web"
+    }
 
     filesMatching("fabric.mod.json") {
         expand "version": project.version
@@ -186,6 +233,14 @@ tasks.named("shadowJar") {
     archiveClassifier.set("")
     destinationDirectory = layout.buildDirectory.dir("tmp-shadow")
     configurations = [project.configurations.shadowInclude]
+    relocate "io.undertow", "cn.net.rms.syncmatica_r.shadow.io.undertow"
+    relocate "org.xnio", "cn.net.rms.syncmatica_r.shadow.org.xnio"
+    relocate "org.jboss", "cn.net.rms.syncmatica_r.shadow.org.jboss"
+    relocate "org.wildfly", "cn.net.rms.syncmatica_r.shadow.org.wildfly"
+    relocate "io.smallrye.common", "cn.net.rms.syncmatica_r.shadow.io.smallrye.common"
+    mergeServiceFiles()
+    exclude "io/netty/**"
+    exclude "org/apache/logging/log4j/**"
 }
 
 if (unobfuscated) {
