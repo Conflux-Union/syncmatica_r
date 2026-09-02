@@ -19,7 +19,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.function.Predicate;
+import net.minecraft.item.Item;
+import net.minecraft.item.Items;
 import net.minecraft.util.math.BlockPos;
 
 /**
@@ -31,6 +34,7 @@ import net.minecraft.util.math.BlockPos;
 public final class WebFacade {
     private final Context context;
     private final Predicate<String> loadedDimension;
+    private final Function<MaterialKey, String> materialTranslationKey;
 
     public enum StockingAreaOutcome {
         UPDATED,
@@ -51,8 +55,18 @@ public final class WebFacade {
     }
 
     public WebFacade(final Context context, final Predicate<String> loadedDimension) {
+        this(context, loadedDimension, WebFacade::translationKey);
+    }
+
+    WebFacade(
+            final Context context,
+            final Predicate<String> loadedDimension,
+            final Function<MaterialKey, String> materialTranslationKey
+    ) {
         this.context = Objects.requireNonNull(context, "context");
         this.loadedDimension = Objects.requireNonNull(loadedDimension, "loadedDimension");
+        this.materialTranslationKey =
+                Objects.requireNonNull(materialTranslationKey, "materialTranslationKey");
     }
 
     public List<WebDtos.ProjectSummary> listProjects() {
@@ -108,6 +122,8 @@ public final class WebFacade {
             final long supplied = entry.getTotalSupplied();
             result.add(new WebDtos.Material(
                     entry.getKey().itemId().toString(),
+                    materialTranslationKey.apply(entry.getKey()),
+                    fallbackName(entry.getKey()),
                     entry.getKey().variant(),
                     required,
                     supplied,
@@ -135,6 +151,8 @@ public final class WebFacade {
             final MaterialTotals total = entry.getValue();
             result.add(new WebDtos.MaterialSummary(
                     entry.getKey().itemId().toString(),
+                    materialTranslationKey.apply(entry.getKey()),
+                    fallbackName(entry.getKey()),
                     entry.getKey().variant(),
                     total.required,
                     total.supplied,
@@ -301,6 +319,45 @@ public final class WebFacade {
 
     private static String nameOf(final PlayerIdentifier identifier) {
         return identifier == null ? "" : identifier.getName();
+    }
+
+    private static String translationKey(final MaterialKey key) {
+        if (key == null) {
+            return "";
+        }
+        //#if MC >= 260100
+        //$$ final Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(key.itemId());
+        //#else
+        final Item item = net.minecraft.util.registry.Registry.ITEM.get(key.itemId());
+        //#endif
+        if (item == Items.AIR) {
+            return "";
+        }
+        //#if MC >= 260100
+        //$$ return item.getDescriptionId();
+        //#else
+        return item.getTranslationKey();
+        //#endif
+    }
+
+    private static String fallbackName(final MaterialKey key) {
+        if (key == null) {
+            return "";
+        }
+        final String path = key.itemId().getPath();
+        final StringBuilder result = new StringBuilder(path.length());
+        boolean capitalize = true;
+        for (int i = 0; i < path.length(); i++) {
+            final char current = path.charAt(i);
+            if (current == '_' || current == '-') {
+                result.append(' ');
+                capitalize = true;
+            } else {
+                result.append(capitalize ? Character.toUpperCase(current) : current);
+                capitalize = false;
+            }
+        }
+        return result.toString();
     }
 
     private static int progressPercent(final long supplied, final long required) {

@@ -42,6 +42,8 @@ export interface ProjectDetail {
 
 export interface Material {
   itemId: string;
+  translationKey: string;
+  fallbackName: string;
   variant: string;
   required: number;
   supplied: number;

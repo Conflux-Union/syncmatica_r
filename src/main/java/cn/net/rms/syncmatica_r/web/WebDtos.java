@@ -45,6 +45,8 @@ public final class WebDtos {
 
     public record Material(
             String itemId,
+            String translationKey,
+            String fallbackName,
             String variant,
             long required,
             long supplied,
@@ -59,6 +61,8 @@ public final class WebDtos {
 
     public record MaterialSummary(
             String itemId,
+            String translationKey,
+            String fallbackName,
             String variant,
             long required,
             long supplied,

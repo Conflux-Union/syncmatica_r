@@ -180,6 +180,40 @@ describe("App project views", () => {
     expect(screen.queryByText("Aquarium")).not.toBeInTheDocument();
   });
 
+  it("shows localized material names instead of raw item IDs", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        "/api/v1/auth/session": session,
+        "/api/v1/materials/summary": [
+          {
+            itemId: "minecraft:stone",
+            translationKey: "block.minecraft.stone",
+            fallbackName: "Stone",
+            variant: "",
+            required: 10,
+            supplied: 2,
+            missing: 8,
+            progressPercent: 20,
+          },
+        ],
+      }),
+    );
+    renderApp("/materials");
+
+    expect(await screen.findByText("Stone")).toBeInTheDocument();
+    expect(screen.queryByText("minecraft:stone")).not.toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Missing" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Most missing" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "切换到中文" }));
+    expect(screen.getByText("石头")).toBeInTheDocument();
+    expect(screen.queryByText("Stone")).not.toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "缺少" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "缺少最多" })).toBeInTheDocument();
+  });
+
   it("shows claim conflicts without silently changing material ownership", async () => {
     const user = userEvent.setup();
     vi.stubGlobal(
@@ -190,6 +224,8 @@ describe("App project views", () => {
         "/api/v1/projects/project-1/materials": [
           {
             itemId: "minecraft:stone",
+            translationKey: "block.minecraft.stone",
+            fallbackName: "Stone",
             variant: "",
             required: 10,
             supplied: 2,
@@ -223,6 +259,8 @@ describe("App project views", () => {
       "/api/v1/projects/project-1/materials": [
         {
           itemId: "minecraft:stone",
+          translationKey: "block.minecraft.stone",
+          fallbackName: "Stone",
           variant: "",
           required: 10,
           supplied: 2,
@@ -271,8 +309,38 @@ describe("App project views", () => {
     renderApp("/projects/project-1");
 
     await user.click(await screen.findByRole("tab", { name: "Stocking Area" }));
-    expect(await screen.findByLabelText("Dimension")).toHaveValue("minecraft:overworld");
+    expect(await screen.findByLabelText("Dimension · Overworld")).toHaveValue("minecraft:overworld");
     expect(screen.getByRole("button", { name: "Save stocking area" })).toBeInTheDocument();
+  });
+
+  it("localizes dimension names without changing editable dimension IDs", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        "/api/v1/auth/session": session,
+        "/api/v1/projects/project-1": detail,
+        "/api/v1/projects/project-1/materials": [],
+        "/api/v1/projects/project-1/stocking-area": {
+          dimension: "minecraft:overworld",
+          minX: 1,
+          minY: 2,
+          minZ: 3,
+          maxX: 4,
+          maxY: 5,
+          maxZ: 6,
+          volume: 120,
+        },
+      }),
+    );
+    renderApp("/projects/project-1");
+
+    expect(await screen.findByText("Overworld · 10, 64, 20")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "切换到中文" }));
+    expect(screen.getByText("主世界 · 10, 64, 20")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "库存区" }));
+    expect(await screen.findByLabelText("维度 · 主世界")).toHaveValue("minecraft:overworld");
   });
 
   it("keeps stocking controls read-only for non-owners", async () => {

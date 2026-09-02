@@ -77,7 +77,10 @@ final class WebFacadeTest {
             first.getMaterialProgress().get(STONE).setStockingSupplied(25);
             final ServerPlacement second = placement(context, player(context, "Other"));
             second.getMaterialProgress().get(STONE).setStockingSupplied(75);
-            final WebFacade facade = new WebFacade(context, "minecraft:overworld"::equals);
+            final WebFacade facade = new WebFacade(
+                    context,
+                    "minecraft:overworld"::equals,
+                    unused -> "block.minecraft.stone");
 
             final WebDtos.Material material = facade.getMaterials(first.getId()).get(0);
             final WebDtos.MaterialSummary summary = facade.getMaterialSummary().get(0);
@@ -86,9 +89,13 @@ final class WebFacadeTest {
             assertEquals(25L, material.supplied());
             assertEquals(75L, material.missing());
             assertEquals(25, material.progressPercent());
+            assertEquals("block.minecraft.stone", material.translationKey());
+            assertEquals("Stone", material.fallbackName());
             assertEquals(200L, summary.required());
             assertEquals(100L, summary.supplied());
             assertEquals(50, summary.progressPercent());
+            assertEquals("block.minecraft.stone", summary.translationKey());
+            assertEquals("Stone", summary.fallbackName());
             assertFalse(((Object) material) instanceof cn.net.rms.syncmatica_r.material.MaterialProgressEntry);
 
             first.getMaterialProgress().get(STONE).setStockingSupplied(100);

@@ -25,6 +25,23 @@ public class PlayerIdentifier {
         bufferedPlayerName = name;
     }
 
+    @Override
+    public boolean equals(final Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof PlayerIdentifier)) {
+            return false;
+        }
+        final PlayerIdentifier player = (PlayerIdentifier) other;
+        return uuid.equals(player.uuid);
+    }
+
+    @Override
+    public int hashCode() {
+        return uuid.hashCode();
+    }
+
     public JsonObject toJson() {
         final JsonObject jsonObject = new JsonObject();
 

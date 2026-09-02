@@ -21,6 +21,8 @@ import cn.net.rms.syncmatica_r.web.auth.WebAuthenticationCoordinator;
 import cn.net.rms.syncmatica_r.web.auth.WebCredentialStore;
 import cn.net.rms.syncmatica_r.web.auth.WebPasswordHasher;
 import cn.net.rms.syncmatica_r.web.auth.WebSessionStore;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import io.undertow.Undertow;
 import java.net.InetAddress;
@@ -109,7 +111,10 @@ final class WebRouterTest {
         }, Duration.ofSeconds(2));
         permissionResult.set(java.util.concurrent.CompletableFuture.completedFuture(true));
         final WebRouter router = new WebRouter(
-                new WebFacade(context, "minecraft:overworld"::equals),
+                new WebFacade(
+                        context,
+                        "minecraft:overworld"::equals,
+                        unused -> "block.minecraft.stone"),
                 new WebAuthenticationCoordinator(credentials, sessions),
                 sessions,
                 new LoginRateLimiter(),
@@ -157,8 +162,10 @@ final class WebRouterTest {
                 new WebDtos.ProjectDetail("id", "name", "file", "hash", null, player,
                         1, 2, new WebDtos.Position("minecraft:overworld", 3, 4, 5),
                         "NONE", "NONE", "AVAILABLE"),
-                new WebDtos.Material("minecraft:stone", "", 10, 4, 6, 40, List.of(player)),
-                new WebDtos.MaterialSummary("minecraft:stone", "", 10, 4, 6, 40),
+                new WebDtos.Material("minecraft:stone", "block.minecraft.stone", "Stone",
+                        "", 10, 4, 6, 40, List.of(player)),
+                new WebDtos.MaterialSummary("minecraft:stone", "block.minecraft.stone", "Stone",
+                        "", 10, 4, 6, 40),
                 new WebDtos.StockingArea("minecraft:overworld", 1, 2, 3, 4, 5, 6, 120),
                 new WebDtos.BuildRegion("roof", 10, 4, true, 8, 40, List.of(player)));
         final List<Set<String>> fields = List.of(
@@ -168,10 +175,10 @@ final class WebRouterTest {
                 Set.of("id", "name", "fileName", "hash", "owner", "lastModifiedBy",
                         "createdAt", "lastModifiedAt", "position", "rotation", "mirror",
                         "materialAvailability"),
-                Set.of("itemId", "variant", "required", "supplied", "missing",
-                        "progressPercent", "claimants"),
-                Set.of("itemId", "variant", "required", "supplied", "missing",
-                        "progressPercent"),
+                Set.of("itemId", "translationKey", "fallbackName", "variant", "required",
+                        "supplied", "missing", "progressPercent", "claimants"),
+                Set.of("itemId", "translationKey", "fallbackName", "variant", "required",
+                        "supplied", "missing", "progressPercent"),
                 Set.of("dimension", "minX", "minY", "minZ", "maxX", "maxY", "maxZ", "volume"),
                 Set.of("name", "requiredBlocks", "placedBlocks", "scanned", "lastScanAt",
                         "progressPercent", "claimants"));
@@ -353,6 +360,24 @@ final class WebRouterTest {
         assertEquals(204, logout.statusCode());
         assertTrue(logout.headers().firstValue("Set-Cookie").orElseThrow().contains("Max-Age=0"));
         assertEquals(401, get("/api/v1/auth/session", auth.cookie).statusCode());
+    }
+
+    @Test
+    void materialClaimsCanBeReleasedAcrossSeparateWebRequests() throws Exception {
+        final Auth auth = auth();
+
+        assertEquals("claimed",
+                json(put(materialClaimPath(), "{}", auth.cookie, auth.csrf))
+                        .get("outcome").getAsString());
+        assertEquals("released",
+                json(delete(materialClaimPath(), auth.cookie, auth.csrf))
+                        .get("outcome").getAsString());
+
+        final String body = get("/api/v1/projects/" + placement.getId()
+                + "/materials", auth.cookie).body();
+        final JsonObject material = new Gson()
+                .fromJson(body, JsonArray.class).get(0).getAsJsonObject();
+        assertEquals(0, material.getAsJsonArray("claimants").size());
     }
 
     @Test

@@ -52,9 +52,15 @@ import { Progress } from "./components/ui/progress";
 import { Skeleton } from "./components/ui/skeleton";
 import { Tabs } from "./components/ui/tabs";
 import { Toast } from "./components/ui/toast";
+import itemNamesEn from "./item-names-en.json";
+import itemNamesZh from "./item-names-zh.json";
 import { usePolling } from "./use-polling";
 
 type Theme = "light" | "dark";
+const itemNames: Record<Language, Record<string, string>> = {
+  en: itemNamesEn,
+  zh: itemNamesZh,
+};
 
 const translations = {
   en: {
@@ -85,7 +91,8 @@ const translations = {
     sortMaterials: "Sort materials",
     recent: "Recently modified",
     name: "Name",
-    missing: "Most missing",
+    missing: "Missing",
+    mostMissing: "Most missing",
     owner: "Owner",
     modified: "Modified",
     item: "Item",
@@ -115,6 +122,9 @@ const translations = {
     claimants: "Claimed by",
     unclaimed: "Unclaimed",
     dimension: "Dimension",
+    overworld: "Overworld",
+    nether: "Nether",
+    end: "End",
     minX: "Minimum X",
     minY: "Minimum Y",
     minZ: "Minimum Z",
@@ -163,7 +173,8 @@ const translations = {
     sortMaterials: "材料排序",
     recent: "最近修改",
     name: "名称",
-    missing: "缺少最多",
+    missing: "缺少",
+    mostMissing: "缺少最多",
     owner: "所有者",
     modified: "修改时间",
     item: "物品",
@@ -193,6 +204,9 @@ const translations = {
     claimants: "认领者",
     unclaimed: "未认领",
     dimension: "维度",
+    overworld: "主世界",
+    nether: "下界",
+    end: "末地",
     minX: "最小 X",
     minY: "最小 Y",
     minZ: "最小 Z",
@@ -448,8 +462,13 @@ function MaterialSummaryPage({ api, copy, language }: PageProps) {
   const fail = useCallback((failure: unknown) => { setLoading(false); setError(errorMessage(failure, language)); }, [language]);
   usePolling(load, receive, fail);
   const visible = rows
-    .filter((row) => `${row.itemId} ${row.variant}`.toLowerCase().includes(filter.toLowerCase()))
-    .sort((a, b) => sort === "name" ? a.itemId.localeCompare(b.itemId) : b.missing - a.missing);
+    .filter((row) =>
+      `${materialName(row, language)} ${row.itemId} ${row.variant}`
+        .toLowerCase()
+        .includes(filter.toLowerCase()))
+    .sort((a, b) => sort === "name"
+      ? materialName(a, language).localeCompare(materialName(b, language), language === "zh" ? "zh-CN" : "en")
+      : b.missing - a.missing);
   return (
     <>
       <PageHeading description={copy.materialsDescription} title={copy.materials} />
@@ -458,18 +477,19 @@ function MaterialSummaryPage({ api, copy, language }: PageProps) {
           <input aria-label={copy.filterMaterials} onChange={(event) => setFilter(event.target.value)} value={filter} />
         </label>
         <select aria-label={copy.sortMaterials} onChange={(event) => setSort(event.target.value)} value={sort}>
-          <option value="missing">{copy.missing}</option><option value="name">{copy.name}</option>
+          <option value="missing">{copy.mostMissing}</option><option value="name">{copy.name}</option>
         </select>
       </Toolbar>
       {loading ? <Skeleton label={copy.loadingMaterials} /> : error ? <ErrorState error={error} label={copy.tryAgain} onRetry={() => void load(new AbortController().signal).then(receive).catch(fail)} /> :
         visible.length === 0 ? <EmptyState icon={<ListChecks />} title={copy.noMaterials} /> :
-          <MaterialTable copy={copy} rows={visible} />}
+          <MaterialTable copy={copy} language={language} rows={visible} />}
     </>
   );
 }
 
-function MaterialTable({ copy, rows, session, onClaim }: {
+function MaterialTable({ copy, language, rows, session, onClaim }: {
   copy: Copy;
+  language: Language;
   rows: (Material | MaterialSummary)[];
   session?: Session;
   onClaim?: (row: Material, claim: boolean) => void;
@@ -481,7 +501,7 @@ function MaterialTable({ copy, rows, session, onClaim }: {
         const material = "claimants" in row ? row : undefined;
         const mine = material?.claimants.some((player) => player.id === session?.playerId) ?? false;
         return <tr key={`${row.itemId}\0${row.variant}`}>
-          <td><strong>{row.itemId}</strong>{row.variant && <small>{row.variant}</small>}{material && <small>{material.claimants.length ? `${copy.claimants}: ${material.claimants.map((player) => player.name).join(", ")}` : copy.unclaimed}</small>}</td>
+          <td><strong>{materialName(row, language)}</strong>{row.variant && <small>{row.variant}</small>}{material && <small>{material.claimants.length ? `${copy.claimants}: ${material.claimants.map((player) => player.name).join(", ")}` : copy.unclaimed}</small>}</td>
           <td>{row.required.toLocaleString()}</td><td>{row.supplied.toLocaleString()}</td><td>{row.missing.toLocaleString()}</td>
           <td><div className="progress-cell"><Progress label={`${row.progressPercent}%`} value={row.progressPercent} /><span>{row.progressPercent}%</span></div></td>
           {onClaim && material && <td><Button onClick={() => onClaim(material, !mine)} size="default" variant={mine ? "outline" : "primary"}>{mine ? copy.unclaimMaterial : copy.claimMaterial}</Button></td>}
@@ -510,7 +530,7 @@ function ProjectPage({ api, copy, language, session }: PageProps & { session: Se
       <Card className="detail-strip">
         <Detail label={copy.owner} value={project.owner.name} />
         <Detail label={copy.file} value={project.fileName} />
-        <Detail label={copy.position} value={`${project.position.dimension} · ${project.position.x}, ${project.position.y}, ${project.position.z}`} />
+        <Detail label={copy.position} value={`${dimensionName(project.position.dimension, copy)} · ${project.position.x}, ${project.position.y}, ${project.position.z}`} />
         <Detail label={copy.lastEditor} value={project.lastModifiedBy.name} />
       </Card>
       <Tabs active={tab} onChange={setTab} options={[
@@ -555,7 +575,7 @@ function ProjectMaterials({ api, copy, id, language, session }: PageProps & { id
   }
   const hasOwnClaims = rows.some((row) =>
     row.claimants.some((player) => player.id === session.playerId));
-  return <section className="tab-section">{loading ? <Skeleton label={copy.loadingMaterials} /> : error ? <ErrorState error={error} label={copy.tryAgain} onRetry={() => void load(new AbortController().signal).then(receive).catch(fail)} /> : rows.length ? <><div className="tab-actions">{hasOwnClaims && <Button onClick={() => void releaseAll()} size="default" variant="outline">{copy.unclaimAllMaterials}</Button>}</div><MaterialTable copy={copy} onClaim={(row, value) => void claim(row, value)} rows={rows} session={session} /></> : <EmptyState icon={<ListChecks />} title={copy.noMaterials} />}<Toast message={toast} /></section>;
+  return <section className="tab-section">{loading ? <Skeleton label={copy.loadingMaterials} /> : error ? <ErrorState error={error} label={copy.tryAgain} onRetry={() => void load(new AbortController().signal).then(receive).catch(fail)} /> : rows.length ? <><div className="tab-actions">{hasOwnClaims && <Button onClick={() => void releaseAll()} size="default" variant="outline">{copy.unclaimAllMaterials}</Button>}</div><MaterialTable copy={copy} language={language} onClaim={(row, value) => void claim(row, value)} rows={rows} session={session} /></> : <EmptyState icon={<ListChecks />} title={copy.noMaterials} />}<Toast message={toast} /></section>;
 }
 
 type AreaDraft = Omit<StockingArea, "volume">;
@@ -604,7 +624,7 @@ function StockingAreaPanel({ api, copy, id, language, owner, positionDimension }
     <section className="tab-section">
       {!owner && <p className="notice"><Warehouse aria-hidden="true" />{copy.ownerOnly}</p>}
       {owner ? <form className="coordinate-form" onSubmit={submit}>
-        <label className="dimension-field">{copy.dimension}<input onChange={(event) => { setDirty(true); setDraft({ ...draft, dimension: event.target.value }); }} required value={draft.dimension} /></label>
+        <label className="dimension-field">{copy.dimension} · {dimensionName(draft.dimension, copy)}<input onChange={(event) => { setDirty(true); setDraft({ ...draft, dimension: event.target.value }); }} required value={draft.dimension} /></label>
         <div className="coordinate-grid">{coordinateKeys.map((key) => <label key={key}>{copy[key]}<input inputMode="numeric" onChange={(event) => { setDirty(true); setDraft({ ...draft, [key]: Number(event.target.value) }); }} required type="number" value={draft[key]} /></label>)}</div>
         {area && <p className="volume">{copy.volume}: {area.volume.toLocaleString()}</p>}
         <Button disabled={saving} size="default" type="submit" variant="primary">{saving ? copy.saving : copy.saveArea}</Button>
@@ -615,7 +635,7 @@ function StockingAreaPanel({ api, copy, id, language, owner, positionDimension }
 }
 
 function AreaReadOnly({ area, copy }: { area: StockingArea; copy: Copy }) {
-  return <Card className="area-readonly"><strong>{area.dimension}</strong><span>{area.minX}, {area.minY}, {area.minZ} → {area.maxX}, {area.maxY}, {area.maxZ}</span><small>{copy.volume}: {area.volume.toLocaleString()}</small></Card>;
+  return <Card className="area-readonly"><strong>{dimensionName(area.dimension, copy)}</strong><span>{area.minX}, {area.minY}, {area.minZ} → {area.maxX}, {area.maxY}, {area.maxZ}</span><small>{copy.volume}: {area.volume.toLocaleString()}</small></Card>;
 }
 
 function BuildRegionsPanel({ api, copy, id, language, session }: PageProps & { id: string; session: Session }) {
@@ -667,6 +687,18 @@ function Detail({ label, value }: { label: string; value: string }) {
 
 function formatTime(value: number, language: Language) {
   return new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en", { dateStyle: "medium" }).format(new Date(value));
+}
+
+function materialName(row: Material | MaterialSummary, language: Language) {
+  return itemNames[language][row.translationKey] ?? row.fallbackName;
+}
+
+function dimensionName(id: string, copy: Copy) {
+  if (id === "minecraft:overworld") return copy.overworld;
+  if (id === "minecraft:the_nether") return copy.nether;
+  if (id === "minecraft:the_end") return copy.end;
+  const path = id.split(":").pop() ?? id;
+  return path.replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 export { App, translations };
