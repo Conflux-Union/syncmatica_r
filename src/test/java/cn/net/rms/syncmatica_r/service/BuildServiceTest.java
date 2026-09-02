@@ -67,6 +67,53 @@ final class BuildServiceTest {
     }
 
     @Test
+    void desiredBuildClaimAndReleaseAreIdempotent() {
+        final Context context = newServerContext();
+        try {
+            final BuildService service = context.getBuildService();
+            final ServerPlacement placement = attach(context, service, regions("roof"));
+            final PlayerIdentifier alice = player(context, "Alice");
+
+            assertEquals(BuildService.ClaimOutcome.CLAIMED,
+                    service.setClaim(placement, "roof", alice, true));
+            final long claimedAt = placement.getLastModifiedAtMillis();
+            assertEquals(BuildService.ClaimOutcome.ALREADY_CLAIMED,
+                    service.setClaim(placement, "roof", alice, true));
+            assertEquals(claimedAt, placement.getLastModifiedAtMillis());
+
+            assertEquals(BuildService.ClaimOutcome.RELEASED,
+                    service.setClaim(placement, "roof", alice, false));
+            final long releasedAt = placement.getLastModifiedAtMillis();
+            assertEquals(BuildService.ClaimOutcome.ALREADY_RELEASED,
+                    service.setClaim(placement, "roof", alice, false));
+            assertEquals(releasedAt, placement.getLastModifiedAtMillis());
+        } finally {
+            context.shutdown();
+        }
+    }
+
+    @Test
+    void desiredBuildClaimReportsConflicts() {
+        final Context context = newServerContext();
+        try {
+            final BuildService service = context.getBuildService();
+            final ServerPlacement placement = attach(context, service, regions("roof"));
+            final PlayerIdentifier alice = player(context, "Alice");
+            final PlayerIdentifier bob = player(context, "Bob");
+
+            assertEquals(BuildService.ClaimOutcome.CLAIMED,
+                    service.setClaim(placement, "roof", alice, true));
+            assertEquals(BuildService.ClaimOutcome.CLAIMED_BY_OTHER,
+                    service.setClaim(placement, "roof", bob, true));
+            assertEquals(BuildService.ClaimOutcome.ALREADY_RELEASED,
+                    service.setClaim(placement, "roof", bob, false));
+            assertEquals(alice, service.getClaimant(placement, "roof"));
+        } finally {
+            context.shutdown();
+        }
+    }
+
+    @Test
     void aClaimedRegionCannotBeTakenOverBySomeoneElse() {
         final Context context = newServerContext();
         try {
@@ -91,7 +138,7 @@ final class BuildServiceTest {
             final ServerPlacement placement = attach(context, service, regions("roof"));
 
             assertEquals(BuildService.ClaimOutcome.UNKNOWN_REGION,
-                    service.toggleClaim(placement, "basement", player(context, "Alice")));
+                    service.setClaim(placement, "basement", player(context, "Alice"), true));
             assertNull(service.getClaimant(placement, "basement"));
         } finally {
             context.shutdown();
@@ -163,7 +210,7 @@ final class BuildServiceTest {
 
             assertFalse(service.isEnabled());
             assertEquals(BuildService.ClaimOutcome.DISABLED,
-                    service.toggleClaim(placement, "roof", player(context, "Alice")));
+                    service.setClaim(placement, "roof", player(context, "Alice"), true));
         } finally {
             context.shutdown();
         }

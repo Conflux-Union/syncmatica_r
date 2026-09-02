@@ -5,6 +5,7 @@ import cn.net.rms.syncmatica_r.ServerPosition;
 import cn.net.rms.syncmatica_r.communication.MessageType;
 import cn.net.rms.syncmatica_r.communication.ProtocolLimits;
 import cn.net.rms.syncmatica_r.communication.ServerCommunicationManager;
+import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
 import cn.net.rms.syncmatica_r.material.*;
 import cn.net.rms.syncmatica_r.service.IServiceConfiguration;
 import cn.net.rms.syncmatica_r.util.NbtHelper;
@@ -95,12 +96,89 @@ public class MaterialService extends AbstractService {
     private final ArrayDeque<UUID> deferredExtractions = new ArrayDeque<>();
     private final Set<UUID> deferredExtractionIds = new HashSet<>();
 
+    public enum ClaimOutcome {
+        CLAIMED,
+        RELEASED,
+        ALREADY_CLAIMED,
+        ALREADY_RELEASED,
+        CLAIMED_BY_OTHER,
+        UNKNOWN_MATERIAL,
+        DISABLED
+    }
+
     public boolean isEnabled() {
         return enabled;
     }
 
     public boolean isOwnerStockingAreaManagementEnabled() {
         return ownerStockingAreaManagementEnabled;
+    }
+
+    public ClaimOutcome setClaim(final ServerPlacement placement, final MaterialKey key,
+                                 final PlayerIdentifier player, final boolean claimed) {
+        if (!enabled) {
+            return ClaimOutcome.DISABLED;
+        }
+        if (placement == null || key == null || player == null) {
+            return ClaimOutcome.UNKNOWN_MATERIAL;
+        }
+        final MaterialProgressEntry entry = placement.getMaterialProgress().get(key);
+        if (entry == null || entry.getRequiredAmount() <= 0) {
+            return ClaimOutcome.UNKNOWN_MATERIAL;
+        }
+        if (claimed) {
+            if (entry.hasClaimer(player)) {
+                return ClaimOutcome.ALREADY_CLAIMED;
+            }
+            if (!entry.getClaimants().isEmpty()) {
+                return ClaimOutcome.CLAIMED_BY_OTHER;
+            }
+            entry.addClaimer(player);
+        } else {
+            if (!entry.hasClaimer(player)) {
+                return ClaimOutcome.ALREADY_RELEASED;
+            }
+            entry.removeClaimer(player);
+        }
+        placement.setLastModifiedBy(player);
+        placement.touchModified(System.currentTimeMillis());
+        persistAndBroadcast(placement);
+        return claimed ? ClaimOutcome.CLAIMED : ClaimOutcome.RELEASED;
+    }
+
+    public ClaimOutcome toggleClaim(final ServerPlacement placement, final MaterialKey key,
+                                    final PlayerIdentifier player) {
+        return setClaim(placement, key, player, !isClaimedBy(placement, key, player));
+    }
+
+    public boolean isClaimedBy(final ServerPlacement placement, final MaterialKey key,
+                               final PlayerIdentifier player) {
+        if (placement == null || key == null) {
+            return false;
+        }
+        final MaterialProgressEntry entry = placement.getMaterialProgress().get(key);
+        return entry != null && entry.hasClaimer(player);
+    }
+
+    public PlayerIdentifier getClaimant(final ServerPlacement placement, final MaterialKey key) {
+        if (placement == null || key == null) {
+            return null;
+        }
+        final MaterialProgressEntry entry = placement.getMaterialProgress().get(key);
+        if (entry == null || entry.getClaimants().isEmpty()) {
+            return null;
+        }
+        return entry.getClaimants().iterator().next();
+    }
+
+    private void persistAndBroadcast(final ServerPlacement placement) {
+        if (context == null) {
+            return;
+        }
+        context.getSyncmaticManager().updateServerPlacement(placement);
+        if (context.getCommunicationManager() instanceof ServerCommunicationManager) {
+            ((ServerCommunicationManager) context.getCommunicationManager()).broadcastPlacementUpdate(placement);
+        }
     }
 
     UUID pendingExtractionToken(final UUID placementId) {

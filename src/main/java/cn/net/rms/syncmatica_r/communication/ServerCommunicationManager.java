@@ -254,43 +254,24 @@ public class ServerCommunicationManager extends CommunicationManager {
             final String itemId = packetBuf.readString(ProtocolLimits.MAX_ITEM_ID_LENGTH);
             final String variant = packetBuf.readString(ProtocolLimits.MAX_VARIANT_LENGTH);
             final ServerPlacement placement = context.getSyncmaticManager().getPlacement(placementId);
-            if (placement == null || context.getMaterialService() == null || !context.getMaterialService().isEnabled()) {
-                return;
-            }
             final net.minecraft.server.network.ServerPlayerEntity player = playerMap.get(source);
-            if (player == null || !Permissions.check(player, PlacementAccessPolicy.CLAIM_PERMISSION, true)) {
-                sendMessage(source, MessageType.ERROR, "syncmatica_r.error.permission_denied");
-                return;
-            }
             final java.util.Optional<net.minecraft.util.Identifier> parsedItemId = IdentifierUtil.tryParse(itemId);
             if (!parsedItemId.isPresent()) {
                 return;
             }
             final cn.net.rms.syncmatica_r.material.MaterialKey key =
                     new cn.net.rms.syncmatica_r.material.MaterialKey(parsedItemId.get(), variant);
-            final cn.net.rms.syncmatica_r.material.MaterialProgressEntry entry = placement.getMaterialProgress().get(key);
-            if (entry == null || entry.getRequiredAmount() <= 0) {
-                return;
-            }
-            final cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier pid = context.getPlayerIdentifierProvider().createOrGet(player.getGameProfile());
-            final java.util.Collection<cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier> current = entry.getClaimants();
-            if (entry.hasClaimer(pid)) {
-
-                entry.removeClaimer(pid);
-            } else if (!current.isEmpty()) {
-
-                final cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier owner = current.iterator().next();
-                sendMessage(source, MessageType.WARNING,
-                        "Already claimed by " + owner.getName());
-                return;
-            } else {
-
-                entry.addClaimer(pid);
-            }
-            placement.setLastModifiedBy(pid);
-            placement.touchModified(System.currentTimeMillis());
-            context.getSyncmaticManager().updateServerPlacement(placement);
-            broadcastPlacementUpdate(placement);
+            MaterialClaimPacketAdapter.handleToggle(
+                    context.getMaterialService(),
+                    placement,
+                    key,
+                    () -> player == null
+                            ? null
+                            : context.getPlayerIdentifierProvider().createOrGet(player.getGameProfile()),
+                    () -> player != null
+                            && Permissions.check(player, PlacementAccessPolicy.CLAIM_PERMISSION, true),
+                    (messageType, identifier) -> sendMessage(source, messageType, identifier)
+            );
             return;
         }
         if (type == PacketType.BUILD_REGION_CLAIM) {

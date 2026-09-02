@@ -135,6 +135,8 @@ public class BuildService extends AbstractService {
         CLAIMED,
         RELEASED,
         ALREADY_CLAIMED,
+        ALREADY_RELEASED,
+        CLAIMED_BY_OTHER,
         UNKNOWN_REGION,
         DISABLED
     }
@@ -539,6 +541,14 @@ public class BuildService extends AbstractService {
 
     public ClaimOutcome toggleClaim(final ServerPlacement placement, final String regionName,
                                     final PlayerIdentifier player) {
+        final BuildRegion region = placement == null ? null : placement.getBuildRegions().get(regionName);
+        final boolean claimed = region == null || !region.hasClaimer(player);
+        final ClaimOutcome outcome = setClaim(placement, regionName, player, claimed);
+        return outcome == ClaimOutcome.CLAIMED_BY_OTHER ? ClaimOutcome.ALREADY_CLAIMED : outcome;
+    }
+
+    public ClaimOutcome setClaim(final ServerPlacement placement, final String regionName,
+                                 final PlayerIdentifier player, final boolean claimed) {
         if (!enabled) {
             return ClaimOutcome.DISABLED;
         }
@@ -550,22 +560,26 @@ public class BuildService extends AbstractService {
             return ClaimOutcome.UNKNOWN_REGION;
         }
 
-        final ClaimOutcome outcome;
-        if (region.hasClaimer(player)) {
-            region.removeClaimer(player);
-            outcome = ClaimOutcome.RELEASED;
-        } else if (region.isClaimed()) {
-            // One responsible player per region; taking over needs an explicit release.
-            return ClaimOutcome.ALREADY_CLAIMED;
-        } else {
+        if (claimed) {
+            if (region.hasClaimer(player)) {
+                return ClaimOutcome.ALREADY_CLAIMED;
+            }
+            if (region.isClaimed()) {
+                // One responsible player per region; taking over needs an explicit release.
+                return ClaimOutcome.CLAIMED_BY_OTHER;
+            }
             region.addClaimer(player);
-            outcome = ClaimOutcome.CLAIMED;
+        } else {
+            if (!region.hasClaimer(player)) {
+                return ClaimOutcome.ALREADY_RELEASED;
+            }
+            region.removeClaimer(player);
         }
 
         placement.setLastModifiedBy(player);
         placement.touchModified(System.currentTimeMillis());
         persistAndBroadcast(placement);
-        return outcome;
+        return claimed ? ClaimOutcome.CLAIMED : ClaimOutcome.RELEASED;
     }
 
     /**
