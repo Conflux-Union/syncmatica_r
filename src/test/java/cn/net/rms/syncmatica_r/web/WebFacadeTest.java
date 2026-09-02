@@ -152,6 +152,53 @@ final class WebFacadeTest {
     }
 
     @Test
+    void myClaimsAggregateOnlyTheSessionPlayerAcrossProjects() {
+        final Context context = newServerContext();
+        try {
+            final ServerPlacement first = placement(context, player(context, "Owner"));
+            first.setDisplayName("alpha");
+            first.getMaterialProgress().get(STONE).setStockingSupplied(25);
+            final ServerPlacement second = placement(context, player(context, "Other"));
+            second.setDisplayName("beta");
+            context.getBuildService().replaceRegions(first.getId(), Map.of("roof", 100L));
+            final PlayerIdentifier alice = player(context, "Alice");
+            final PlayerIdentifier bob = player(context, "Bob");
+            final WebFacade facade = new WebFacade(
+                    context,
+                    "minecraft:overworld"::equals,
+                    unused -> "block.minecraft.stone");
+
+            assertEquals(MaterialService.ClaimOutcome.CLAIMED,
+                    facade.setMaterialClaim(first.getId(), STONE, alice, true));
+            assertEquals(MaterialService.ClaimOutcome.CLAIMED,
+                    facade.setMaterialClaim(second.getId(), STONE, bob, true));
+            assertEquals(BuildService.ClaimOutcome.CLAIMED,
+                    facade.setBuildClaim(first.getId(), "roof", alice, true));
+
+            final WebDtos.MyClaims claims = facade.getMyClaims(alice.uuid);
+            final WebDtos.MyClaims stranger = facade.getMyClaims(
+                    UUID.nameUUIDFromBytes("Stranger".getBytes()));
+
+            assertEquals(1, claims.materials().size());
+            assertEquals(first.getId().toString(), claims.materials().get(0).projectId());
+            assertEquals("alpha", claims.materials().get(0).projectName());
+            assertEquals("minecraft:stone", claims.materials().get(0).itemId());
+            assertEquals("Stone", claims.materials().get(0).fallbackName());
+            assertEquals(75L, claims.materials().get(0).missing());
+            assertEquals(25, claims.materials().get(0).progressPercent());
+            assertEquals(1, claims.regions().size());
+            assertEquals("roof", claims.regions().get(0).name());
+            assertEquals(first.getId().toString(), claims.regions().get(0).projectId());
+            assertTrue(stranger.materials().isEmpty());
+            assertTrue(stranger.regions().isEmpty());
+            assertThrows(UnsupportedOperationException.class,
+                    () -> claims.materials().add(claims.materials().get(0)));
+        } finally {
+            context.shutdown();
+        }
+    }
+
+    @Test
     void stockingAreaUsesOwnerPolicyAndRejectsUnloadedDimensions() {
         final Context context = newServerContext();
         try {

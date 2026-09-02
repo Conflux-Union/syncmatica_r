@@ -411,6 +411,123 @@ describe("App project views", () => {
   });
 });
 
+describe("App claims view", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("lists claimed materials and regions and releases a single claim", async () => {
+    const user = userEvent.setup();
+    const claimedMaterial = {
+      projectId: "project-1",
+      projectName: "Castle",
+      itemId: "minecraft:stone",
+      translationKey: "block.minecraft.stone",
+      fallbackName: "Stone",
+      variant: "",
+      required: 10,
+      supplied: 2,
+      missing: 8,
+      progressPercent: 20,
+    };
+    const claimedRegion = {
+      projectId: "project-1",
+      projectName: "Castle",
+      name: "North Hall",
+      requiredBlocks: 100,
+      placedBlocks: 40,
+      scanned: true,
+      lastScanAt: 2,
+      progressPercent: 40,
+    };
+    let released = false;
+    const fetcher = routeFetch({
+      "/api/v1/auth/session": session,
+      "/api/v1/claims/me": () => released
+        ? { materials: [], regions: [claimedRegion] }
+        : { materials: [claimedMaterial], regions: [claimedRegion] },
+      "DELETE /api/v1/projects/project-1/materials/minecraft%3Astone/claim?variant=":
+        () => {
+          released = true;
+          return { outcome: "released" };
+        },
+    });
+    vi.stubGlobal("fetch", fetcher);
+    renderApp("/claims");
+
+    expect(await screen.findByRole("heading", { name: "Claimed materials" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Claimed build regions" })).toBeInTheDocument();
+    expect(screen.getByText("Stone")).toBeInTheDocument();
+    expect(screen.getByText("North Hall")).toBeInTheDocument();
+    for (const link of screen.getAllByRole("link", { name: "Castle" })) {
+      expect(link).toHaveAttribute("href", "/projects/project-1");
+    }
+
+    await user.click(screen.getByRole("button", { name: "Unclaim material" }));
+
+    await waitFor(() =>
+      expect(fetcher).toHaveBeenCalledWith(
+        "/api/v1/projects/project-1/materials/minecraft%3Astone/claim?variant=",
+        expect.objectContaining({ method: "DELETE" }),
+      ),
+    );
+    await screen.findByText("Claim updated.");
+    await waitFor(() => expect(screen.queryByText("Stone")).not.toBeInTheDocument());
+    expect(screen.getByText("North Hall")).toBeInTheDocument();
+  });
+
+  it("shows an empty state when the player has no claims", async () => {
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        "/api/v1/auth/session": session,
+        "/api/v1/claims/me": { materials: [], regions: [] },
+      }),
+    );
+    renderApp("/claims");
+
+    expect(await screen.findByText("No claims yet")).toBeInTheDocument();
+  });
+
+  it("localizes the claims navigation and headings", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        "/api/v1/auth/session": session,
+        "/api/v1/projects": [],
+        "/api/v1/claims/me": {
+          materials: [
+            {
+              projectId: "project-1",
+              projectName: "Castle",
+              itemId: "minecraft:stone",
+              translationKey: "block.minecraft.stone",
+              fallbackName: "Stone",
+              variant: "",
+              required: 10,
+              supplied: 2,
+              missing: 8,
+              progressPercent: 20,
+            },
+          ],
+          regions: [],
+        },
+      }),
+    );
+    renderApp();
+
+    await screen.findByText("No projects yet");
+    await user.click(screen.getByRole("link", { name: "My Claims" }));
+    expect(await screen.findByRole("heading", { name: "Claimed materials" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Unclaim material" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "切换到中文" }));
+    expect(screen.getByRole("heading", { name: "认领的材料" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "取消认领材料" })).toBeInTheDocument();
+  });
+});
+
 describe("App material views", () => {
   afterEach(() => {
     vi.unstubAllGlobals();

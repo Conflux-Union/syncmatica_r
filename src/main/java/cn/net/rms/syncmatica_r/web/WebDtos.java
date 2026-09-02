@@ -96,4 +96,37 @@ public final class WebDtos {
             claimants = List.copyOf(claimants);
         }
     }
+
+    public record ClaimedMaterial(
+            String projectId,
+            String projectName,
+            String itemId,
+            String translationKey,
+            String fallbackName,
+            String variant,
+            long required,
+            long supplied,
+            long missing,
+            int progressPercent
+    ) {
+    }
+
+    public record ClaimedRegion(
+            String projectId,
+            String projectName,
+            String name,
+            long requiredBlocks,
+            long placedBlocks,
+            boolean scanned,
+            long lastScanAt,
+            int progressPercent
+    ) {
+    }
+
+    public record MyClaims(List<ClaimedMaterial> materials, List<ClaimedRegion> regions) {
+        public MyClaims {
+            materials = List.copyOf(materials);
+            regions = List.copyOf(regions);
+        }
+    }
 }

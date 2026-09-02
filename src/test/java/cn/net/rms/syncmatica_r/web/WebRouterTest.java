@@ -167,7 +167,11 @@ final class WebRouterTest {
                 new WebDtos.MaterialSummary("minecraft:stone", "block.minecraft.stone", "Stone",
                         "", 10, 4, 6, 40),
                 new WebDtos.StockingArea("minecraft:overworld", 1, 2, 3, 4, 5, 6, 120),
-                new WebDtos.BuildRegion("roof", 10, 4, true, 8, 40, List.of(player)));
+                new WebDtos.BuildRegion("roof", 10, 4, true, 8, 40, List.of(player)),
+                new WebDtos.ClaimedMaterial("id", "name", "minecraft:stone",
+                        "block.minecraft.stone", "Stone", "", 10, 4, 6, 40),
+                new WebDtos.ClaimedRegion("id", "name", "roof", 10, 4, true, 8, 40),
+                new WebDtos.MyClaims(List.of(), List.of()));
         final List<Set<String>> fields = List.of(
                 Set.of("id", "name"),
                 Set.of("dimension", "x", "y", "z"),
@@ -181,7 +185,12 @@ final class WebRouterTest {
                         "supplied", "missing", "progressPercent"),
                 Set.of("dimension", "minX", "minY", "minZ", "maxX", "maxY", "maxZ", "volume"),
                 Set.of("name", "requiredBlocks", "placedBlocks", "scanned", "lastScanAt",
-                        "progressPercent", "claimants"));
+                        "progressPercent", "claimants"),
+                Set.of("projectId", "projectName", "itemId", "translationKey", "fallbackName",
+                        "variant", "required", "supplied", "missing", "progressPercent"),
+                Set.of("projectId", "projectName", "name", "requiredBlocks", "placedBlocks",
+                        "scanned", "lastScanAt", "progressPercent"),
+                Set.of("materials", "regions"));
 
         for (int i = 0; i < values.size(); i++) {
             final JsonObject json = WebJson.parseObject(WebJson.toJson(values.get(i)));
@@ -381,6 +390,32 @@ final class WebRouterTest {
     }
 
     @Test
+    void claimsEndpointAggregatesOnlyTheSessionPlayer() throws Exception {
+        final Auth auth = auth();
+        assertEquals(200, put(materialClaimPath(), "{}", auth.cookie, auth.csrf).statusCode());
+        assertEquals(200, put(buildClaimPath(), "{}", auth.cookie, auth.csrf).statusCode());
+
+        final HttpResponse<String> claims = get("/api/v1/claims/me", auth.cookie);
+        assertEquals(200, claims.statusCode());
+        final JsonObject body = json(claims);
+        final JsonArray materials = body.getAsJsonArray("materials");
+        final JsonArray regions = body.getAsJsonArray("regions");
+        assertEquals(1, materials.size());
+        assertEquals(placement.getId().toString(),
+                materials.get(0).getAsJsonObject().get("projectId").getAsString());
+        assertEquals("project",
+                materials.get(0).getAsJsonObject().get("projectName").getAsString());
+        assertEquals(1, regions.size());
+        assertEquals("roof",
+                regions.get(0).getAsJsonObject().get("name").getAsString());
+
+        assertEquals(200, delete(materialClaimPath(), auth.cookie, auth.csrf).statusCode());
+        assertEquals(0, json(get("/api/v1/claims/me", auth.cookie))
+                .getAsJsonArray("materials").size());
+        assertEquals(405, post("/api/v1/claims/me", "{}", auth.cookie, auth.csrf).statusCode());
+    }
+
+    @Test
     void permissionTimeoutReturnsStableGatewayTimeout() throws Exception {
         final Auth auth = auth();
         permissionResult.set(new java.util.concurrent.CompletableFuture<>());
@@ -401,6 +436,7 @@ final class WebRouterTest {
         assertEquals(200, get(project, auth.cookie).statusCode());
         assertEquals(200, get(project + "/materials", auth.cookie).statusCode());
         assertEquals(200, get("/api/v1/materials/summary", auth.cookie).statusCode());
+        assertEquals(200, get("/api/v1/claims/me", auth.cookie).statusCode());
         assertEquals(200, get(project + "/build-regions", auth.cookie).statusCode());
         assertEquals(404, get(project + "/stocking-area", auth.cookie).statusCode());
 

@@ -197,6 +197,68 @@ public final class WebFacade {
         return List.copyOf(result);
     }
 
+    /**
+     * Aggregates every material and build region the player has claimed
+     * across all placements, so the web client polls one endpoint instead of
+     * one request per project.
+     */
+    public WebDtos.MyClaims getMyClaims(final UUID playerId) {
+        final List<WebDtos.ClaimedMaterial> materials = new ArrayList<>();
+        final List<WebDtos.ClaimedRegion> regions = new ArrayList<>();
+        for (final ServerPlacement placement : context.getSyncmaticManager().getAll()) {
+            for (final MaterialProgressEntry entry : placement.getMaterialProgress().getEntries()) {
+                if (isClaimedBy(entry.getClaimants(), playerId)) {
+                    final long required = entry.getRequiredAmount();
+                    final long supplied = entry.getTotalSupplied();
+                    materials.add(new WebDtos.ClaimedMaterial(
+                            placement.getId().toString(),
+                            placement.getName(),
+                            entry.getKey().itemId().toString(),
+                            materialTranslationKey.apply(entry.getKey()),
+                            fallbackName(entry.getKey()),
+                            entry.getKey().variant(),
+                            required,
+                            supplied,
+                            Math.max(0L, required - supplied),
+                            progressPercent(supplied, required)
+                    ));
+                }
+            }
+            for (final BuildRegion region : placement.getBuildRegions().getRegions()) {
+                if (isClaimedBy(region.getClaimants(), playerId)) {
+                    regions.add(new WebDtos.ClaimedRegion(
+                            placement.getId().toString(),
+                            placement.getName(),
+                            region.getRegionName(),
+                            region.getRequiredBlocks(),
+                            region.getPlacedBlocks(),
+                            region.isScanned(),
+                            region.getLastScanMillis(),
+                            region.isScanned()
+                                    ? progressPercent(region.getPlacedBlocks(), region.getRequiredBlocks())
+                                    : -1
+                    ));
+                }
+            }
+        }
+        materials.sort(Comparator.comparing(WebDtos.ClaimedMaterial::projectName)
+                .thenComparing(WebDtos.ClaimedMaterial::itemId)
+                .thenComparing(WebDtos.ClaimedMaterial::variant));
+        regions.sort(Comparator.comparing(WebDtos.ClaimedRegion::projectName)
+                .thenComparing(WebDtos.ClaimedRegion::name));
+        return new WebDtos.MyClaims(List.copyOf(materials), List.copyOf(regions));
+    }
+
+    private static boolean isClaimedBy(final java.util.Collection<PlayerIdentifier> claimants,
+                                       final UUID playerId) {
+        for (final PlayerIdentifier claimant : claimants) {
+            if (claimant != null && playerId.equals(claimant.uuid)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public MaterialService.ClaimOutcome setMaterialClaim(final UUID placementId, final MaterialKey key,
                                                          final PlayerIdentifier player, final boolean claimed) {
         return context.getMaterialService().setClaim(

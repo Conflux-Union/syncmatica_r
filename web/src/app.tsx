@@ -1,4 +1,5 @@
 import {
+  BookmarkCheck,
   Box,
   Boxes,
   ChevronRight,
@@ -37,9 +38,12 @@ import {
   errorMessage,
   type ApiClient,
   type BuildRegion,
+  type ClaimedMaterial,
+  type ClaimedRegion,
   type Language,
   type Material,
   type MaterialSummary,
+  type MyClaims,
   type ProjectDetail,
   type ProjectSummary,
   type Session,
@@ -69,6 +73,7 @@ const translations = {
     navigationLabel: "Primary navigation",
     projects: "Projects",
     materials: "Material Summary",
+    myClaims: "My Claims",
     switchLanguage: "切换到中文",
     switchToDarkTheme: "Switch to dark theme",
     switchToLightTheme: "Switch to light theme",
@@ -81,10 +86,15 @@ const translations = {
     signingIn: "Signing in…",
     projectsDescription: "Browse synchronized building projects.",
     materialsDescription: "Review materials across active projects.",
+    myClaimsDescription: "Track the materials and build regions you have claimed.",
     noProjects: "No projects yet",
     noProjectsDescription: "Projects synchronized by the server will appear here.",
     noMaterials: "No materials to show",
     noRegions: "No build regions to show",
+    noClaims: "No claims yet",
+    noClaimsDescription: "Materials and build regions you claim will appear here.",
+    claimedMaterials: "Claimed materials",
+    claimedRegions: "Claimed build regions",
     filterProjects: "Filter projects",
     filterMaterials: "Filter materials",
     sortProjects: "Sort projects",
@@ -113,6 +123,7 @@ const translations = {
     loadingSession: "Loading session",
     loadingProjects: "Loading projects",
     loadingMaterials: "Loading materials",
+    loadingClaims: "Loading claims",
     loadingProject: "Loading project",
     loadingArea: "Loading stocking area",
     loadingRegions: "Loading build regions",
@@ -159,6 +170,7 @@ const translations = {
     navigationLabel: "主导航",
     projects: "项目",
     materials: "材料汇总",
+    myClaims: "我的认领",
     switchLanguage: "Switch to English",
     switchToDarkTheme: "切换到深色主题",
     switchToLightTheme: "切换到浅色主题",
@@ -171,10 +183,15 @@ const translations = {
     signingIn: "正在登录…",
     projectsDescription: "浏览已同步的建筑项目。",
     materialsDescription: "查看进行中项目的材料。",
+    myClaimsDescription: "查看你在各项目中认领的材料与建造区域。",
     noProjects: "暂无项目",
     noProjectsDescription: "服务器同步的项目将显示在这里。",
     noMaterials: "暂无材料",
     noRegions: "暂无建造区域",
+    noClaims: "暂无认领",
+    noClaimsDescription: "你认领的材料和建造区域会显示在这里。",
+    claimedMaterials: "认领的材料",
+    claimedRegions: "认领的建造区域",
     filterProjects: "筛选项目",
     filterMaterials: "筛选材料",
     sortProjects: "项目排序",
@@ -203,6 +220,7 @@ const translations = {
     loadingSession: "正在加载会话",
     loadingProjects: "正在加载项目",
     loadingMaterials: "正在加载材料",
+    loadingClaims: "正在加载认领",
     loadingProject: "正在加载项目",
     loadingArea: "正在加载备货区",
     loadingRegions: "正在加载建造区域",
@@ -312,6 +330,9 @@ function App() {
           <NavLink className={({ isActive }) => `navigation-link${isActive ? " navigation-link-active" : ""}`} to="/materials">
             <ListChecks aria-hidden="true" size={19} /><span>{copy.materials}</span>
           </NavLink>
+          <NavLink className={({ isActive }) => `navigation-link${isActive ? " navigation-link-active" : ""}`} to="/claims">
+            <BookmarkCheck aria-hidden="true" size={19} /><span>{copy.myClaims}</span>
+          </NavLink>
         </nav>
         <div className="shell-actions">
           <PreferenceActions
@@ -335,6 +356,7 @@ function App() {
         <Routes>
           <Route path="/" element={<ProjectsPage api={api} copy={copy} language={language} />} />
           <Route path="/materials" element={<MaterialSummaryPage api={api} copy={copy} language={language} />} />
+          <Route path="/claims" element={<MyClaimsPage api={api} copy={copy} language={language} />} />
           <Route path="/projects/:id" element={<ProjectPage api={api} copy={copy} language={language} session={session} />} />
           <Route path="*" element={<Navigate replace to="/" />} />
         </Routes>
@@ -522,6 +544,87 @@ function MaterialSummaryPage({ api, copy, language }: PageProps) {
       {loading ? <Skeleton label={copy.loadingMaterials} /> : error ? <ErrorState error={error} label={copy.tryAgain} onRetry={() => void load(new AbortController().signal).then(receive).catch(fail)} /> :
         visible.length === 0 ? <EmptyState icon={<ListChecks />} title={copy.noMaterials} /> :
           <MaterialTable copy={copy} key={`${area}\0${filter}\0${sort}`} language={language} rows={visible} />}
+    </>
+  );
+}
+
+function MyClaimsPage({ api, copy, language }: PageProps) {
+  const [claims, setClaims] = useState<MyClaims>();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [toast, setToast] = useState<string | null>(null);
+  const load = useCallback((signal: AbortSignal) => api.myClaims(signal), [api]);
+  const receive = useCallback((value: MyClaims) => { setClaims(value); setLoading(false); setError(""); }, []);
+  const fail = useCallback((failure: unknown) => { setLoading(false); setError(errorMessage(failure, language)); }, [language]);
+  usePolling(load, receive, fail);
+
+  async function refresh() {
+    try {
+      receive(await api.myClaims());
+    } catch (failure) {
+      setToast(errorMessage(failure, language));
+    }
+  }
+  async function unclaimMaterial(row: ClaimedMaterial) {
+    try {
+      await api.setMaterialClaim(row.projectId, row.itemId, row.variant, false);
+      setToast(copy.claimUpdated);
+    } catch (failure) {
+      setToast(errorMessage(failure, language));
+    }
+    await refresh();
+  }
+  async function unclaimRegion(row: ClaimedRegion) {
+    try {
+      await api.setBuildClaim(row.projectId, row.name, false);
+      setToast(copy.claimUpdated);
+    } catch (failure) {
+      setToast(errorMessage(failure, language));
+    }
+    await refresh();
+  }
+
+  return (
+    <>
+      <PageHeading description={copy.myClaimsDescription} title={copy.myClaims} />
+      {loading ? <Skeleton label={copy.loadingClaims} /> : error ? <ErrorState error={error} label={copy.tryAgain} onRetry={() => void load(new AbortController().signal).then(receive).catch(fail)} /> :
+        claims && claims.materials.length === 0 && claims.regions.length === 0 ? <EmptyState icon={<BookmarkCheck />} title={copy.noClaims} description={copy.noClaimsDescription} /> :
+        claims && <>
+          {claims.materials.length > 0 && (
+            <section className="claims-section">
+              <h2>{copy.claimedMaterials}</h2>
+              <DataTable label={copy.claimedMaterials}>
+                <thead><tr><th>{copy.projects}</th><th>{copy.item}</th><th>{copy.required}</th><th>{copy.supplied}</th><th>{copy.missing}</th><th>{copy.progress}</th><th>{copy.actions}</th></tr></thead>
+                <tbody>{claims.materials.map((row) => <tr key={`${row.projectId}\0${row.itemId}\0${row.variant}`}>
+                  <td><Link to={`/projects/${encodeURIComponent(row.projectId)}`}>{row.projectName}</Link></td>
+                  <td><strong>{materialName(row, language)}</strong>{row.variant && <small>{row.variant}</small>}</td>
+                  <QuantityCell copy={copy} language={language} value={row.required} />
+                  <QuantityCell copy={copy} language={language} value={row.supplied} />
+                  <QuantityCell copy={copy} language={language} value={row.missing} />
+                  <td><div className="progress-cell"><Progress label={`${row.progressPercent}%`} value={row.progressPercent} /><span>{row.progressPercent}%</span></div></td>
+                  <td><Button onClick={() => void unclaimMaterial(row)} size="default" variant="outline">{copy.unclaimMaterial}</Button></td>
+                </tr>)}</tbody>
+              </DataTable>
+            </section>
+          )}
+          {claims.regions.length > 0 && (
+            <section className="claims-section">
+              <h2>{copy.claimedRegions}</h2>
+              <DataTable label={copy.claimedRegions}>
+                <thead><tr><th>{copy.projects}</th><th>{copy.region}</th><th>{copy.blocks}</th><th>{copy.progress}</th><th>{copy.scanStatus}</th><th>{copy.actions}</th></tr></thead>
+                <tbody>{claims.regions.map((row) => <tr key={`${row.projectId}\0${row.name}`}>
+                  <td><Link to={`/projects/${encodeURIComponent(row.projectId)}`}>{row.projectName}</Link></td>
+                  <td><strong>{row.name}</strong></td>
+                  <td>{row.placedBlocks.toLocaleString()} / {row.requiredBlocks.toLocaleString()}</td>
+                  <td><div className="progress-cell"><Progress label={`${row.progressPercent}%`} value={row.progressPercent} /><span>{row.progressPercent}%</span></div></td>
+                  <td>{row.scanned ? copy.scanned : copy.notScanned}</td>
+                  <td><Button onClick={() => void unclaimRegion(row)} size="default" variant="outline">{copy.unclaimRegion}</Button></td>
+                </tr>)}</tbody>
+              </DataTable>
+            </section>
+          )}
+        </>}
+      <Toast message={toast} />
     </>
   );
 }
@@ -796,7 +899,7 @@ function formatTime(value: number, language: Language) {
   return new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en", { dateStyle: "medium" }).format(new Date(value));
 }
 
-function materialName(row: Material | MaterialSummary, language: Language) {
+function materialName(row: Pick<Material, "translationKey" | "fallbackName">, language: Language) {
   return itemNames[language][row.translationKey] ?? row.fallbackName;
 }
 

@@ -63,6 +63,8 @@ public final class WebRouter {
             Pattern.compile("^/api/v1/projects/([^/]+)/build-regions$");
     private static final Pattern BUILD_CLAIM =
             Pattern.compile("^/api/v1/projects/([^/]+)/build-regions/([^/]+)/claim$");
+    private static final Pattern MY_CLAIMS =
+            Pattern.compile("^/api/v1/claims/me$");
     private static final Pattern ASSET_REFERENCE =
             Pattern.compile("(?:src|href)=\"(/assets/[A-Za-z0-9._-]+)\"");
 
@@ -256,6 +258,14 @@ public final class WebRouter {
                 return;
             }
             gameResponse(exchange, () -> facade.getMaterialSummary());
+            return;
+        }
+        if ((API + "/claims/me").equals(path)) {
+            if (!"GET".equals(method)) {
+                methodNotAllowed(exchange, "GET");
+                return;
+            }
+            gameResponse(exchange, () -> facade.getMyClaims(identity.playerId));
             return;
         }
 
@@ -704,6 +714,7 @@ public final class WebRouter {
                 || (API + "/auth/logout").equals(path)
                 || (API + "/projects").equals(path)
                 || (API + "/materials/summary").equals(path)
+                || MY_CLAIMS.matcher(path).matches()
                 || PROJECT.matcher(path).matches()
                 || MATERIALS.matcher(path).matches()
                 || MATERIAL_CLAIM.matcher(path).matches()

@@ -48,6 +48,23 @@ describe("API client", () => {
     expect(new Headers(options?.headers).get("X-CSRF-Token")).toBe("csrf-value");
   });
 
+  it("aggregates the signed-in player's claims in one endpoint", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json(session))
+      .mockResolvedValueOnce(json({ materials: [], regions: [] }));
+    const api = createApiClient(fetcher);
+
+    await api.session();
+    await api.myClaims();
+
+    expect(fetcher).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/claims/me",
+      expect.objectContaining({ credentials: "same-origin", method: "GET" }),
+    );
+  });
+
   it("does not retry a failed write and reports unauthorized responses", async () => {
     const unauthorized = vi.fn();
     const fetcher = vi

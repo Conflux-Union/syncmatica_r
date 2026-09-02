@@ -75,6 +75,35 @@ export interface BuildRegion {
   claimants: Player[];
 }
 
+export interface ClaimedMaterial {
+  projectId: string;
+  projectName: string;
+  itemId: string;
+  translationKey: string;
+  fallbackName: string;
+  variant: string;
+  required: number;
+  supplied: number;
+  missing: number;
+  progressPercent: number;
+}
+
+export interface ClaimedRegion {
+  projectId: string;
+  projectName: string;
+  name: string;
+  requiredBlocks: number;
+  placedBlocks: number;
+  scanned: boolean;
+  lastScanAt: number;
+  progressPercent: number;
+}
+
+export interface MyClaims {
+  materials: ClaimedMaterial[];
+  regions: ClaimedRegion[];
+}
+
 interface Outcome {
   outcome: "claimed" | "released" | "already_claimed" | "already_released" | "updated" | "unchanged";
 }
@@ -187,6 +216,8 @@ export function createApiClient(
       request<ProjectDetail>(`/projects/${encodeURIComponent(id)}`, { signal }),
     materialSummary: (signal?: AbortSignal) =>
       request<MaterialSummary[]>("/materials/summary", { signal }),
+    myClaims: (signal?: AbortSignal) =>
+      request<MyClaims>("/claims/me", { signal }),
     materials: (id: string, signal?: AbortSignal) =>
       request<Material[]>(`/projects/${encodeURIComponent(id)}/materials`, { signal }),
     setMaterialClaim: (id: string, itemId: string, variant: string, claimed: boolean) =>
