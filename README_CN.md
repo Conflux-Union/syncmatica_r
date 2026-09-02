@@ -1,226 +1,138 @@
-# 共享原理图增强版
+# Syncmatica_r
 
-[English](README.md) | **[中文]**
+[English](README.md) | **中文**
 
-> **0.4.0 不兼容版本：** 服主升级前必须阅读[迁移文档](docs/BREAKING_CHANGES_0.4.0_CN.md)，尤其要检查新的放置管理权限。
-
-> **项目来源**：基于 [Syncmatica](https://github.com/End-Tech/syncmatica) 的增强分支，新增协作材料追踪功能。在 [RMS-Server/syncmatica_r](https://github.com/RMS-Server/syncmatica_r) 维护。
-
----
+Syncmatica_r 是一款面向 Litematica 多人协作建造的 Fabric 模组，基于
+[Syncmatica](https://github.com/End-Tech/syncmatica) 分支开发，在
+[RMS-Server/syncmatica_r](https://github.com/RMS-Server/syncmatica_r) 维护。除在服务器
+范围内共享原理图外，还提供材料追踪与建造管理功能，使大型工程的协调完全在游戏内完成。
 
 ## 功能特性
 
-### 核心功能：原理图共享
+### 原理图共享
 
-Syncmatica_r 与 Litematica 模组集成，实现服务器范围内的原理图共享：
+将你的 Litematica 放置共享到服务器，所有玩家均可下载同一份放置，位置与旋转完全一致，
+变更自动同步给所有玩家。修改共享放置时，先解锁、在本地编辑，再重新锁定，改动即同步给
+所有人。放置仅在所属维度加载。
 
-- **上传与下载**：将你的 Litematica 放置共享到服务器；下载其他玩家共享的放置
-- **放置同步**：位置、旋转等放置数据自动同步给所有玩家
-- **锁定/解锁工作流**：解锁放置即可本地修改，重新锁定后变更同步给所有人
-- **维度感知**：只有与原理图处于同一维度时才会加载
+### 材料追踪
 
-### 材料进度追踪
+服务端自动读取每张共享原理图并计算材料清单，认领状态与进度对所有玩家实时同步：
 
-为多人协作建筑项目提供实时协调系统：
-
-- **需求提取**：服务端自动扫描原理图所需材料，实时同步给所有玩家
-- **认领机制**：玩家可认领特定材料，避免重复收集
-- **备货区扫描**：服务端扫描配置的容器区域，追踪可用库存
-- **实时 HUD 显示**：客户端悬浮窗口显示材料进度，支持自定义缩放
-- **GUI 仪表盘**：通过「材料收集」按钮协调团队资源收集
-- **排序与过滤**：按缺失数量或物品名称排序；隐藏已完成项目
+- 玩家认领自己负责收集的材料。认领对全队可见，避免重复收集
+- 悬浮 HUD 显示已认领材料的进度，大小与位置可在客户端设置中调整
+- 「材料收集」仪表盘展示完整清单，支持按缺口数量或物品名称排序，可隐藏已完成的条目
+- 备货区用于展示仓库现有库存：服务端扫描指定区域内的容器，仪表盘将这部分库存从需求中
+  扣除
 
 ### 建造管理
 
-把一个大工程分给多个人，分工记录留在游戏里，不用再靠表格：
+将共享蓝图划分为若干子区域供玩家认领，分工记录直接保存在服务器上：
 
-- **区域认领**：共享蓝图的每个子区域可由一名玩家负责，所有人都看得到归属
-- **完成度统计**：服务端实时测量每个区域已经建了多少
-- **越界建造提醒**：在别人负责的区域里放方块会收到提示，但不会阻止放置
-- **GUI 仪表盘**：通过「建造管理」按钮或可自定义的快捷键进入 —— 先选蓝图，再看该蓝图的区域。区域按数字顺序排列，
-  已完成的排在最后
-- **可见性跟随认领**：可选打开后，认领区域会自动显示对应的 Litematica 子区域，取消认领或建完则重新隐藏。默认
-  关闭，别人认领的区域永远不动
-- **与材料收集互不依赖**：材料追踪开不开，建造管理都能用
+- 每个区域仅有一名负责人，对所有玩家可见
+- 服务端实时测量每个区域的建造进度，方块放置后一至两个游戏刻内即更新；未被修改的放置
+  不产生任何追踪开销
+- 在其他玩家认领的区域内放置方块会收到提醒，但不会阻止放置操作
+- 通过「建造管理」按钮或自定义快捷键打开仪表盘：先选择蓝图，再查看其区域列表，按数字
+  顺序排列，已完成的排在最后
+- 可选功能：认领区域时自动显示对应的 Litematica 子区域，取消认领或建造完成后重新隐藏。
+  默认关闭，其他玩家认领的区域不受影响
+- 与材料追踪互不依赖，可独立启用或禁用
 
----
+### 网页界面（可选）
 
-## 安装
-
-### 客户端要求
-
-1. Fabric Loader
-2. [Litematica](https://masa.dy.fi/mcmods/client_mods/)（必需）
-3. [MaLiLib](https://masa.dy.fi/mcmods/client_mods/)（Litematica 依赖）
-4. Syncmatica_r 模组文件
-
-将所有模组文件放入 `mods` 文件夹。
-
-### 服务端要求
-
-1. Fabric Loader
-2. Syncmatica_r 模组文件
-
-服务端无需其他依赖。
-
-### 配置
-
-首次运行后，配置文件创建于：
-
-| 文件 | 位置 | 用途 |
-|------|------|------|
-| 主配置 | `config/syncmatica_r/config.json` | 服务端配额、材料追踪、建造管理与可选网页设置 |
-| 客户端设置 | `config/syncmatica_r/client.json` | 由 MaLiLib 管理的 HUD、建造偏好与热键设置 |
-| 材料列表 | `config/syncmatica_r/material_list_settings.json` | 客户端排序与过滤偏好 |
-| 客户端提醒 | `config/syncmatica_r/client_notices.json` | 已关闭的迁移提醒版本 |
-
-整合包（单人）服务端的主配置存储在 `<世界存档>/syncmatica_r/config.json`。
-首次运行时，现有客户端设置文件会导入 `client.json`，原文件不会删除。
-
-详细配置选项请参阅 [CONFIG_CN.md](CONFIG_CN.md)。
-
-### 可选网页界面
-
-需要登录的网页界面默认关闭。启用 `web` 模块、设置监听地址和端口后，需要重启服务器。远程访问时建议
-保持监听 `127.0.0.1`，在前面部署 HTTPS 反向代理，并将 `secure_cookie` 设为 `true`。
-
-玩家在游戏内运行 `/syncmatica_r web setpassword <password>` 设置密码，运行
-`/syncmatica_r web disable` 停用密码。密码会显示在命令历史中，也可能写入服务端日志。密码会持久保存在
-`config/syncmatica_r/web-credentials.json`（单人游戏为
-`<世界文件夹>/syncmatica_r/web-credentials.json`），但服务器重启会清除全部浏览器会话。
-
-网页支持查看项目、材料/建造进度与认领，以及项目专属备货区；不提供项目删除、原理图上传下载、
-默认备货区管理、配置修改或手动重扫。全部网页配置项和取值范围见
-[CONFIG_CN.md](CONFIG_CN.md#web--可选网页界面服务器)。
+服务端可提供一个用于在浏览器中查看项目、材料与建造进度、认领和备货区的网站。默认
+关闭，配置见 [CONFIG_CN.md](CONFIG_CN.md#web--可选网页界面服务器)。玩家在游戏内执行
+`/syncmatica_r web setpassword <密码>` 设置登录密码。
 
 ### 模组联动
 
-客户端模组可以通过[材料联动接口](docs/MATERIAL_API.md)读取当前玩家已领取的材料需求。
-该接口没有副作用，也不会替换 Litematica 当前使用的材料列表。
+- 客户端模组可通过[材料联动接口](docs/MATERIAL_API.md)读取当前玩家已认领的材料需求
+- 安装 TweakerMore 3.33.x 后，TweakerMore 的 Features 设置中会增加「自动收集材料列表
+  物品-材料来源」选项。设置为 `Syncmatica_r` 后，自动收集将改为收集玩家在共享投影中
+  认领的材料缺口
 
-安装 TweakerMore 3.33.x 时，Syncmatica_r 会在 TweakerMore 的 Features 设置中增加
-**自动收集材料列表物品-材料来源**。选择 `Syncmatica_r` 后，自动收集功能会使用当前玩家已认领的
-共享投影材料缺口；默认仍为 `Litematica`。该联动不会修改 Litematica 当前启用的材料列表。
+## 安装
 
----
+客户端与服务端均需 Fabric Loader，客户端另需
+[Litematica](https://masa.dy.fi/mcmods/client_mods/) 与
+[MaLiLib](https://masa.dy.fi/mcmods/client_mods/)。将模组文件放入 `mods` 文件夹即可，服务
+端无其他依赖。
+
+从 0.3.x 升级前，请先阅读[迁移指南](docs/BREAKING_CHANGES_0.4.0_CN.md)：0.4.0 调整了权限
+的处理方式。
+
+首次运行后，配置文件创建于 `config/syncmatica_r/` 目录：`config.json` 为服务端设置，
+`client.json` 为客户端偏好（HUD、快捷键等）。单人世界的服务端配置存储于
+`<世界存档>/syncmatica_r/config.json`。全部配置项见 [CONFIG_CN.md](CONFIG_CN.md)，大多数
+服务端设置亦可通过 `/syncmatica_r config` 在线修改，无需重启。
 
 ## 使用方法
 
 ### 共享原理图
 
 1. 加入安装了 Syncmatica_r 的服务器
-2. 打开主菜单 — 会出现两个额外按钮：
-   - 查看服务器上共享的放置
-   - 下载共享放置到客户端
-3. 打开 Litematica 放置概览 — 额外按钮可将你的放置上传到服务器
-4. 修改共享放置：先本地解锁，修改完成后重新锁定即可同步
+2. Litematica 主菜单会新增两个按钮：浏览服务器上的共享放置、将共享放置下载到客户端
+3. 放置概览会新增一个按钮，用于将你的放置上传到服务器
+4. 修改共享放置：解锁 → 编辑 → 重新锁定，改动即同步
 
-### 加载服务端 Litematic 文件
+### 备货区
 
-服务器 `syncmatics` 目录中存在但未注册为共享放置的 litematic 文件（例如放置存储损坏后，
-或管理员手动放入的文件），可以直接重新注册，无需客户端重新分享：
+推荐方式为游戏内框选：使用 Litematica 的 area selection（原理图工具）框出容器区域，
+在放置的 **Materials** 界面点击 **用选区设为备货区**；**Material Overview** 提供同样的
+按钮，用于设置默认备货区。服务端校验区域后安排一次扫描。
 
-```
-/syncmatica_r load          # 注册所有未注册的 litematic 文件
-/syncmatica_r load <文件名>  # 注册单个文件；Tab 补全会列出候选文件
-```
-
-加载的放置定位在命令执行者所在位置，并广播给所有在线客户端。文件名不符合内容哈希命名的
-文件会被重命名为哈希存储格式，以保证客户端下载可用。该子命令同时要求
-`syncmatica_r.command` 和 `syncmatica_r.command.load`，两者都默认回退到原版权限等级 2。
-
-### 管理服务器配置
-
-服务器服务配置可以直接在游戏内查询和修改，无需重启：
+亦可通过命令设置：
 
 ```text
-/syncmatica_r config list                         # 列出全部服务器配置
-/syncmatica_r config list materials               # 列出指定模块
-/syncmatica_r config get materials max_schematic_blocks
-/syncmatica_r config set materials max_schematic_blocks 64000000
-/syncmatica_r config reset materials max_schematic_blocks
-```
-
-`set` 会先校验取值，通过后立即生效并写入 `config.json`。`reset` 每次只把一个配置项恢复为默认值。
-模块名、配置项和布尔值支持 Tab 补全。修改材料提取配置后会自动重新提取全部共享项目；修改功能总开关
-还会刷新在线客户端状态。
-
-命令覆盖 [CONFIG_CN.md](CONFIG_CN.md) 中的 `quota`、`materials`、`build`、`web` 和 `debug` 模块，
-不包含客户端本地偏好。执行命令需要 `syncmatica_r.config` 权限，默认回退到原版权限等级 2。
-
-### 设置备货区
-
-备货区是服务端扫描库存的容器区域。既可以在游戏里用 Litematica 的工具物品直接框选，
-也可以继续用命令敲坐标。
-
-**用游戏内选区设置（推荐）：**
-
-1. 把 Litematica 切到 **Area Selection** 工具模式，用工具物品框出容器区域，和平时框选一样
-2. 打开该共享投影的 **Materials** 界面，点 **用选区设为备货区**；
-   或打开 **Material Overview**，点 **用选区设为默认备货区**
-3. 服务端校验体积后保存，并排入一次扫描
-
-读取的是当前选中的子区域框，因此只有一个框的选区不需要先点选。框的绘制仍由 Litematica 负责，
-Syncmatica_r 只读取两个角坐标。
-
-框选和命令两条路径都按投影检查权限：投影所有者或拥有 `syncmatica_r.manage` 的玩家可以设置该投影的
-备货区。服主可以把 `materials.allow_owner_stocking_area_management` 设为 `false`，让两条路径都只允许
-`syncmatica_r.manage`。设置**默认**备货区始终需要 `syncmatica_r.manage`（回退到原版权限等级 2）。
-
-**创建默认备货区（通过告示牌匹配所有原理图）：**
-
-```
+/syncmatica_r <名称> setStockingarea <x1> <y1> <z1> <x2> <y2> <z2>
 /syncmatica_r default setStockingarea <x1> <y1> <z1> <x2> <y2> <z2>
 ```
 
-**创建专属备货区：**
+专属备货区仅属于指定的原理图。默认备货区通过告示牌匹配：容器上告示牌的文字与某个共享
+原理图名称一致时，该容器的内容计入该原理图的库存。
 
+放置所有者可设置自己放置的备货区（服务端可通过配置禁用该授权）；默认备货区始终要求
+`syncmatica_r.manage`。
+
+### 服务端文件与在线配置
+
+```text
+/syncmatica_r load [文件]                          # 注册 syncmatics 目录中尚无对应放置的
+                                                   # litematic 文件，加载后出现在命令执行者
+                                                   # 所在位置
+/syncmatica_r config list [模块]                   # 查询并在线修改服务端配置：
+/syncmatica_r config get <模块> <配置项>            # 取值经校验后立即生效并保存，
+/syncmatica_r config set <模块> <配置项> <值>       # 无需重启
+/syncmatica_r config reset <模块> <配置项>
 ```
-/syncmatica_r <原理图名称> setStockingarea <x1> <y1> <z1> <x2> <y2> <z2>
-```
 
-**权限：**
+`load` 适用于恢复备份之后，或管理员直接向 `syncmatics` 目录添加文件的情况。两组命令的
+参数均支持 Tab 补全。
 
-- 开启 `materials.allow_owner_stocking_area_management` 时，投影所有者执行该投影的
-  `setStockingarea` 不需要 `syncmatica_r.command`。
-- `syncmatica_r.manage` 可以设置任意投影及默认备货区，默认回退到权限等级 2。
-- `syncmatica_r.command` 保护 `rescanBuild` 等管理命令。
-- `load` 同时要求 `syncmatica_r.command` 和 `syncmatica_r.command.load`。
-- `syncmatica_r.config` 控制在线修改服务器配置的命令，默认回退到原版权限等级 2。
-- 其他网络权限节点包括 `syncmatica_r.share`、`syncmatica_r.claim` 和 `syncmatica_r.build.claim`。
+### 权限
 
-**工作原理：**
+| 权限节点 | 控制内容 | 默认回退 |
+|------|------|------|
+| `syncmatica_r.share` | 上传放置 | 允许 |
+| `syncmatica_r.claim` | 认领材料 | 允许 |
+| `syncmatica_r.build.claim` | 认领建造区域 | 允许 |
+| `syncmatica_r.manage` | 管理其他玩家的放置、各放置备货区与默认备货区 | 权限等级 2 |
+| `syncmatica_r.command` | `load`、`rescanBuild` 等管理命令 | 权限等级 2 |
+| `syncmatica_r.config` | 在线配置命令 | 权限等级 2 |
 
-- **默认区域**：服务端检索区域内依附于容器的告示牌，若告示牌文字与共享原理图名称匹配，该容器内容计入该原理图的库存
-- **命名区域**：区域成为指定原理图的专属备货区，无需告示牌标记
-
----
+`load` 另需 `syncmatica_r.command.load`。放置所有者始终可以管理自己的放置。
 
 ## 支持的 Minecraft 版本
 
-| 版本   | 状态     |
-|--------|----------|
-| 1.17.1 | ✅ 支持  |
-| 1.20.1 | ✅ 支持  |
-| 1.21.1 | ✅ 支持  |
-| 1.21.4 | ✅ 支持  |
-| 1.21.6 | ✅ 支持  |
-| 1.21.8 | ✅ 支持  |
-| 1.21.10 | ✅ 支持  |
-| 1.21.11 | ✅ 支持  |
-| 26.1 | ✅ 支持  |
-| 26.2 | ✅ 支持  |
-
----
+1.17.1、1.20.1、1.21.1、1.21.4、1.21.6、1.21.8、1.21.10、1.21.11、26.1、26.2。
 
 ## 许可证
 
-CC0-1.0 — 公共领域贡献。
-
----
+CC0-1.0，公共领域贡献。
 
 ## 联系方式
 
-- **邮箱**：support@rms.net.cn
-- **QQ 群**：362669270
-- **GitHub Issues**：[提交问题](https://github.com/RMS-Server/syncmatica_r/issues)
+- 邮箱：support@rms.net.cn
+- QQ 群：362669270
+- [GitHub Issues](https://github.com/RMS-Server/syncmatica_r/issues)

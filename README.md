@@ -1,244 +1,161 @@
-# Syncmatica Revolution
+# Syncmatica_r
 
-**[English]** | [中文](README_CN.md)
+**English** | [中文](README_CN.md)
 
-> **0.4.0 breaking release:** Server owners must review the
-> [migration guide](docs/BREAKING_CHANGES_0.4.0.md), especially the new placement management permission.
-
-> **Project Origin**: Enhanced fork of [Syncmatica](https://github.com/End-Tech/syncmatica) with collaborative material tracking. Maintained at [RMS-Server/syncmatica_r](https://github.com/RMS-Server/syncmatica_r).
-
----
+Syncmatica_r is a Fabric mod for collaborative building with Litematica. It is a fork of
+[Syncmatica](https://github.com/End-Tech/syncmatica), maintained at
+[RMS-Server/syncmatica_r](https://github.com/RMS-Server/syncmatica_r). In addition to
+sharing schematics across the server, it provides material tracking and build
+management, allowing teams to coordinate large projects entirely in game.
 
 ## Features
 
-### Core: Schematic Sharing
+### Schematic sharing
 
-Syncmatica_r integrates with Litematica to share schematics and their placements across a server:
+Share your Litematica placement with the server so that every player can download the
+same placement at the identical position and rotation. Changes to a placement
+synchronize to all players automatically. To modify a shared placement, unlock it,
+edit locally, then lock it again to publish the changes. Placements load only in the
+dimension they were shared in.
 
-- **Upload & Download**: Share your Litematica placements with the server; download others' shared placements
-- **Placement Sync**: Position, rotation, and other placement data sync automatically to all players
-- **Lock/Unlock Workflow**: Unlock a placement to modify it locally, then lock to share changes with everyone
-- **Dimension Awareness**: Placements only load when you're in the same dimension
+### Material tracking
 
-### Material Progress Tracking
+The server reads every shared schematic, derives the material list, and keeps claims
+and progress synchronized for all players:
 
-A real-time coordination system for collaborative building projects:
+- Players claim the materials they intend to gather. Claims are visible to the entire
+  team, preventing duplicate collection.
+- A floating HUD displays the progress of claimed materials; size and position are
+  configurable in the client settings.
+- The material dashboard (the **Material Collections** button) presents the complete
+  list, sortable by missing count or item name, with completed items optionally hidden.
+- Stocking areas report what is already in storage: the server scans the containers
+  within a defined region, and the dashboard subtracts that stock from the
+  requirements.
 
-- **Requirement Extraction**: Server automatically scans schematic material needs and syncs to all players
-- **Claim System**: Players can claim specific materials to prevent duplicate collection
-- **Stocking Area Scan**: Server scans configured container regions to track available inventory
-- **Live HUD Overlay**: Client-side floating window displays material progress with customizable scale
-- **GUI Dashboard**: Access via the **Material Collections** button to coordinate team resource collection
-- **Sorting & Filtering**: Sort by missing count or item name; hide completed items
+### Build management
 
-### Build Management
+Divides a shared schematic into sub-regions that players claim, so the division of work
+is recorded on the server rather than in an external document:
 
-Divides a large build between players, so the assignment lives in the game rather than in a spreadsheet:
+- Each region has one owner, visible to all players.
+- The server measures how much of each region has been built; progress updates within
+  one to two ticks of a block being placed. Untouched placements incur no tracking
+  cost.
+- Placing blocks inside a region claimed by another player triggers a warning; the
+  placement itself is never cancelled.
+- The build dashboard (**Build Management** button or a configurable hotkey) lists the
+  regions of the selected schematic in numeric order, with completed regions last.
+- Optionally, claiming a region can reveal its Litematica sub-region, and dropping or
+  completing the claim hides it again. Disabled by default; regions claimed by other
+  players are never affected.
+- Operates independently of material tracking.
 
-- **Region Claims**: Each sub-region of a shared schematic can be taken by one player, visible to everyone
-- **Completion Tracking**: The server measures how much of each region is already built and reports it live
-- **Foreign Build Warning**: Building inside a region somebody else took warns you, and never cancels the placement
-- **GUI Dashboard**: Access via the **Build Management** button or a configurable hotkey — schematics first, then the
-  regions of the one picked. Regions are listed in numeric order, with completed ones at the bottom
-- **Claim-Following Visibility**: Optionally let claiming a region show that Litematica sub-region, and dropping or
-  finishing it hide the sub-region again. Off by default; regions claimed by others are never touched
-- **Independent of Materials**: Works whether or not material tracking is enabled
+### Optional web interface
 
----
+The server can host a small website for viewing projects, material and build progress,
+claims, and stocking areas from a browser. Disabled by default; see
+[CONFIG.md](CONFIG.md#web--optional-web-interface-server) for the settings. Players
+authenticate with a password set in game via `/syncmatica_r web setpassword <password>`.
+
+### Integrations
+
+- Client mods can read the local player's claimed material requirements through the
+  [material integration interface](docs/MATERIAL_API.md).
+- With TweakerMore 3.33.x installed, an **Auto Collect Material List Item - Material
+  Source** option appears in TweakerMore's Features settings. Set it to `Syncmatica_r`
+  and auto-collect gathers claimed materials from shared placements instead of
+  Litematica's own list.
 
 ## Installation
 
-### Client Requirements
+Both sides require Fabric Loader; the client additionally requires
+[Litematica](https://masa.dy.fi/mcmods/client_mods/) and
+[MaLiLib](https://masa.dy.fi/mcmods/client_mods/). Place the mod file in the `mods`
+folder; the server has no further dependencies.
 
-1. Fabric Loader
-2. [Litematica](https://masa.dy.fi/mcmods/client_mods/) (required)
-3. [MaLiLib](https://masa.dy.fi/mcmods/client_mods/) (required by Litematica)
-4. Syncmatica_r mod file
+When upgrading from 0.3.x, read the [migration guide](docs/BREAKING_CHANGES_0.4.0.md)
+first: version 0.4.0 changed the permission handling.
 
-Place all mod files in the `mods` folder.
-
-### Server Requirements
-
-1. Fabric Loader
-2. Syncmatica_r mod file
-
-No additional dependencies required on the server side.
-
-### Configuration
-
-After first run, configuration files are created at:
-
-| File | Location | Purpose |
-|------|----------|---------|
-| Main config | `config/syncmatica_r/config.json` | Server quota, material tracking, build management and optional web settings |
-| Client settings | `config/syncmatica_r/client.json` | MaLiLib-managed HUD, build preference and hotkey settings |
-| Material list | `config/syncmatica_r/material_list_settings.json` | Client sort mode and filter preferences |
-| Client notices | `config/syncmatica_r/client_notices.json` | Dismissed migration notice version |
-
-For integrated (single-player) servers, the main config is stored in `<world-folder>/syncmatica_r/config.json`.
-Existing client setting files are imported into `client.json` on first run and left in place.
-
-See [CONFIG.md](CONFIG.md) for detailed configuration options.
-
-### Optional Web Interface
-
-The authenticated web interface is disabled by default. Enable the `web` section, choose its bind address and port,
-then restart the server. For remote access, keep it bound to `127.0.0.1` behind an HTTPS reverse proxy and set
-`secure_cookie` to `true`.
-
-Players run `/syncmatica_r web setpassword <password>` in game to set their password, or
-`/syncmatica_r web disable` to disable it. The password is visible in command history and may be written to server
-logs. Passwords persist in
-`config/syncmatica_r/web-credentials.json` (or `<world-folder>/syncmatica_r/web-credentials.json` in single-player),
-but browser sessions are cleared whenever the server restarts.
-
-The site supports project viewing, material/build progress and claims, and project-specific stocking areas. It does
-not provide project deletion, schematic upload/download, default stocking-area management, configuration changes, or
-manual rescans. See [CONFIG.md](CONFIG.md#web--optional-web-interface-server) for every web setting and its range.
-
-### Mod Integration
-
-Client mods can read the local player's claimed material requirements through the
-side-effect-free [material integration interface](docs/MATERIAL_API.md). The
-interface does not replace Litematica's active material list.
-
-When TweakerMore 3.33.x is installed, Syncmatica_r adds an **Auto Collect Material
-List Item - Material Source** option to TweakerMore's Features settings. Selecting
-`Syncmatica_r` makes auto-collect use the local player's claimed shared-placement
-deficits; the default remains `Litematica`. This integration does not modify
-Litematica's active material list.
-
----
+After the first run, configuration files are created in `config/syncmatica_r/`:
+`config.json` holds the server settings, `client.json` the client preferences such as
+the HUD and hotkeys. Single-player worlds store the server configuration in
+`<world>/syncmatica_r/config.json`. All options are documented in
+[CONFIG.md](CONFIG.md); most server settings can also be changed live with
+`/syncmatica_r config` without a restart.
 
 ## Usage
 
-### Sharing Schematics
+### Sharing schematics
 
-1. Join a server with Syncmatica_r installed
-2. Open the main menu — two extra buttons appear:
-   - View shared placements on the server
-   - Download shared placements to your client
-3. Open your Litematica placement overview — an extra button lets you upload your placements to the server
-4. To modify a shared placement: unlock it locally, make changes, then lock again to sync
+1. Join a server running Syncmatica_r.
+2. The Litematica main menu gains two buttons: browse the placements shared on the
+   server, and download them to the client.
+3. The placement overview gains a button for uploading placements to the server.
+4. To modify a shared placement: unlock it, edit, then lock it again to synchronize.
 
-### Loading Server-Side Litematic Files
+### Stocking areas
 
-Litematic files that exist in the server's `syncmatics` folder but are not registered as shared
-placements (for example after a damaged placement store, or files dropped in by an admin) can be
-re-registered without a client re-share:
+The recommended method is an in-world selection: frame the container region with
+Litematica's area selection (schematic tool), then press **Stocking Area from
+Selection** in the placement's **Materials** screen. **Material Overview** offers the
+same button for the default area. The server validates the region and schedules a
+scan.
 
-```
-/syncmatica_r load          # register every unregistered litematic file
-/syncmatica_r load <file>   # register a single file; tab completion shows candidates
-```
-
-Loaded placements are positioned at the command issuer and broadcast to all connected clients.
-Files not named after their content hash are renamed into the hash-based storage scheme so client
-downloads resolve. The subcommand requires both `syncmatica_r.command` and
-`syncmatica_r.command.load`, each with vanilla permission level 2 as the fallback.
-
-### Managing Server Configuration
-
-Server service settings can be inspected and changed without restarting:
+Alternatively, by command:
 
 ```text
-/syncmatica_r config list                         # list every server setting
-/syncmatica_r config list materials               # list one section
-/syncmatica_r config get materials max_schematic_blocks
-/syncmatica_r config set materials max_schematic_blocks 64000000
-/syncmatica_r config reset materials max_schematic_blocks
-```
-
-`set` validates the value, applies it immediately, and writes it to `config.json`. `reset` restores
-one setting to its default. Section names, keys, and Boolean values support tab completion. Material
-extraction settings automatically refresh all shared schematics; changing a feature switch also
-refreshes connected clients.
-
-These commands expose the `quota`, `materials`, `build`, `web`, and `debug` sections documented in
-[CONFIG.md](CONFIG.md). Client-only preferences are not included. They require
-`syncmatica_r.config`, with vanilla permission level 2 as the fallback.
-
-### Setting Up Stocking Areas
-
-Stocking areas are container regions the server scans for inventory tracking.
-They can be set either by framing the area in-world with Litematica's schematic
-tool item, or by typing the coordinates into a command.
-
-**From an in-world selection (recommended):**
-
-1. Switch Litematica to **Area Selection** tool mode and frame the container region
-   with the schematic tool item, exactly as you would for any other selection
-2. Open **Materials** for the shared placement and press **Stocking Area from Selection**,
-   or open **Material Overview** and press **Default Area from Selection**
-3. The server validates the box, stores it, and schedules a scan
-
-The area is read from your currently selected sub-region box, so a selection with a
-single box works without highlighting anything first. Litematica keeps drawing the
-box; Syncmatica_r only reads its corners.
-
-Permissions are per-placement for both the selection and command paths: the placement owner, or
-anyone with `syncmatica_r.manage`, may set that placement's area. Servers can set
-`materials.allow_owner_stocking_area_management` to `false` to require `syncmatica_r.manage` for
-both paths. Setting the **default** area always requires `syncmatica_r.manage` (vanilla permission
-level 2 as fallback).
-
-**Create a default stocking area (matches all schematics via sign labels):**
-
-```
+/syncmatica_r <name> setStockingarea <x1> <y1> <z1> <x2> <y2> <z2>
 /syncmatica_r default setStockingarea <x1> <y1> <z1> <x2> <y2> <z2>
 ```
 
-**Create a schematic-specific stocking area:**
+A schematic-specific area belongs to that schematic alone. The default area matches
+containers to schematics by signs: a sign on a container whose text equals a shared
+schematic's name makes that container count as stock for that schematic.
 
+Placement owners may set their own placement's area (this can be disabled in the
+server configuration); the default area always requires `syncmatica_r.manage`.
+
+### Server files and live settings
+
+```text
+/syncmatica_r load [file]                          # register litematic files located in the
+                                                   # server's syncmatics folder without a
+                                                   # placement; loaded placements appear at
+                                                   # the issuer's position
+/syncmatica_r config list [section]                # inspect and change server settings:
+/syncmatica_r config get <section> <key>           # values are validated, applied
+/syncmatica_r config set <section> <key> <value>   # immediately, and saved
+/syncmatica_r config reset <section> <key>
 ```
-/syncmatica_r <SchematicName> setStockingarea <x1> <y1> <z1> <x2> <y2> <z2>
-```
 
-**Permissions:**
+`load` is intended for recovery after a backup restore, or when an administrator adds
+files to `syncmatics` directly. Both command groups support tab completion.
 
-- A placement owner may run that placement's `setStockingarea` command when
-  `materials.allow_owner_stocking_area_management` is enabled; this action does not require
-  `syncmatica_r.command`.
-- `syncmatica_r.manage` permits stocking-area changes for every placement and the default area,
-  with vanilla permission level 2 as the fallback.
-- `syncmatica_r.command` protects privileged project commands such as `rescanBuild`.
-- `load` requires both `syncmatica_r.command` and `syncmatica_r.command.load`.
-- `syncmatica_r.config` controls live server configuration commands, with vanilla permission level 2 as the fallback.
-- Other network permission nodes are `syncmatica_r.share`, `syncmatica_r.claim`, and
-  `syncmatica_r.build.claim`.
+### Permissions
 
-**How it works:**
+| Node | Controls | Fallback |
+|------|----------|----------|
+| `syncmatica_r.share` | uploading placements | allowed |
+| `syncmatica_r.claim` | claiming materials | allowed |
+| `syncmatica_r.build.claim` | claiming build regions | allowed |
+| `syncmatica_r.manage` | others' placements, stocking areas, the default area | permission level 2 |
+| `syncmatica_r.command` | privileged commands such as `load`, `rescanBuild` | permission level 2 |
+| `syncmatica_r.config` | live configuration commands | permission level 2 |
 
-- **Default area**: The server looks for signs attached to containers within the region. If a sign's text matches a shared schematic's name, that container's contents count as inventory for that schematic.
-- **Named area**: The region becomes exclusive to the specified schematic — no sign labels needed.
+`load` additionally requires `syncmatica_r.command.load`. Placement owners can always
+modify their own placements.
 
----
+## Supported Minecraft versions
 
-## Supported Minecraft Versions
-
-| Version | Status |
-|---------|--------|
-| 1.17.1  | ✅ Supported |
-| 1.20.1  | ✅ Supported |
-| 1.21.1  | ✅ Supported |
-| 1.21.4  | ✅ Supported |
-| 1.21.6  | ✅ Supported |
-| 1.21.8  | ✅ Supported |
-| 1.21.10 | ✅ Supported |
-| 1.21.11 | ✅ Supported |
-| 26.1    | ✅ Supported |
-| 26.2    | ✅ Supported |
-
----
+1.17.1, 1.20.1, 1.21.1, 1.21.4, 1.21.6, 1.21.8, 1.21.10, 1.21.11, 26.1, 26.2.
 
 ## License
 
-CC0-1.0 — Public domain dedication.
-
----
+CC0-1.0, public domain dedication.
 
 ## Contact
 
-- **Email**: support@rms.net.cn
-- **QQ Group**: 362669270
-- **GitHub Issues**: [Report a bug](https://github.com/RMS-Server/syncmatica_r/issues)
+- Email: support@rms.net.cn
+- QQ group: 362669270
+- [GitHub Issues](https://github.com/RMS-Server/syncmatica_r/issues)
