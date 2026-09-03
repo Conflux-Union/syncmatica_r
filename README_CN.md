@@ -1,5 +1,7 @@
 # Syncmatica_r
 
+[![Modrinth downloads](https://img.shields.io/modrinth/dt/ZFRiWThj?logo=modrinth&label=Modrinth%20downloads)](https://modrinth.com/mod/syncmatica-revolution)
+
 [English](README.md) | **中文**
 
 Syncmatica_r 是一款面向 Litematica 多人协作建造的 Fabric 模组，基于

@@ -1,5 +1,7 @@
 # Syncmatica_r
 
+[![Modrinth downloads](https://img.shields.io/modrinth/dt/ZFRiWThj?logo=modrinth&label=Modrinth%20downloads)](https://modrinth.com/mod/syncmatica-revolution)
+
 **English** | [中文](README_CN.md)
 
 Syncmatica_r is a Fabric mod for collaborative building with Litematica. It is a fork of
