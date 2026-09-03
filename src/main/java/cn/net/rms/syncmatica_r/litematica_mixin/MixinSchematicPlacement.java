@@ -55,6 +55,11 @@ public abstract class MixinSchematicPlacement implements IIDContainer, MovingFin
         serverId = null;
     }
 
+    @Inject(method = "setName", at = @At("TAIL"), remap = false)
+    private void syncPlacementName(final String name, final CallbackInfo ci) {
+        LitematicManager.getInstance().onPlacementRenamed((SchematicPlacement) (Object) this);
+    }
+
     @Override
     public UUID getServerId() {
         return serverId;

@@ -18,11 +18,18 @@ public class ModifyExchangeClient extends AbstractExchange {
 
     private final ServerPlacement placement;
     private final SchematicPlacement litematic;
+    private final boolean concludeImmediately;
     private boolean expectRemove = false;
 
     public ModifyExchangeClient(final ServerPlacement placement, final ExchangeTarget partner, final Context con) {
+        this(placement, partner, con, false);
+    }
+
+    public ModifyExchangeClient(final ServerPlacement placement, final ExchangeTarget partner, final Context con,
+                                final boolean concludeImmediately) {
         super(partner, con);
         this.placement = placement;
+        this.concludeImmediately = concludeImmediately;
         litematic = LitematicManager.getInstance().schematicFromSyncmatic(placement);
     }
 
@@ -42,13 +49,16 @@ public class ModifyExchangeClient extends AbstractExchange {
         final PacketType type = PacketType.fromIdentifier(id);
         if (type == PacketType.MODIFY_REQUEST_DENY) {
             packetBuf.readUuid();
-            close(false);
             if (!litematic.isLocked()) {
                 litematic.setOrigin(placement.getPosition(), null);
                 litematic.setRotation(placement.getRotation(), null);
                 litematic.setMirror(placement.getMirror(), null);
                 litematic.toggleLocked();
             }
+            if (!litematic.getName().equals(placement.getName())) {
+                litematic.setName(placement.getName());
+            }
+            close(false);
             ScreenHelper.ifPresent(s -> s.addMessage(Message.MessageType.SUCCESS, "syncmatica_r.error.modification_deny"));
         } else if (type == PacketType.MODIFY_REQUEST_ACCEPT) {
             packetBuf.readUuid();
@@ -81,28 +91,40 @@ public class ModifyExchangeClient extends AbstractExchange {
         if (litematic.isLocked()) {
             litematic.toggleLocked();
         }
+        if (concludeImmediately) {
+            conclude(false);
+            return;
+        }
         ScreenHelper.ifPresent(s -> s.addMessage(Message.MessageType.SUCCESS, "syncmatica_r.success.modification_accepted"));
         getContext().getSyncmaticManager().updateServerPlacement(placement);
     }
 
     public void conclude() {
+        conclude(true);
+    }
+
+    private void conclude(final boolean notifyClose) {
+        if (getPartner().getFeatureSet().hasFeature(Feature.PLACEMENT_RENAME)) {
+            placement.setDisplayName(litematic.getName());
+        }
         LitematicManager.getInstance().updateServerPlacement(litematic, placement);
-        sendFinish();
+        sendFinish(notifyClose);
         if (!litematic.isLocked()) {
             litematic.toggleLocked();
         }
         getContext().getSyncmaticManager().updateServerPlacement(placement);
     }
 
-    private void sendFinish() {
+    private void sendFinish(final boolean notifyClose) {
         if (getPartner().getFeatureSet().hasFeature(Feature.MODIFY)) {
             final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
             buf.writeUuid(placement.getId());
-            getContext().getCommunicationManager().putPositionData(placement, buf, getPartner());
-            getContext().getCommunicationManager().putMaterialData(placement, buf, getPartner());
+            getContext().getCommunicationManager().putModificationData(placement, buf, getPartner());
             getPartner().sendPacket(PacketType.MODIFY_FINISH.toIdentifier(getPartner().getProtocolFlavor()), buf, getContext());
             succeed();
-            getContext().getCommunicationManager().notifyClose(this);
+            if (notifyClose) {
+                getContext().getCommunicationManager().notifyClose(this);
+            }
         } else {
             final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
             buf.writeUuid(placement.getId());
@@ -116,8 +138,7 @@ public class ModifyExchangeClient extends AbstractExchange {
         if (getPartner().getFeatureSet().hasFeature(Feature.MODIFY)) {
             final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
             buf.writeUuid(placement.getId());
-            getContext().getCommunicationManager().putPositionData(placement, buf, getPartner());
-            getContext().getCommunicationManager().putMaterialData(placement, buf, getPartner());
+            getContext().getCommunicationManager().putModificationData(placement, buf, getPartner());
             getPartner().sendPacket(PacketType.MODIFY_FINISH.toIdentifier(getPartner().getProtocolFlavor()), buf, getContext());
         }
     }

@@ -196,6 +196,10 @@ public class ServerPlacement {
         return fileName;
     }
 
+    public boolean hasDisplayName() {
+        return displayName != null && !displayName.isEmpty();
+    }
+
     public void setDisplayName(final String displayName) {
         this.displayName = displayName;
     }

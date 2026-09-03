@@ -161,6 +161,16 @@ public abstract class CommunicationManager {
         putBuildRegions(placement, buf, exchangeTarget);
     }
 
+    public void putModificationData(final ServerPlacement placement, final PacketByteBuf buf,
+                                    final ExchangeTarget exchangeTarget) {
+        putPositionData(placement, buf, exchangeTarget);
+        putMaterialData(placement, buf, exchangeTarget);
+        final FeatureSet targetFeatures = exchangeTarget.getFeatureSet();
+        if (targetFeatures != null && targetFeatures.hasFeature(Feature.PLACEMENT_RENAME)) {
+            buf.writeString(sanitizeDisplayName(placement.getName()), ProtocolLimits.MAX_DISPLAY_NAME_LENGTH);
+        }
+    }
+
     public ServerPlacement receiveMetaData(final PacketByteBuf buf, final ExchangeTarget exchangeTarget) {
         final UUID id = buf.readUuid();
 
@@ -224,6 +234,15 @@ public abstract class CommunicationManager {
         receiveMaterialProgress(placement, buf, exchangeTarget);
         receiveStockingArea(placement, buf, exchangeTarget);
         receiveBuildRegions(placement, buf, exchangeTarget);
+        final FeatureSet targetFeatures = exchangeTarget.getFeatureSet();
+        if (targetFeatures != null && targetFeatures.hasFeature(Feature.PLACEMENT_RENAME)) {
+            final String displayName = sanitizeDisplayName(
+                    buf.readString(ProtocolLimits.MAX_DISPLAY_NAME_LENGTH)
+            );
+            if (placement != null && !displayName.isEmpty()) {
+                placement.setDisplayName(displayName);
+            }
+        }
         if (context.isServer() && buf.isReadable()) {
             throw new IllegalArgumentException("Unexpected trailing modification data");
         }

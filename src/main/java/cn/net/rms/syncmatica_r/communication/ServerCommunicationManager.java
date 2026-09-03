@@ -419,8 +419,7 @@ public class ServerCommunicationManager extends CommunicationManager {
             if (clientFeatures != null && clientFeatures.hasFeature(Feature.MODIFY)) {
                 final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
                 buf.writeUuid(placement.getId());
-                putPositionData(placement, buf, client);
-                putMaterialData(placement, buf, client);
+                putModificationData(placement, buf, client);
                 if (clientFeatures.hasFeature(Feature.CORE_EX)) {
                     buf.writeUuid(placement.getLastModifiedBy().uuid);
                     buf.writeString(placement.getLastModifiedBy().getName(), ProtocolLimits.MAX_PLAYER_NAME_LENGTH);
@@ -460,9 +459,9 @@ public class ServerCommunicationManager extends CommunicationManager {
     }
 
     /**
-     * The stored litematic file is the source of truth for display name and
-     * schematic versions; client-supplied values are only kept when the file
-     * cannot be peeked.
+     * Placement names come from compatible clients; the stored litematic only
+     * fills names missing from legacy peers and remains authoritative for
+     * schematic versions.
      */
     private void applyAuthoritativeMetadata(final ServerPlacement placement) {
         final File litematic = context.getFileStorage().getLocalLitematic(placement);
@@ -470,7 +469,7 @@ public class ServerCommunicationManager extends CommunicationManager {
         if (peek == null) {
             return;
         }
-        if (peek.hasName()) {
+        if (!placement.hasDisplayName() && peek.hasName()) {
             placement.setDisplayName(peek.getName());
         }
         placement.setVersion(peek.getLitematicVersion(), peek.getDataVersion());

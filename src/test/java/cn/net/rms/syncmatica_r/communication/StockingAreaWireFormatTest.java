@@ -169,8 +169,7 @@ final class StockingAreaWireFormatTest {
 
             final FeatureSet shared = serverContext.getFeatureSet();
             final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
-            serverManager.putPositionData(placement, buf, peerWith(shared));
-            serverManager.putMaterialData(placement, buf, peerWith(shared));
+            serverManager.putModificationData(placement, buf, peerWith(shared));
 
             final ServerPlacement target = newPlacement("modified");
             clientManager.receiveModificationData(target, buf, peerWith(shared));

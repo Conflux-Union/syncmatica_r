@@ -1,6 +1,10 @@
 package cn.net.rms.syncmatica_r.litematica;
 
 import cn.net.rms.syncmatica_r.*;
+import cn.net.rms.syncmatica_r.communication.ClientCommunicationManager;
+import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
+import cn.net.rms.syncmatica_r.communication.FeatureSet;
+import cn.net.rms.syncmatica_r.communication.exchange.ModifyExchangeClient;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
 import cn.net.rms.syncmatica_r.extended_core.SubRegionData;
 import cn.net.rms.syncmatica_r.extended_core.SubRegionPlacementModification;
@@ -158,11 +162,9 @@ public class LitematicManager {
 //#endif
 
             final ServerPlacement placement = new ServerPlacement(UUID.randomUUID(), placementFile, owner);
+            placement.setDisplayName(schem.getName());
             final SchematicPeek peek = SchematicPeeker.peek(placementFile);
             if (peek != null) {
-                if (peek.hasName()) {
-                    placement.setDisplayName(peek.getName());
-                }
                 placement.setVersion(peek.getLitematicVersion(), peek.getDataVersion());
             }
 
@@ -240,6 +242,9 @@ public class LitematicManager {
         if (litematicaPlacement.isLocked()) {
             litematicaPlacement.toggleLocked();
         }
+        if (!litematicaPlacement.getName().equals(placement.getName())) {
+            litematicaPlacement.setName(placement.getName());
+        }
         litematicaPlacement.setOrigin(placement.getPosition(), null);
         litematicaPlacement.setRotation(placement.getRotation(), null);
         litematicaPlacement.setMirror(placement.getMirror(), null);
@@ -269,6 +274,9 @@ public class LitematicManager {
         if (wasLocked) {
             litematicaPlacement.toggleLocked();
         }
+        if (!litematicaPlacement.getName().equals(placement.getName())) {
+            litematicaPlacement.setName(placement.getName());
+        }
         litematicaPlacement.setOrigin(placement.getPosition(), null);
         litematicaPlacement.setRotation(placement.getRotation(), null);
         litematicaPlacement.setMirror(placement.getMirror(), null);
@@ -286,6 +294,26 @@ public class LitematicManager {
                 placement.getMirror()
         );
         transferSubregionDataToServerPlacement(placement, serverPlacement);
+    }
+
+    public void onPlacementRenamed(final SchematicPlacement litematicaPlacement) {
+        if (context == null || !context.isStarted()
+                || !(context.getCommunicationManager() instanceof ClientCommunicationManager)) {
+            return;
+        }
+        final ServerPlacement placement = syncmaticFromSchematic(litematicaPlacement);
+        if (placement == null || litematicaPlacement.getName().equals(placement.getName())) {
+            return;
+        }
+        final ClientCommunicationManager manager = (ClientCommunicationManager) context.getCommunicationManager();
+        final ExchangeTarget server = manager.getServer();
+        final FeatureSet features = server.getFeatureSet();
+        if (features == null || !features.hasFeature(Feature.MODIFY)
+                || !features.hasFeature(Feature.PLACEMENT_RENAME)
+                || manager.getModifier(placement) != null) {
+            return;
+        }
+        manager.startExchange(new ModifyExchangeClient(placement, server, context, true));
     }
 
     public boolean isRendered(final ServerPlacement placement) {

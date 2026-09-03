@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import cn.net.rms.syncmatica_r.communication.CommunicationManager;
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
+import cn.net.rms.syncmatica_r.communication.ServerCommunicationManager;
 import cn.net.rms.syncmatica_r.communication.exchange.Exchange;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
 import cn.net.rms.syncmatica_r.schematic.SchematicPeek;
@@ -15,6 +16,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
 import net.minecraft.nbt.NbtCompound;
@@ -108,6 +110,39 @@ final class ServerPlacementMetadataTest {
         }
     }
 
+    @Test
+    void serverRegistrationPreservesSharedPlacementName() throws IOException {
+        final ServerCommunicationManager communication = new ServerCommunicationManager();
+        final Context context = newServerContext(communication);
+        try {
+            final File uploaded = tempDir.resolve("schematic_file.litematic").toFile();
+            writeLitematic(
+                    uploaded,
+                    "Schematic Metadata Name",
+                    6,
+                    3465
+            );
+            final ServerPlacement placement = new ServerPlacement(
+                    UUID.randomUUID(),
+                    uploaded,
+                    PlayerIdentifier.MISSING_PLAYER
+            );
+            placement.move("minecraft:overworld", BlockPos.ORIGIN, BlockRotation.NONE, BlockMirror.NONE);
+            placement.setDisplayName("South Trench");
+            Files.copy(
+                    uploaded.toPath(),
+                    context.getLitematicFolder().toPath().resolve(placement.getHash() + ".litematic")
+            );
+
+            assertTrue(communication.registerNewPlacement(placement));
+            assertEquals("South Trench", placement.getName());
+            assertEquals(6, placement.getLitematicVersion());
+            assertEquals(3465, placement.getDataVersion());
+        } finally {
+            context.shutdown();
+        }
+    }
+
     private ServerPlacement newPlacement(final String fileName) {
         final ServerPlacement placement = new ServerPlacement(
                 UUID.randomUUID(),
@@ -120,9 +155,13 @@ final class ServerPlacementMetadataTest {
     }
 
     private Context newServerContext() {
+        return newServerContext(new StubCommunicationManager());
+    }
+
+    private Context newServerContext(final CommunicationManager communication) {
         return new Context(
                 new FileStorage(),
-                new StubCommunicationManager(),
+                communication,
                 new SyncmaticManager(),
                 true,
                 tempDir.resolve("litematics").toFile(),

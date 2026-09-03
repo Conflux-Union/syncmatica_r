@@ -109,6 +109,52 @@ final class MetadataWireFormatTest {
     }
 
     @Test
+    void modificationRoundTripCarriesPlacementNameForSupportingPeers() {
+        final StubCommunicationManager manager = new StubCommunicationManager();
+        final Context context = newServerContext(manager);
+        try {
+            final ServerPlacement source = newPlacement("shared_file");
+            source.setDisplayName("South Trench");
+            final ServerPlacement target = newPlacement("shared_file");
+            target.setDisplayName("Original Name");
+
+            final ExchangeTarget peer = new TestTarget();
+            peer.setFeatureSet(context.getFeatureSet());
+            final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
+            manager.putModificationData(source, buf, peer);
+            manager.receiveModificationData(target, buf, peer);
+
+            assertEquals(0, buf.readableBytes(), "modification payload must be fully consumed");
+            assertEquals("South Trench", target.getName());
+        } finally {
+            context.shutdown();
+        }
+    }
+
+    @Test
+    void modificationPayloadKeepsLegacyNameBehaviorWithoutRenameFeature() {
+        final StubCommunicationManager manager = new StubCommunicationManager();
+        final Context context = newServerContext(manager);
+        try {
+            final ServerPlacement source = newPlacement("shared_file");
+            source.setDisplayName("South Trench");
+            final ServerPlacement target = newPlacement("shared_file");
+            target.setDisplayName("Original Name");
+
+            final ExchangeTarget peer = new TestTarget();
+            peer.setFeatureSet(FeatureSet.fromString("CORE\nCORE_EX\nMODIFY"));
+            final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
+            manager.putModificationData(source, buf, peer);
+            manager.receiveModificationData(target, buf, peer);
+
+            assertEquals(0, buf.readableBytes(), "legacy modification payload must be fully consumed");
+            assertEquals("Original Name", target.getName());
+        } finally {
+            context.shutdown();
+        }
+    }
+
+    @Test
     void sanitizeDisplayNameStripsControlCharactersAndClampsLength() {
         assertEquals("clean name", CommunicationManager.sanitizeDisplayName("clean name\n"));
         assertEquals("", CommunicationManager.sanitizeDisplayName(null));
