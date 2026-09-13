@@ -223,20 +223,35 @@ tasks.named("shadowJar") {
     exclude "org/apache/logging/log4j/**"
 }
 
+def releaseJarProvider = null
 if (unobfuscated) {
     // Shadow's relocation happens in shadowJar; the plain jar task repackages unrelocated
     // project classes next to relocated dependencies, which breaks at runtime with
-    // NoClassDefFoundError. Publish the shadowJar output directly as the release jar.
+    // NoClassDefFoundError. Assemble the release jar from the shadowJar output instead,
+    // so all shipped classes keep their references to the relocated undertow packages.
     tasks.named("jar") { enabled = false }
-    tasks.named("shadowJar") {
+    // Loom nests the include configuration into remapJar/jar, which are not the release
+    // artifact here; JiJ the bundled dependencies through a dedicated assembly task
+    // because ShadowJar extracts every .jar source instead of nesting it.
+    def bundledJars = configurations.resolvable('bundledJars') {
+        extendsFrom configurations.include
+    }
+    releaseJarProvider = tasks.register('releaseJar', Jar) {
+        dependsOn tasks.named("shadowJar")
         archiveClassifier.set("")
         destinationDirectory = layout.buildDirectory.dir("libs")
+        from({ zipTree(tasks.named("shadowJar").get().archiveFile.get().asFile) })
+        from(bundledJars) {
+            into "META-INF/jars"
+        }
         from(rootProject.file("LICENSE")) {
             rename { "${it}_${base.archivesName.get()}" }
         }
+        // The Jar task generates its own manifest; drop the one shadowJar produced.
+        exclude "META-INF/MANIFEST.MF"
     }
     tasks.named("build") {
-        dependsOn tasks.named("shadowJar")
+        dependsOn releaseJarProvider
     }
 } else {
     tasks.named("remapJar") {
@@ -256,7 +271,7 @@ publishing {
     publications {
         mavenJava(MavenPublication) {
             if (unobfuscated) {
-                artifact(shadowJar) { builtBy shadowJar }
+                artifact(releaseJarProvider) { builtBy releaseJarProvider }
             } else {
                 artifact(remapJar) { builtBy remapJar }
             }
