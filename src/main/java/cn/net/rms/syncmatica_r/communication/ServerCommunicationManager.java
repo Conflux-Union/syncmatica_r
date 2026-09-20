@@ -414,7 +414,14 @@ public class ServerCommunicationManager extends CommunicationManager {
 
     public void broadcastPlacementUpdate(final ServerPlacement placement) {
         purgeStaleTargets();
+        final Exchange activeModifier = getModifier(placement);
         for (final ExchangeTarget client : broadcastTargets) {
+            if (activeModifier != null && activeModifier.getPartner() == client) {
+                // This client is mid-modification on the placement and holds a newer
+                // pose than the server does. Its MODIFY_FINISH will carry the new
+                // state and trigger the broadcast that follows it.
+                continue;
+            }
             final FeatureSet clientFeatures = client.getFeatureSet();
             if (clientFeatures != null && clientFeatures.hasFeature(Feature.MODIFY)) {
                 final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());

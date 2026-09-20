@@ -477,19 +477,35 @@ public class BuildService extends AbstractService {
         if (scan.results.isEmpty()) {
             return;
         }
-        final long now = System.currentTimeMillis();
-        boolean changed = false;
-        for (final Map.Entry<String, Long> result : scan.results.entrySet()) {
-            final BuildRegion region = placement.getBuildRegions().get(result.getKey());
-            if (region != null) {
-                region.recordScan(result.getValue(), now);
-                changed = true;
-            }
-        }
-        if (changed) {
+        if (applyRegionCounts(placement, scan.results, System.currentTimeMillis())) {
             persistAndBroadcast(placement);
             saveScanData(placement);
         }
+    }
+
+    /**
+     * Records a finished scan's counts. A pass that measured the same numbers as
+     * the last one still refreshes its timestamps but is not a change:
+     * broadcasting an unchanged placement would push the stored pose at a client
+     * that is mid-modification of it, snapping the placement back.
+     *
+     * @return whether any region's placed count actually moved
+     */
+    static boolean applyRegionCounts(final ServerPlacement placement, final Map<String, Long> results,
+                                     final long now) {
+        boolean changed = false;
+        for (final Map.Entry<String, Long> result : results.entrySet()) {
+            final BuildRegion region = placement.getBuildRegions().get(result.getKey());
+            if (region == null) {
+                continue;
+            }
+            final long clamped = Math.max(0L, Math.min(result.getValue(), region.getRequiredBlocks()));
+            if (region.getPlacedBlocks() != clamped) {
+                changed = true;
+            }
+            region.recordScan(result.getValue(), now);
+        }
+        return changed;
     }
 
     /**

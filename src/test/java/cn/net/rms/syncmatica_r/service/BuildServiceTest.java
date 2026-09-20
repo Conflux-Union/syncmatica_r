@@ -530,6 +530,35 @@ final class BuildServiceTest {
         }
     }
 
+    @Test
+    void scanCountsThatDidNotMoveAreNotABroadcastTrigger() {
+        final Context context = newServerContext();
+        try {
+            final BuildService service = context.getBuildService();
+            final ServerPlacement placement = attach(context, service, regions("roof"));
+            final BuildRegion roof = placement.getBuildRegions().get("roof");
+            roof.recordScan(60L, 1_000L);
+
+            final Map<String, Long> unchanged = new LinkedHashMap<>();
+            unchanged.put("roof", 60L);
+            assertFalse(BuildService.applyRegionCounts(placement, unchanged, 2_000L),
+                    "a pass that measured the same numbers as the last one is not a change");
+            assertEquals(60L, roof.getPlacedBlocks());
+            assertEquals(2_000L, roof.getLastScanMillis(), "an unchanged pass still refreshes its timestamp");
+
+            final Map<String, Long> progressed = new LinkedHashMap<>();
+            progressed.put("roof", 90L);
+            assertTrue(BuildService.applyRegionCounts(placement, progressed, 3_000L));
+            assertEquals(90L, roof.getPlacedBlocks());
+
+            final Map<String, Long> unknownRegion = new LinkedHashMap<>();
+            unknownRegion.put("ghost", 5L);
+            assertFalse(BuildService.applyRegionCounts(placement, unknownRegion, 4_000L));
+        } finally {
+            context.shutdown();
+        }
+    }
+
     /** Extraction runs off the server thread, so the tick loop has to catch up with it. */
     private void pumpUntilRegionsArrive(final Context context, final ServerPlacement placement)
             throws InterruptedException {

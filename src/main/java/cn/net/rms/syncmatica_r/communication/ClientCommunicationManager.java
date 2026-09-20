@@ -68,6 +68,12 @@ public class ClientCommunicationManager extends CommunicationManager {
         if (type == PacketType.MODIFY) {
             final UUID placementId = packetBuf.readUuid();
             final ServerPlacement toModify = context.getSyncmaticManager().getPlacement(placementId);
+            if (getModifier(toModify) != null) {
+                // A local modification session owns this placement's pose until it
+                // concludes. The server still holds the pre-modification origin,
+                // so applying its broadcast mid-edit would snap the placement back.
+                return;
+            }
             receiveModificationData(toModify, packetBuf, source);
             final FeatureSet featureSet = source.getFeatureSet();
             final boolean hasCoreEx = featureSet != null && featureSet.hasFeature(Feature.CORE_EX);
