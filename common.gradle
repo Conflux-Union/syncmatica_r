@@ -54,6 +54,13 @@ repositories {
             includeGroup "maven.modrinth"
         }
     }
+    maven {
+        name = "FallenBreathReleases"
+        url = "https://maven.fallenbreath.me/releases"
+        content {
+            includeGroup "me.fallenbreath"
+        }
+    }
 }
 
 configurations {
@@ -82,6 +89,18 @@ dependencies {
     } else {
         autoImpl "curse.maven:litematica-${project.litematica_minecraft_version}-308892:${project.litematica_fileid}"
         autoImpl "curse.maven:malilib-${project.litematica_minecraft_version}-303119:${project.malilib_fileid}"
+    }
+
+    // Recent litematica/malilib builds ship conditional-mixin only as a nested jar (JiJ);
+    // loom's dev runClient does not expand nested jars of mod dependencies, which breaks
+    // their mixin config plugins with NoClassDefFoundError. Supply it for the dev runtime
+    // only - in production the bundled copy inside litematica/malilib is loaded instead.
+    if (project.hasProperty('conditional_mixin_version')) {
+        if (unobfuscated) {
+            localRuntime "me.fallenbreath:conditional-mixin-fabric:${project.conditional_mixin_version}"
+        } else {
+            modLocalRuntime "me.fallenbreath:conditional-mixin-fabric:${project.conditional_mixin_version}"
+        }
     }
 
     def tweakermoreMinecraftVersion = project.findProperty('tweakermore_minecraft_version') ?: project.minecraft_version
