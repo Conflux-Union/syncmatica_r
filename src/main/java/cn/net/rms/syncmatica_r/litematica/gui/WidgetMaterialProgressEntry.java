@@ -243,7 +243,18 @@ public class WidgetMaterialProgressEntry extends WidgetListEntryBase<SyncmaticaM
         return true;
     }
 
-//#if MC >= 12110
+//#if MC >= 260300
+//$$     @Override
+//$$     protected boolean onMouseClickedImpl(final net.minecraft.client.input.MouseButtonEvent click, final boolean isLeftClick) {
+//$$         // MC 26.3 reports mouse buttons 1-based (left = 1) while older versions
+//$$         // use GLFW-style 0-based codes; normalize so mouseClickedImpl sees 0 = left.
+//$$         return mouseClickedImpl((int) click.x(), (int) click.y(), click.button() - 1);
+//$$     }
+//$$
+//$$     public boolean mouseClicked(final int mouseX, final int mouseY, final int mouseButton) {
+//$$         return mouseClickedImpl(mouseX, mouseY, mouseButton);
+//$$     }
+//#elseif MC >= 12110
 //$$     @Override
 //$$     protected boolean onMouseClickedImpl(final Click click, final boolean isLeftClick) {
 //$$         // Use click.button() directly: 0 = left, 1 = right, 2 = middle
