@@ -793,12 +793,20 @@ public class MaterialService extends AbstractService {
 
     private net.minecraft.text.Text getSignLine(final net.minecraft.block.entity.SignBlockEntity sign, final int row) {
 //#if MC >= 12001
+//#if MC >= 260300
+//$$         final net.minecraft.network.chat.Component frontLine = sign.getText(net.minecraft.world.level.block.entity.SignTextSlot.FRONT).getMessages(false).get(row);
+//$$         if (!frontLine.getString().isEmpty()) {
+//$$             return frontLine;
+//$$         }
+//$$         return sign.getText(net.minecraft.world.level.block.entity.SignTextSlot.BACK).getMessages(false).get(row);
+//#else
 //$$         final SignText front = sign.getFrontText();
 //$$         final net.minecraft.text.Text frontLine = front.getMessage(row, false);
 //$$         if (!frontLine.getString().isEmpty()) {
 //$$             return frontLine;
 //$$         }
 //$$         return sign.getBackText().getMessage(row, false);
+//#endif
 //#else
         return sign.getTextOnRow(row, false);
 //#endif
