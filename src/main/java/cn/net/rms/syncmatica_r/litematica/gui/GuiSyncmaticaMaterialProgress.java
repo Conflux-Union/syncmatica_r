@@ -15,7 +15,9 @@ import fi.dy.masa.malilib.util.StringUtils;
 
 public class GuiSyncmaticaMaterialProgress extends GuiListBase<SyncmaticaMaterialEntry, WidgetMaterialProgressEntry, WidgetListMaterialProgress> {
 
-    private static final int TOP_BAR_HEIGHT = 34;
+    // malilib renders the title at y = 10; the button bar must start below it to avoid overlap.
+    private static final int TOP_BAR_Y = 22;
+    private static final int TOP_BAR_HEIGHT = 46;
 
     private final ServerPlacement placement;
     private boolean availabilityReported;
@@ -32,13 +34,12 @@ public class GuiSyncmaticaMaterialProgress extends GuiListBase<SyncmaticaMateria
         super.initGui();
 
         // Top control bar: sort mode and filter buttons
-        final int topBarY = 10;
         int topBarX = 10;
 
         // Sort mode button
         final String sortLabel = buildSortModeLabel();
         final int sortWidth = getStringWidth(sortLabel) + 20;
-        final ButtonGeneric sortButton = new ButtonGeneric(topBarX, topBarY, sortWidth, 20, sortLabel);
+        final ButtonGeneric sortButton = new ButtonGeneric(topBarX, TOP_BAR_Y, sortWidth, 20, sortLabel);
         addButton(sortButton, (button, mouseButton) -> {
             MaterialListPreferences.cycleSortMode();
             button.setDisplayString(buildSortModeLabel());
@@ -49,7 +50,7 @@ public class GuiSyncmaticaMaterialProgress extends GuiListBase<SyncmaticaMateria
         // Hide finished toggle button
         final String hideLabel = buildHideFinishedLabel();
         final int hideWidth = getStringWidth(hideLabel) + 20;
-        final ButtonGeneric hideButton = new ButtonGeneric(topBarX, topBarY, hideWidth, 20, hideLabel);
+        final ButtonGeneric hideButton = new ButtonGeneric(topBarX, TOP_BAR_Y, hideWidth, 20, hideLabel);
         addButton(hideButton, (button, mouseButton) -> {
             MaterialListPreferences.toggleHideFinished();
             button.setDisplayString(buildHideFinishedLabel());

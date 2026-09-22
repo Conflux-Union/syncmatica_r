@@ -19,8 +19,9 @@ import java.util.function.BooleanSupplier;
  */
 public class GuiBuildRegions extends GuiListBase<BuildRegion, WidgetBuildRegionEntry, WidgetListBuildRegions> {
 
-    /** Tall enough for the control bar above the list, as on the material screen. */
-    private static final int TOP_BAR_HEIGHT = 34;
+    /** Leaves room for the title (y = 10) above the control bar, as on the material screen. */
+    private static final int TOP_BAR_Y = 22;
+    private static final int TOP_BAR_HEIGHT = 46;
 
     private final ServerPlacement placement;
     private boolean emptyReported;
@@ -74,7 +75,7 @@ public class GuiBuildRegions extends GuiListBase<BuildRegion, WidgetBuildRegionE
                 getStringWidth(toggleLabel(labelKey, true)),
                 getStringWidth(toggleLabel(labelKey, false))) + 20;
         final ButtonGeneric button =
-                new ButtonGeneric(x, 10, buttonWidth, 20, toggleLabel(labelKey, state.getAsBoolean()));
+                new ButtonGeneric(x, TOP_BAR_Y, buttonWidth, 20, toggleLabel(labelKey, state.getAsBoolean()));
         addButton(button, (clicked, mouseButton) -> {
             onToggle.run();
             clicked.setDisplayString(toggleLabel(labelKey, state.getAsBoolean()));
