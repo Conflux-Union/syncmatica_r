@@ -135,6 +135,6 @@ CC0-1.0，公共领域贡献。
 
 ## 联系方式
 
-- 邮箱：support@rms.net.cn
+- 邮箱：contact@cxu.org.cn
 - QQ 群：362669270
 - [GitHub Issues](https://github.com/RMS-Server/syncmatica_r/issues)

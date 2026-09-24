@@ -158,6 +158,6 @@ CC0-1.0, public domain dedication.
 
 ## Contact
 
-- Email: support@rms.net.cn
+- Email: contact@cxu.org.cn
 - QQ group: 362669270
 - [GitHub Issues](https://github.com/RMS-Server/syncmatica_r/issues)
