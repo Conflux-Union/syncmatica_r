@@ -6,10 +6,6 @@ pluginManagement {
         }
         maven {
             name = 'Jitpack'
-            url = 'https://maven.fallenbreath.me/jitpack'
-        }
-        maven {
-            name = 'JitpackOrigin'
             url = 'https://jitpack.io'
         }
         mavenCentral()
@@ -19,7 +15,16 @@ pluginManagement {
         eachPlugin {
             switch (requested.id.id) {
                 case 'com.replaymod.preprocess': {
-                    useModule "com.github.ReplayMod:preprocessor:$requested.version"
+                    // Served from the Conflux-Union fork of ReplayMod/preprocessor rather
+                    // than com.github.ReplayMod directly: our tag v1.0.1 pins upstream
+                    // commit 221276c7d4 plus a BFS root fix (tree root is now the lowest
+                    // mcVersion instead of whichever node eachDir happens to yield first),
+                    // so the 1.21.11 <-> 26.x mojangMappings variant links no longer break
+                    // when CI runner readdir order puts a 26.x node first. Do not switch
+                    // back to a Fallen-Breath-flavored build: maven.fallenbreth.me is dead,
+                    // and its createNode maps parameter is typed non-null, which rejects
+                    // the null namespace of the unobfuscated 26.x versions.
+                    useModule "com.github.Conflux-Union:preprocessor:$requested.version"
                     break
                 }
                 case 'net.fabricmc.fabric-loom':
