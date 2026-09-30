@@ -26,6 +26,7 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -59,6 +60,10 @@ public final class WebRouter {
             Pattern.compile("^/api/v1/projects/([^/]+)/material-claims/me$");
     private static final Pattern STOCKING =
             Pattern.compile("^/api/v1/projects/([^/]+)/stocking-area$");
+    private static final Pattern STOCKING_AREAS =
+            Pattern.compile("^/api/v1/stocking-areas$");
+    private static final Pattern STOCKING_AREA_ENTRY =
+            Pattern.compile("^/api/v1/stocking-areas/([^/]+)$");
     private static final Pattern BUILD_REGIONS =
             Pattern.compile("^/api/v1/projects/([^/]+)/build-regions$");
     private static final Pattern BUILD_CLAIM =
@@ -268,6 +273,31 @@ public final class WebRouter {
             gameResponse(exchange, () -> facade.getMyClaims(identity.playerId));
             return;
         }
+        if ((API + "/stocking-areas").equals(path)) {
+            if ("GET".equals(method)) {
+                gameResponse(exchange, facade::listStockingAreas);
+                return;
+            }
+            if (!"POST".equals(method)) {
+                methodNotAllowed(exchange, "GET, POST");
+                return;
+            }
+            if (!requireCsrf(exchange, identity)) {
+                return;
+            }
+            final JsonObject body = readObject(exchange);
+            final String name = requiredString(body, "name", 32);
+            final String dimension = requiredString(body, "dimension", 128);
+            final AreaBounds bounds = AreaBounds.from(body);
+            final boolean elevated = permission(identity.playerId,
+                    PlacementAccessPolicy.MANAGE_PERMISSION, false);
+            final WebFacade.StockingAreaRegistryOutcome outcome = game(() ->
+                    facade.createStockingArea(name, identity.player(), elevated,
+                            dimension, bounds.minX(), bounds.minY(), bounds.minZ(),
+                            bounds.maxX(), bounds.maxY(), bounds.maxZ()));
+            stockingAreaRegistryOutcome(exchange, outcome);
+            return;
+        }
 
         Matcher matcher = PROJECT.matcher(path);
         if (matcher.matches()) {
@@ -296,6 +326,48 @@ public final class WebRouter {
                 return;
             }
             gameResponse(exchange, () -> facade.getMaterials(placementId));
+            return;
+        }
+        matcher = STOCKING_AREA_ENTRY.matcher(path);
+        if (matcher.matches()) {
+            final UUID areaId = uuid(matcher.group(1));
+            final boolean elevated = permission(identity.playerId,
+                    PlacementAccessPolicy.MANAGE_PERMISSION, false);
+            if ("PUT".equals(method)) {
+                if (!requireCsrf(exchange, identity)) {
+                    return;
+                }
+                final JsonObject body = readObject(exchange);
+                final String dimension = requiredString(body, "dimension", 128);
+                final AreaBounds bounds = AreaBounds.from(body);
+                final WebFacade.StockingAreaRegistryOutcome outcome = game(() ->
+                        facade.updateStockingArea(areaId, identity.player(), elevated,
+                                dimension, bounds.minX(), bounds.minY(), bounds.minZ(),
+                                bounds.maxX(), bounds.maxY(), bounds.maxZ()));
+                stockingAreaRegistryOutcome(exchange, outcome);
+                return;
+            }
+            if ("DELETE".equals(method)) {
+                if (!requireCsrf(exchange, identity)) {
+                    return;
+                }
+                final boolean force = Boolean.parseBoolean(firstQuery(exchange, "force", "false"));
+                final WebFacade.StockingAreaRegistryOutcome outcome = game(() ->
+                        facade.deleteStockingArea(areaId, force, identity.player(), elevated));
+                if (outcome == WebFacade.StockingAreaRegistryOutcome.IN_USE) {
+                    final List<String> referencing =
+                            game(() -> facade.stockingAreaReferenceNames(areaId));
+                    json(exchange, StatusCodes.CONFLICT, Map.of(
+                            "code", "stocking_area_in_use",
+                            "message", "Stocking area is used by: "
+                                    + String.join(", ", referencing),
+                            "referencing", referencing));
+                    return;
+                }
+                stockingAreaRegistryOutcome(exchange, outcome);
+                return;
+            }
+            methodNotAllowed(exchange, "PUT, DELETE");
             return;
         }
         matcher = MATERIAL_CLAIM.matcher(path);
@@ -370,41 +442,22 @@ public final class WebRouter {
                 }
                 return;
             }
-            if (!mutationMethod(exchange, identity, method)) {
+            if (!"PUT".equals(method)) {
+                methodNotAllowed(exchange, "GET, PUT");
                 return;
             }
+            if (!requireCsrf(exchange, identity)) {
+                return;
+            }
+            final UUID areaId = optionalUuid(readObject(exchange), "areaId");
             final boolean elevated = permission(identity.playerId,
                     PlacementAccessPolicy.MANAGE_PERMISSION, false);
-            final String dimension;
-            final int minX;
-            final int minY;
-            final int minZ;
-            final int maxX;
-            final int maxY;
-            final int maxZ;
-            if ("PUT".equals(method)) {
-                final JsonObject body = readObject(exchange);
-                dimension = requiredString(body, "dimension", 128);
-                minX = requiredInt(body, "minX");
-                minY = requiredInt(body, "minY");
-                minZ = requiredInt(body, "minZ");
-                maxX = requiredInt(body, "maxX");
-                maxY = requiredInt(body, "maxY");
-                maxZ = requiredInt(body, "maxZ");
-            } else {
-                dimension = null;
-                minX = minY = minZ = maxX = maxY = maxZ = 0;
-            }
             final ProjectOperation<WebFacade.StockingAreaOutcome> operation = game(() -> {
                 if (facade.getProject(placementId).isEmpty()) {
                     return ProjectOperation.missing();
                 }
-                return ProjectOperation.found("PUT".equals(method)
-                        ? facade.setStockingArea(
-                                placementId, identity.player(), elevated, dimension,
-                                minX, minY, minZ, maxX, maxY, maxZ)
-                        : facade.clearStockingArea(
-                                placementId, identity.player(), elevated));
+                return ProjectOperation.found(facade.setStockingAreaRef(
+                        placementId, identity.player(), elevated, areaId));
             });
             if (requireProject(exchange, operation)) {
                 stockingOutcome(exchange, operation.value);
@@ -609,14 +662,48 @@ public final class WebRouter {
                     json(exchange, StatusCodes.OK, Map.of("outcome", outcome.name().toLowerCase()));
             case UNKNOWN_PLACEMENT ->
                     error(exchange, StatusCodes.NOT_FOUND, "project_not_found", "Project not found");
+            case UNKNOWN_AREA ->
+                    error(exchange, StatusCodes.NOT_FOUND,
+                            "stocking_area_not_found", "Stocking area not found");
+            case FORBIDDEN ->
+                    error(exchange, StatusCodes.FORBIDDEN, "permission_denied", "Permission denied");
+            case DISABLED ->
+                    error(exchange, StatusCodes.CONFLICT, "feature_disabled", "Feature disabled");
+        }
+    }
+
+    private void stockingAreaRegistryOutcome(
+            final HttpServerExchange exchange,
+            final WebFacade.StockingAreaRegistryOutcome outcome
+    ) {
+        switch (outcome) {
+            case CREATED ->
+                    json(exchange, StatusCodes.CREATED, Map.of("outcome", outcome.name().toLowerCase()));
+            case UPDATED, DELETED ->
+                    json(exchange, StatusCodes.OK, Map.of("outcome", outcome.name().toLowerCase()));
+            case INVALID_NAME ->
+                    error(exchange, StatusCodes.UNPROCESSABLE_ENTITY, "stocking_area_invalid_name",
+                            "Area names may contain letters, digits, '_' and '-' (max 32)");
+            case DUPLICATE_NAME ->
+                    error(exchange, StatusCodes.CONFLICT, "stocking_area_duplicate_name",
+                            "A stocking area with that name already exists");
+            case RESERVED_NAME ->
+                    error(exchange, StatusCodes.UNPROCESSABLE_ENTITY, "stocking_area_reserved_name",
+                            "The name 'default' is reserved");
+            case TOO_LARGE ->
+                    error(exchange, StatusCodes.UNPROCESSABLE_ENTITY,
+                            "stocking_area_too_large", "Stocking area is too large");
+            case NOT_FOUND ->
+                    error(exchange, StatusCodes.NOT_FOUND,
+                            "stocking_area_not_found", "Stocking area not found");
+            case IN_USE ->
+                    error(exchange, StatusCodes.CONFLICT, "stocking_area_in_use",
+                            "Stocking area is used by other projects");
             case FORBIDDEN ->
                     error(exchange, StatusCodes.FORBIDDEN, "permission_denied", "Permission denied");
             case DIMENSION_NOT_LOADED ->
                     error(exchange, StatusCodes.CONFLICT,
                             "dimension_not_loaded", "Dimension is not loaded");
-            case TOO_LARGE ->
-                    error(exchange, StatusCodes.UNPROCESSABLE_ENTITY,
-                            "stocking_area_too_large", "Stocking area is too large");
             case DISABLED ->
                     error(exchange, StatusCodes.CONFLICT, "feature_disabled", "Feature disabled");
         }
@@ -720,6 +807,8 @@ public final class WebRouter {
                 || MATERIAL_CLAIM.matcher(path).matches()
                 || MATERIAL_CLAIMS.matcher(path).matches()
                 || STOCKING.matcher(path).matches()
+                || STOCKING_AREAS.matcher(path).matches()
+                || STOCKING_AREA_ENTRY.matcher(path).matches()
                 || BUILD_REGIONS.matcher(path).matches()
                 || BUILD_CLAIM.matcher(path).matches();
     }
@@ -783,6 +872,36 @@ public final class WebRouter {
 
     private static UUID uuid(final String value) {
         return UUID.fromString(value);
+    }
+
+    /** Area id from a bind body: the key must be present, null means unbind. */
+    private static UUID optionalUuid(final JsonObject body, final String key) {
+        if (!body.has(key)) {
+            throw new IllegalArgumentException("Missing " + key);
+        }
+        if (body.get(key).isJsonNull()) {
+            return null;
+        }
+        if (!body.get(key).isJsonPrimitive()) {
+            throw new IllegalArgumentException("Invalid " + key);
+        }
+        try {
+            return UUID.fromString(body.get(key).getAsString());
+        } catch (final IllegalArgumentException exception) {
+            throw new IllegalArgumentException("Invalid " + key, exception);
+        }
+    }
+
+    private record AreaBounds(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        private static AreaBounds from(final JsonObject body) {
+            return new AreaBounds(
+                    requiredInt(body, "minX"),
+                    requiredInt(body, "minY"),
+                    requiredInt(body, "minZ"),
+                    requiredInt(body, "maxX"),
+                    requiredInt(body, "maxY"),
+                    requiredInt(body, "maxZ"));
+        }
     }
 
     private static Identifier parseIdentifier(final String value) {

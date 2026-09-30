@@ -8,6 +8,7 @@ import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
 import cn.net.rms.syncmatica_r.material.MaterialKey;
 import cn.net.rms.syncmatica_r.material.MaterialProgressEntry;
 import cn.net.rms.syncmatica_r.material.StockingAreaDefinition;
+import cn.net.rms.syncmatica_r.material.StockingAreaRegistry;
 import cn.net.rms.syncmatica_r.service.BuildService;
 import cn.net.rms.syncmatica_r.service.MaterialService;
 import java.math.BigInteger;
@@ -40,9 +41,23 @@ public final class WebFacade {
         UPDATED,
         UNCHANGED,
         UNKNOWN_PLACEMENT,
+        UNKNOWN_AREA,
+        FORBIDDEN,
+        DISABLED
+    }
+
+    public enum StockingAreaRegistryOutcome {
+        CREATED,
+        UPDATED,
+        DELETED,
+        INVALID_NAME,
+        DUPLICATE_NAME,
+        RESERVED_NAME,
+        TOO_LARGE,
+        NOT_FOUND,
+        IN_USE,
         FORBIDDEN,
         DIMENSION_NOT_LOADED,
-        TOO_LARGE,
         DISABLED
     }
 
@@ -170,8 +185,25 @@ public final class WebFacade {
         if (placement == null) {
             return Optional.empty();
         }
-        final StockingAreaDefinition area = context.getMaterialService().getStockingArea(placementId);
-        return area == null ? Optional.empty() : Optional.of(stockingArea(area));
+        final MaterialService service = context.getMaterialService();
+        final StockingAreaDefinition area = service.resolveStockingArea(placement);
+        if (area == null) {
+            return Optional.empty();
+        }
+        final StockingAreaRegistry.Entry bound = service.getStockingAreaRegistry()
+                .getById(placement.getStockingAreaRef());
+        return Optional.of(new WebDtos.StockingArea(
+                area.getDimensionId(),
+                area.getMin().getX(),
+                area.getMin().getY(),
+                area.getMin().getZ(),
+                area.getMax().getX(),
+                area.getMax().getY(),
+                area.getMax().getZ(),
+                area.getVolume(),
+                bound == null ? null : bound.getId().toString(),
+                bound == null ? null : bound.getName()
+        ));
     }
 
     public List<WebDtos.BuildRegion> getBuildRegions(final UUID placementId) {
@@ -279,16 +311,131 @@ public final class WebFacade {
                 context.getSyncmaticManager().getPlacement(placementId), regionName, player, claimed);
     }
 
-    public StockingAreaOutcome setStockingArea(final UUID placementId,
-                                               final PlayerIdentifier player,
-                                               final boolean elevated,
-                                               final String dimension,
-                                               final int firstX,
-                                               final int firstY,
-                                               final int firstZ,
-                                               final int secondX,
-                                               final int secondY,
-                                               final int secondZ) {
+    public List<WebDtos.StockingAreaRecord> listStockingAreas() {
+        final MaterialService service = context.getMaterialService();
+        if (service == null) {
+            return List.of();
+        }
+        final List<WebDtos.StockingAreaRecord> result = new ArrayList<>();
+        for (final StockingAreaRegistry.Entry entry : service.getStockingAreaRegistry().getAll()) {
+            result.add(stockingAreaRecord(service, entry));
+        }
+        result.sort(Comparator.comparing(WebDtos.StockingAreaRecord::name));
+        return List.copyOf(result);
+    }
+
+    /**
+     * Any authenticated actor may create an area; it is owned by the creating
+     * player (owner = actor), matching the command layer's player path.
+     * Elevation grants no extra create rights and only keeps the mutation
+     * surface uniform with the update and delete signatures.
+     */
+    public StockingAreaRegistryOutcome createStockingArea(final String name,
+                                                          final PlayerIdentifier actor,
+                                                          final boolean elevated,
+                                                          final String dimension,
+                                                          final int minX,
+                                                          final int minY,
+                                                          final int minZ,
+                                                          final int maxX,
+                                                          final int maxY,
+                                                          final int maxZ) {
+        final MaterialService service = context.getMaterialService();
+        if (service == null || !service.isEnabled()) {
+            return StockingAreaRegistryOutcome.DISABLED;
+        }
+        // The reserved default entry is bootstrapped by migration and the
+        // server only; the web never writes it, regardless of elevation.
+        if (StockingAreaRegistry.RESERVED_DEFAULT_NAME.equals(name)) {
+            return StockingAreaRegistryOutcome.RESERVED_NAME;
+        }
+        if (dimension == null || !loadedDimension.test(dimension)) {
+            return StockingAreaRegistryOutcome.DIMENSION_NOT_LOADED;
+        }
+        return switch (service.createStockingArea(
+                name, definition(dimension, minX, minY, minZ, maxX, maxY, maxZ),
+                actor == null ? null : actor.uuid)) {
+            case CREATED -> StockingAreaRegistryOutcome.CREATED;
+            case INVALID_NAME -> StockingAreaRegistryOutcome.INVALID_NAME;
+            case DUPLICATE_NAME -> StockingAreaRegistryOutcome.DUPLICATE_NAME;
+            case RESERVED_NAME -> StockingAreaRegistryOutcome.RESERVED_NAME;
+            case TOO_LARGE -> StockingAreaRegistryOutcome.TOO_LARGE;
+        };
+    }
+
+    public StockingAreaRegistryOutcome updateStockingArea(final UUID areaId,
+                                                          final PlayerIdentifier actor,
+                                                          final boolean elevated,
+                                                          final String dimension,
+                                                          final int minX,
+                                                          final int minY,
+                                                          final int minZ,
+                                                          final int maxX,
+                                                          final int maxY,
+                                                          final int maxZ) {
+        final MaterialService service = context.getMaterialService();
+        if (service == null || !service.isEnabled()) {
+            return StockingAreaRegistryOutcome.DISABLED;
+        }
+        final StockingAreaRegistry.Entry entry = service.getStockingAreaRegistry().getById(areaId);
+        if (entry == null) {
+            return StockingAreaRegistryOutcome.NOT_FOUND;
+        }
+        if (!canManageStockingAreaEntry(actor, entry, elevated)) {
+            return StockingAreaRegistryOutcome.FORBIDDEN;
+        }
+        if (dimension == null || !loadedDimension.test(dimension)) {
+            return StockingAreaRegistryOutcome.DIMENSION_NOT_LOADED;
+        }
+        return switch (service.updateStockingArea(
+                areaId, definition(dimension, minX, minY, minZ, maxX, maxY, maxZ))) {
+            case UPDATED -> StockingAreaRegistryOutcome.UPDATED;
+            case TOO_LARGE -> StockingAreaRegistryOutcome.TOO_LARGE;
+            case NOT_FOUND -> StockingAreaRegistryOutcome.NOT_FOUND;
+        };
+    }
+
+    public StockingAreaRegistryOutcome deleteStockingArea(final UUID areaId,
+                                                          final boolean force,
+                                                          final PlayerIdentifier actor,
+                                                          final boolean elevated) {
+        final MaterialService service = context.getMaterialService();
+        if (service == null || !service.isEnabled()) {
+            return StockingAreaRegistryOutcome.DISABLED;
+        }
+        final StockingAreaRegistry.Entry entry = service.getStockingAreaRegistry().getById(areaId);
+        if (entry == null) {
+            return StockingAreaRegistryOutcome.NOT_FOUND;
+        }
+        if (!canManageStockingAreaEntry(actor, entry, elevated)) {
+            return StockingAreaRegistryOutcome.FORBIDDEN;
+        }
+        return switch (service.deleteStockingArea(areaId, force)) {
+            case DELETED -> StockingAreaRegistryOutcome.DELETED;
+            case IN_USE -> StockingAreaRegistryOutcome.IN_USE;
+            case NOT_FOUND -> StockingAreaRegistryOutcome.NOT_FOUND;
+            case RESERVED_NAME -> StockingAreaRegistryOutcome.RESERVED_NAME;
+        };
+    }
+
+    /** Names of the projects bound to the area, for the in-use error detail. */
+    public List<String> stockingAreaReferenceNames(final UUID areaId) {
+        final MaterialService service = context.getMaterialService();
+        if (service == null) {
+            return List.of();
+        }
+        final List<String> names = new ArrayList<>();
+        for (final ServerPlacement placement : service.getPlacementsReferencing(areaId)) {
+            names.add(placement.getName());
+        }
+        return List.copyOf(names);
+    }
+
+    /** Binds a placement to a registry entry; a null area id clears the binding. */
+    public StockingAreaOutcome setStockingAreaRef(final UUID placementId,
+                                                  final PlayerIdentifier player,
+                                                  final boolean elevated,
+                                                  final UUID areaId) {
         final MaterialService service = context.getMaterialService();
         if (service == null || !service.isEnabled()) {
             return StockingAreaOutcome.DISABLED;
@@ -300,43 +447,56 @@ public final class WebFacade {
         if (!canManageStockingArea(placement, player, elevated, service)) {
             return StockingAreaOutcome.FORBIDDEN;
         }
-        if (dimension == null || !loadedDimension.test(dimension)) {
-            return StockingAreaOutcome.DIMENSION_NOT_LOADED;
+        if (areaId != null && service.getStockingAreaRegistry().getById(areaId) == null) {
+            return StockingAreaOutcome.UNKNOWN_AREA;
         }
-        final StockingAreaDefinition area = new StockingAreaDefinition(
-                dimension,
-                new BlockPos(firstX, firstY, firstZ),
-                new BlockPos(secondX, secondY, secondZ)
-        );
-        if (!service.isStockingAreaAllowed(area)) {
-            return StockingAreaOutcome.TOO_LARGE;
-        }
-        if (area.equals(service.getStockingArea(placementId))) {
+        if (Objects.equals(placement.getStockingAreaRef(), areaId)) {
             return StockingAreaOutcome.UNCHANGED;
         }
-        service.setStockingArea(placement, area);
+        service.bindStockingArea(placement, areaId);
         return StockingAreaOutcome.UPDATED;
     }
 
-    public StockingAreaOutcome clearStockingArea(final UUID placementId,
-                                                 final PlayerIdentifier player,
-                                                 final boolean elevated) {
-        final MaterialService service = context.getMaterialService();
-        if (service == null || !service.isEnabled()) {
-            return StockingAreaOutcome.DISABLED;
-        }
-        final ServerPlacement placement = context.getSyncmaticManager().getPlacement(placementId);
-        if (placement == null) {
-            return StockingAreaOutcome.UNKNOWN_PLACEMENT;
-        }
-        if (!canManageStockingArea(placement, player, elevated, service)) {
-            return StockingAreaOutcome.FORBIDDEN;
-        }
-        if (service.getStockingArea(placementId) == null) {
-            return StockingAreaOutcome.UNCHANGED;
-        }
-        service.setStockingArea(placement, null);
-        return StockingAreaOutcome.UPDATED;
+    private static StockingAreaDefinition definition(final String dimension,
+                                                     final int minX,
+                                                     final int minY,
+                                                     final int minZ,
+                                                     final int maxX,
+                                                     final int maxY,
+                                                     final int maxZ) {
+        return new StockingAreaDefinition(
+                dimension,
+                new BlockPos(minX, minY, minZ),
+                new BlockPos(maxX, maxY, maxZ)
+        );
+    }
+
+    private static WebDtos.StockingAreaRecord stockingAreaRecord(
+            final MaterialService service, final StockingAreaRegistry.Entry entry) {
+        final StockingAreaDefinition definition = entry.getDefinition();
+        return new WebDtos.StockingAreaRecord(
+                entry.getId().toString(),
+                entry.getName(),
+                definition.getDimensionId(),
+                definition.getMin().getX(),
+                definition.getMin().getY(),
+                definition.getMin().getZ(),
+                definition.getMax().getX(),
+                definition.getMax().getY(),
+                definition.getMax().getZ(),
+                entry.getOwnerPlayerId() == null ? null : entry.getOwnerPlayerId().toString(),
+                service.getPlacementsReferencing(entry.getId()).size()
+        );
+    }
+
+    private static boolean canManageStockingAreaEntry(final PlayerIdentifier actor,
+                                                      final StockingAreaRegistry.Entry entry,
+                                                      final boolean elevated) {
+        return PlacementAccessPolicy.canManageStockingAreaEntry(
+                actor == null ? null : actor.uuid,
+                entry.getOwnerPlayerId(),
+                elevated
+        );
     }
 
     private static boolean canManageStockingArea(final ServerPlacement placement,
@@ -348,19 +508,6 @@ public final class WebFacade {
                 placement.getOwner() == null ? null : placement.getOwner().uuid,
                 elevated,
                 service.isOwnerStockingAreaManagementEnabled()
-        );
-    }
-
-    private static WebDtos.StockingArea stockingArea(final StockingAreaDefinition area) {
-        return new WebDtos.StockingArea(
-                area.getDimensionId(),
-                area.getMin().getX(),
-                area.getMin().getY(),
-                area.getMin().getZ(),
-                area.getMax().getX(),
-                area.getMax().getY(),
-                area.getMax().getZ(),
-                area.getVolume()
         );
     }
 

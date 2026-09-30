@@ -49,7 +49,8 @@ function routeFetch(
     const url = String(request);
     const route = routes[`${init?.method ?? "GET"} ${url}`] ?? routes[url];
     if (typeof route === "function") {
-      return json(route(request, init));
+      const result = route(request, init);
+      return result instanceof Response ? Promise.resolve(result) : json(result);
     }
     if (route instanceof Response) {
       return Promise.resolve(route);
@@ -294,15 +295,16 @@ describe("App project views", () => {
     );
   });
 
-  it("shows the stocking coordinate form only to the project owner", async () => {
+  it("binds a registered stocking area from the picker", async () => {
     const user = userEvent.setup();
-    vi.stubGlobal(
-      "fetch",
-      routeFetch({
-        "/api/v1/auth/session": session,
-        "/api/v1/projects/project-1": detail,
-        "/api/v1/projects/project-1/materials": [],
-        "/api/v1/projects/project-1/stocking-area": {
+    const fetcher = routeFetch({
+      "/api/v1/auth/session": session,
+      "/api/v1/projects/project-1": detail,
+      "/api/v1/projects/project-1/materials": [],
+      "/api/v1/stocking-areas": [
+        {
+          id: "area-1",
+          name: "Yard",
           dimension: "minecraft:overworld",
           minX: 1,
           minY: 2,
@@ -310,18 +312,100 @@ describe("App project views", () => {
           maxX: 4,
           maxY: 5,
           maxZ: 6,
-          volume: 120,
+          owner: session.playerId,
+          referencedBy: 1,
         },
-      }),
-    );
+      ],
+      "/api/v1/projects/project-1/stocking-area": {
+        dimension: "minecraft:overworld",
+        minX: 1,
+        minY: 2,
+        minZ: 3,
+        maxX: 4,
+        maxY: 5,
+        maxZ: 6,
+        volume: 120,
+        refId: "area-1",
+        refName: "Yard",
+      },
+      "PUT /api/v1/projects/project-1/stocking-area": { outcome: "updated" },
+    });
+    vi.stubGlobal("fetch", fetcher);
     renderApp("/projects/project-1");
 
     await user.click(await screen.findByRole("tab", { name: "Stocking Area" }));
-    expect(await screen.findByLabelText("Dimension · Overworld")).toHaveValue("minecraft:overworld");
-    expect(screen.getByRole("button", { name: "Save stocking area" })).toBeInTheDocument();
+    const select = await screen.findByLabelText("Stocking area");
+    expect(select).toHaveValue("area-1");
+    expect(screen.getByRole("option", { name: "(default)" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Yard" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Stocking areas" })).toBeInTheDocument();
+    expect(screen.getByText("Used by 1 project")).toBeInTheDocument();
+
+    await user.selectOptions(select, "");
+    await waitFor(() =>
+      expect(fetcher).toHaveBeenCalledWith(
+        "/api/v1/projects/project-1/stocking-area",
+        expect.objectContaining({
+          method: "PUT",
+          body: JSON.stringify({ areaId: null }),
+        }),
+      ),
+    );
   });
 
-  it("localizes dimension names without changing editable dimension IDs", async () => {
+  it("deletes a stocking area and forces the delete after an in-use conflict", async () => {
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const fetcher = routeFetch({
+      "/api/v1/auth/session": session,
+      "/api/v1/projects/project-1": detail,
+      "/api/v1/projects/project-1/materials": [],
+      "/api/v1/projects/project-1/stocking-area": () =>
+        new Response(
+          JSON.stringify({ code: "stocking_area_not_found", message: "Not found" }),
+          { status: 404, headers: { "Content-Type": "application/json" } },
+        ),
+      "/api/v1/stocking-areas": [
+        {
+          id: "area-1",
+          name: "Yard",
+          dimension: "minecraft:overworld",
+          minX: 0,
+          minY: 0,
+          minZ: 0,
+          maxX: 1,
+          maxY: 1,
+          maxZ: 1,
+          owner: session.playerId,
+          referencedBy: 2,
+        },
+      ],
+      "DELETE /api/v1/stocking-areas/area-1": () =>
+        new Response(
+          JSON.stringify({ code: "stocking_area_in_use", message: "In use" }),
+          { status: 409, headers: { "Content-Type": "application/json" } },
+        ),
+      "DELETE /api/v1/stocking-areas/area-1?force=true": { outcome: "deleted" },
+    });
+    vi.stubGlobal("fetch", fetcher);
+    renderApp("/projects/project-1");
+
+    await user.click(await screen.findByRole("tab", { name: "Stocking Area" }));
+    await user.click(await screen.findByRole("button", { name: "Delete area" }));
+
+    expect(confirm).toHaveBeenCalledWith(
+      "This stocking area is used by other projects. Unbind them and delete it?",
+    );
+    await waitFor(() =>
+      expect(fetcher).toHaveBeenCalledWith(
+        "/api/v1/stocking-areas/area-1?force=true",
+        expect.objectContaining({ method: "DELETE" }),
+      ),
+    );
+    expect(await screen.findByText("Stocking area deleted.")).toBeInTheDocument();
+  });
+
+  it("localizes dimension names in the project position", async () => {
     const user = userEvent.setup();
     vi.stubGlobal(
       "fetch",
@@ -329,16 +413,6 @@ describe("App project views", () => {
         "/api/v1/auth/session": session,
         "/api/v1/projects/project-1": detail,
         "/api/v1/projects/project-1/materials": [],
-        "/api/v1/projects/project-1/stocking-area": {
-          dimension: "minecraft:overworld",
-          minX: 1,
-          minY: 2,
-          minZ: 3,
-          maxX: 4,
-          maxY: 5,
-          maxZ: 6,
-          volume: 120,
-        },
       }),
     );
     renderApp("/projects/project-1");
@@ -346,9 +420,6 @@ describe("App project views", () => {
     expect(await screen.findByText("Overworld · 10, 64, 20")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "切换到中文" }));
     expect(screen.getByText("主世界 · 10, 64, 20")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("tab", { name: "备货区" }));
-    expect(await screen.findByLabelText("维度 · 主世界")).toHaveValue("minecraft:overworld");
   });
 
   it("keeps stocking controls read-only for non-owners", async () => {
@@ -362,17 +433,27 @@ describe("App project views", () => {
           owner: { id: "someone-else", name: "Taylor" },
         },
         "/api/v1/projects/project-1/materials": [],
-        "/api/v1/projects/project-1/stocking-area": new Response(
-          JSON.stringify({ code: "stocking_area_not_found", message: "Not found" }),
-          { status: 404, headers: { "Content-Type": "application/json" } },
-        ),
+        "/api/v1/projects/project-1/stocking-area": {
+          dimension: "minecraft:overworld",
+          minX: 1,
+          minY: 2,
+          minZ: 3,
+          maxX: 4,
+          maxY: 5,
+          maxZ: 6,
+          volume: 120,
+          refId: "area-1",
+          refName: "Yard",
+        },
+        "/api/v1/stocking-areas": [],
       }),
     );
     renderApp("/projects/project-1");
 
     await user.click(await screen.findByRole("tab", { name: "Stocking Area" }));
     expect(await screen.findByText("Only the project owner can edit this area.")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Save stocking area" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(screen.getByText("Yard")).toBeInTheDocument();
   });
 
   it("claims a build region with its encoded name", async () => {

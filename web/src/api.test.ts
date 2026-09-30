@@ -84,6 +84,62 @@ describe("API client", () => {
     expect(unauthorized).toHaveBeenCalledOnce();
   });
 
+  it("manages the stocking area registry and binds projects by area id", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json(session))
+      .mockResolvedValueOnce(json([]))
+      .mockResolvedValueOnce(json({ outcome: "created" }))
+      .mockResolvedValueOnce(json({ outcome: "deleted" }))
+      .mockResolvedValueOnce(json({ outcome: "updated" }));
+    const api = createApiClient(fetcher);
+    const definition = {
+      dimension: "minecraft:overworld",
+      minX: 0,
+      minY: 0,
+      minZ: 0,
+      maxX: 1,
+      maxY: 1,
+      maxZ: 1,
+    };
+
+    await api.session();
+    await api.stockingAreas();
+    await api.createStockingArea({ name: "yard", ...definition });
+    await api.deleteStockingArea("area-1", true);
+    await api.setStockingAreaRef("project-1", null);
+
+    expect(fetcher).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/stocking-areas",
+      expect.objectContaining({ credentials: "same-origin", method: "GET" }),
+    );
+    expect(fetcher).toHaveBeenNthCalledWith(
+      3,
+      "/api/v1/stocking-areas",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ name: "yard", ...definition }),
+      }),
+    );
+    expect(fetcher).toHaveBeenNthCalledWith(
+      4,
+      "/api/v1/stocking-areas/area-1?force=true",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+    expect(fetcher).toHaveBeenNthCalledWith(
+      5,
+      "/api/v1/projects/project-1/stocking-area",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ areaId: null }),
+      }),
+    );
+    expect(new Headers(fetcher.mock.calls[4][1]?.headers).get("X-CSRF-Token")).toBe(
+      "csrf-value",
+    );
+  });
+
   it("translates stable server error codes in both languages", () => {
     const error = new ApiError(409, "claim_conflict", "Already claimed");
 

@@ -266,12 +266,11 @@ td small { max-width: 24rem; margin-top: 0.25rem; color: var(--muted-foreground)
 .claims-section h2 { margin: 0 0 0.75rem; font-size: 1.05rem; }
 .tab-actions { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1.25rem; }
 
-.coordinate-form { max-width: 46rem; }
-.coordinate-form label, .form label { display: grid; gap: 0.4rem; color: var(--muted-foreground); font-size: 0.8rem; font-weight: 600; }
-.dimension-field { margin-bottom: 1rem; }
-.coordinate-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1rem; }
-.volume { color: var(--muted-foreground); font-size: 0.86rem; }
+.form label { display: grid; gap: 0.4rem; color: var(--muted-foreground); font-size: 0.8rem; font-weight: 600; }
 .notice { display: flex; align-items: center; gap: 0.6rem; margin: 0 0 1rem; color: var(--muted-foreground); }
+.areas-section { padding-top: 1.75rem; }
+.areas-section h2 { margin: 0 0 0.75rem; font-size: 1.05rem; }
+.area-select { margin-bottom: 1rem; }
 .area-readonly { display: grid; width: fit-content; gap: 0.35rem; padding: 1rem; }
 .area-readonly span, .area-readonly small { color: var(--muted-foreground); }
 
@@ -310,7 +309,6 @@ td small { max-width: 24rem; margin-top: 0.25rem; color: var(--muted-foreground)
   .shell-actions { margin: 0; }
   .main-content { padding: 2rem 1.25rem 4rem; }
   .project-grid { grid-template-columns: 1fr; }
-  .coordinate-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 30rem) {
@@ -320,7 +318,6 @@ td small { max-width: 24rem; margin-top: 0.25rem; color: var(--muted-foreground)
   .page-heading { margin-bottom: 1.5rem; }
   .page-heading h1 { font-size: 2.2rem; }
   .detail-strip { grid-template-columns: 1fr; }
-  .coordinate-grid { grid-template-columns: 1fr; }
   .project-link .card { min-height: 7.5rem; }
 }
 

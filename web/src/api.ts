@@ -63,7 +63,29 @@ export interface StockingArea {
   maxY: number;
   maxZ: number;
   volume: number;
+  refId: string | null;
+  refName: string | null;
 }
+
+/** Registry entry served by /stocking-areas; owner is null for server-owned areas. */
+export interface StockingAreaRecord {
+  id: string;
+  name: string;
+  dimension: string;
+  minX: number;
+  minY: number;
+  minZ: number;
+  maxX: number;
+  maxY: number;
+  maxZ: number;
+  owner: string | null;
+  referencedBy: number;
+}
+
+export type StockingAreaDefinitionDraft = Pick<
+  StockingAreaRecord,
+  "dimension" | "minX" | "minY" | "minZ" | "maxX" | "maxY" | "maxZ"
+>;
 
 export interface BuildRegion {
   name: string;
@@ -105,7 +127,15 @@ export interface MyClaims {
 }
 
 interface Outcome {
-  outcome: "claimed" | "released" | "already_claimed" | "already_released" | "updated" | "unchanged";
+  outcome:
+    | "claimed"
+    | "released"
+    | "already_claimed"
+    | "already_released"
+    | "created"
+    | "updated"
+    | "unchanged"
+    | "deleted";
 }
 
 interface ServerError {
@@ -142,7 +172,11 @@ const messages: Record<string, Record<Language, string>> = {
   region_not_found: { en: "This build region no longer exists.", zh: "该建造区域已不存在。" },
   request_too_large: { en: "The submitted data is too large.", zh: "提交的数据过大。" },
   server_timeout: { en: "The server did not respond in time.", zh: "服务器未及时响应。" },
-  stocking_area_not_found: { en: "No stocking area is configured.", zh: "尚未配置备货区。" },
+  stocking_area_duplicate_name: { en: "A stocking area with that name already exists.", zh: "同名备货区已存在。" },
+  stocking_area_in_use: { en: "This stocking area is used by other projects.", zh: "该备货区正被其他项目使用。" },
+  stocking_area_invalid_name: { en: "Area names may contain letters, digits, '_' and '-' (max 32).", zh: "备货区名称只能包含字母、数字、'_' 和 '-'（最长 32）。" },
+  stocking_area_not_found: { en: "That stocking area no longer exists.", zh: "该备货区已不存在。" },
+  stocking_area_reserved_name: { en: "The name 'default' is reserved.", zh: "名称 default 为保留名称。" },
   stocking_area_too_large: { en: "The stocking area is too large.", zh: "库存区范围过大。" },
   unauthorized: { en: "Please sign in to continue.", zh: "请登录后继续。" },
 };
@@ -231,11 +265,28 @@ export function createApiClient(
       }),
     stockingArea: (id: string, signal?: AbortSignal) =>
       request<StockingArea>(`/projects/${encodeURIComponent(id)}/stocking-area`, { signal }),
-    setStockingArea: (id: string, area: Omit<StockingArea, "volume">) =>
+    setStockingAreaRef: (id: string, areaId: string | null) =>
       request<Outcome>(`/projects/${encodeURIComponent(id)}/stocking-area`, {
+        method: "PUT",
+        body: JSON.stringify({ areaId }),
+      }),
+    stockingAreas: (signal?: AbortSignal) =>
+      request<StockingAreaRecord[]>("/stocking-areas", { signal }),
+    createStockingArea: (area: { name: string } & StockingAreaDefinitionDraft) =>
+      request<Outcome>("/stocking-areas", {
+        method: "POST",
+        body: JSON.stringify(area),
+      }),
+    updateStockingArea: (id: string, area: StockingAreaDefinitionDraft) =>
+      request<Outcome>(`/stocking-areas/${encodeURIComponent(id)}`, {
         method: "PUT",
         body: JSON.stringify(area),
       }),
+    deleteStockingArea: (id: string, force = false) =>
+      request<Outcome>(
+        `/stocking-areas/${encodeURIComponent(id)}${force ? "?force=true" : ""}`,
+        { method: "DELETE" },
+      ),
     buildRegions: (id: string, signal?: AbortSignal) =>
       request<BuildRegion[]>(`/projects/${encodeURIComponent(id)}/build-regions`, { signal }),
     setBuildClaim: (id: string, region: string, claimed: boolean) =>

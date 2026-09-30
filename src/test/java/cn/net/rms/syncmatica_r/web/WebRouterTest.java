@@ -166,7 +166,10 @@ final class WebRouterTest {
                         "", 10, 4, 6, 40, List.of(player)),
                 new WebDtos.MaterialSummary("minecraft:stone", "block.minecraft.stone", "Stone",
                         "", 10, 4, 6, 40),
-                new WebDtos.StockingArea("minecraft:overworld", 1, 2, 3, 4, 5, 6, 120),
+                new WebDtos.StockingArea("minecraft:overworld", 1, 2, 3, 4, 5, 6, 120,
+                        "area-id", "yard"),
+                new WebDtos.StockingAreaRecord("area-id", "yard", "minecraft:overworld",
+                        1, 2, 3, 4, 5, 6, "player-id", 2),
                 new WebDtos.BuildRegion("roof", 10, 4, true, 8, 40, List.of(player)),
                 new WebDtos.ClaimedMaterial("id", "name", "minecraft:stone",
                         "block.minecraft.stone", "Stone", "", 10, 4, 6, 40),
@@ -183,7 +186,10 @@ final class WebRouterTest {
                         "supplied", "missing", "progressPercent", "claimants"),
                 Set.of("itemId", "translationKey", "fallbackName", "variant", "required",
                         "supplied", "missing", "progressPercent"),
-                Set.of("dimension", "minX", "minY", "minZ", "maxX", "maxY", "maxZ", "volume"),
+                Set.of("dimension", "minX", "minY", "minZ", "maxX", "maxY", "maxZ", "volume",
+                        "refId", "refName"),
+                Set.of("id", "name", "dimension", "minX", "minY", "minZ", "maxX", "maxY",
+                        "maxZ", "owner", "referencedBy"),
                 Set.of("name", "requiredBlocks", "placedBlocks", "scanned", "lastScanAt",
                         "progressPercent", "claimants"),
                 Set.of("projectId", "projectName", "itemId", "translationKey", "fallbackName",
@@ -440,27 +446,93 @@ final class WebRouterTest {
         assertEquals(200, get(project + "/build-regions", auth.cookie).statusCode());
         assertEquals(404, get(project + "/stocking-area", auth.cookie).statusCode());
 
-        final String area = "{\"dimension\":\"minecraft:overworld\",\"minX\":0,\"minY\":1,"
-                + "\"minZ\":2,\"maxX\":3,\"maxY\":4,\"maxZ\":5}";
-        assertEquals(200, put(project + "/stocking-area", area, auth.cookie, auth.csrf).statusCode());
-        // Transitional: the coordinate write is only cached until the facade
-        // switches to registry create+bind, so the registry-backed read still
-        // reports no bound area.
-        assertEquals(404, get(project + "/stocking-area", auth.cookie).statusCode());
-        final String fractionalArea = area.replace("\"minX\":0", "\"minX\":0.5");
-        assertEquals(400,
-                put(project + "/stocking-area", fractionalArea, auth.cookie, auth.csrf).statusCode());
-        assertEquals(200, delete(project + "/stocking-area", auth.cookie, auth.csrf).statusCode());
+        final String area = "{\"name\":\"yard\",\"dimension\":\"minecraft:overworld\","
+                + "\"minX\":0,\"minY\":0,\"minZ\":0,\"maxX\":1,\"maxY\":1,\"maxZ\":1}";
+        assertEquals(403, post("/api/v1/stocking-areas", area, auth.cookie, null).statusCode());
+        assertEquals(201, post("/api/v1/stocking-areas", area, auth.cookie, auth.csrf).statusCode());
+        final String areaId = firstStockingAreaId(auth);
+        assertEquals(200, put(project + "/stocking-area",
+                "{\"areaId\":\"" + areaId + "\"}", auth.cookie, auth.csrf).statusCode());
+        assertEquals(200, get(project + "/stocking-area", auth.cookie).statusCode());
+        assertEquals(400, put(project + "/stocking-area",
+                "{\"areaId\":\"not-a-uuid\"}", auth.cookie, auth.csrf).statusCode());
+        assertEquals(200, put(project + "/stocking-area",
+                "{\"areaId\":null}", auth.cookie, auth.csrf).statusCode());
+        assertEquals(200, delete("/api/v1/stocking-areas/" + areaId
+                + "?force=true", auth.cookie, auth.csrf).statusCode());
         assertEquals(200, put(buildClaimPath(), "{}", auth.cookie, auth.csrf).statusCode());
         assertEquals(200, delete(buildClaimPath(), auth.cookie, auth.csrf).statusCode());
 
         assertEquals(405, post("/api/v1/projects", "{}", auth.cookie, auth.csrf).statusCode());
         assertEquals(405, delete(project, auth.cookie, auth.csrf).statusCode());
+        assertEquals(405, delete(project + "/stocking-area", auth.cookie, auth.csrf).statusCode());
+        assertEquals(405, put("/api/v1/stocking-areas", area, auth.cookie, auth.csrf).statusCode());
         assertEquals(404, get("/api/v1/config", auth.cookie).statusCode());
         assertEquals(404, post("/api/v1/projects/" + placement.getId() + "/rescan",
                 "{}", auth.cookie, auth.csrf).statusCode());
         assertEquals(404, post("/api/v1/projects/" + placement.getId() + "/upload",
                 "{}", auth.cookie, auth.csrf).statusCode());
+    }
+
+    @Test
+    void stockingAreaRegistryEndpointsServeListCreateAndForceDelete() throws Exception {
+        final Auth auth = auth();
+
+        assertEquals(0, stockingAreas(auth).size());
+
+        final HttpResponse<String> created = post("/api/v1/stocking-areas",
+                "{\"name\":\"yard\",\"dimension\":\"minecraft:overworld\","
+                        + "\"minX\":0,\"minY\":0,\"minZ\":0,\"maxX\":1,\"maxY\":1,\"maxZ\":1}",
+                auth.cookie, auth.csrf);
+        assertEquals(201, created.statusCode());
+        assertEquals("created", json(created).get("outcome").getAsString());
+        assertEquals(409, post("/api/v1/stocking-areas",
+                "{\"name\":\"yard\",\"dimension\":\"minecraft:overworld\","
+                        + "\"minX\":0,\"minY\":0,\"minZ\":0,\"maxX\":1,\"maxY\":1,\"maxZ\":1}",
+                auth.cookie, auth.csrf).statusCode());
+        assertEquals(400, post("/api/v1/stocking-areas",
+                "{\"name\":\"yard\",\"dimension\":\"minecraft:overworld\","
+                        + "\"minX\":0.5,\"minY\":0,\"minZ\":0,\"maxX\":1,\"maxY\":1,\"maxZ\":1}",
+                auth.cookie, auth.csrf).statusCode());
+
+        final JsonObject record = stockingAreas(auth).get(0).getAsJsonObject();
+        assertEquals("yard", record.get("name").getAsString());
+        assertEquals(0, record.get("referencedBy").getAsInt());
+        final String areaId = record.get("id").getAsString();
+
+        final HttpResponse<String> bind = put("/api/v1/projects/" + placement.getId() + "/stocking-area",
+                "{\"areaId\":\"" + areaId + "\"}", auth.cookie, auth.csrf);
+        assertEquals(200, bind.statusCode());
+        assertEquals("updated", json(bind).get("outcome").getAsString());
+        assertEquals(1, stockingAreas(auth).get(0).getAsJsonObject()
+                .get("referencedBy").getAsInt());
+        final JsonObject bound = json(get("/api/v1/projects/" + placement.getId()
+                + "/stocking-area", auth.cookie));
+        assertEquals(areaId, bound.get("refId").getAsString());
+        assertEquals("yard", bound.get("refName").getAsString());
+
+        final HttpResponse<String> inUse = delete("/api/v1/stocking-areas/" + areaId,
+                auth.cookie, auth.csrf);
+        assertEquals(409, inUse.statusCode());
+        assertEquals("stocking_area_in_use", json(inUse).get("code").getAsString());
+        assertTrue(json(inUse).get("message").getAsString().contains("project"),
+                "the error names the referencing projects");
+
+        assertEquals(200, delete("/api/v1/stocking-areas/" + areaId + "?force=true",
+                auth.cookie, auth.csrf).statusCode());
+        assertEquals(0, stockingAreas(auth).size());
+        assertEquals(404, delete("/api/v1/stocking-areas/" + areaId,
+                auth.cookie, auth.csrf).statusCode());
+        assertNull(placement.getStockingAreaRef(), "force delete unbinds the project");
+    }
+
+    private JsonArray stockingAreas(final Auth auth) throws Exception {
+        return new Gson().fromJson(
+                get("/api/v1/stocking-areas", auth.cookie).body(), JsonArray.class);
+    }
+
+    private String firstStockingAreaId(final Auth auth) throws Exception {
+        return stockingAreas(auth).get(0).getAsJsonObject().get("id").getAsString();
     }
 
     @Test
@@ -490,8 +562,7 @@ final class WebRouterTest {
         final List<String> bodies = List.of(
                 "{}",
                 "{}",
-                "{\"dimension\":\"minecraft:overworld\",\"minX\":0,\"minY\":0,"
-                        + "\"minZ\":0,\"maxX\":1,\"maxY\":1,\"maxZ\":1}");
+                "{\"areaId\":\"" + UUID.randomUUID() + "\"}");
 
         for (int index = 0; index < paths.size(); index++) {
             minecraftOperations.set(0);

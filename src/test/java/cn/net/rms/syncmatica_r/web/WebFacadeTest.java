@@ -13,7 +13,6 @@ import cn.net.rms.syncmatica_r.SyncmaticManager;
 import cn.net.rms.syncmatica_r.build_management.BuildRegion;
 import cn.net.rms.syncmatica_r.communication.CommunicationManager;
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
-import cn.net.rms.syncmatica_r.communication.PlacementAccessPolicy;
 import cn.net.rms.syncmatica_r.communication.exchange.Exchange;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
 import cn.net.rms.syncmatica_r.material.MaterialKey;
@@ -201,79 +200,88 @@ final class WebFacadeTest {
     }
 
     @Test
-    void stockingAreaBindsResolvesAndGuardsTheReservedDefaultName() {
+    void stockingAreaRegistryRespectsOwnershipAndLimits() {
         final Context context = newServerContext();
         try {
             final PlayerIdentifier owner = player(context, "Owner");
             final PlayerIdentifier stranger = player(context, "Stranger");
             final ServerPlacement placement = placement(context, owner);
-            final MaterialService service = context.getMaterialService();
+            final WebFacade facade = new WebFacade(context, "minecraft:overworld"::equals);
 
-            // The permission seam shared by the web, command and packet
-            // surfaces; the service supplies the owner-policy flag.
-            assertTrue(PlacementAccessPolicy.canManageStockingArea(
-                    owner.uuid, placement.getOwner().uuid, false,
-                    service.isOwnerStockingAreaManagementEnabled()));
-            assertFalse(PlacementAccessPolicy.canManageStockingArea(
-                    stranger.uuid, placement.getOwner().uuid, false,
-                    service.isOwnerStockingAreaManagementEnabled()));
+            assertEquals(WebFacade.StockingAreaRegistryOutcome.DIMENSION_NOT_LOADED,
+                    facade.createStockingArea("warehouse", owner, false,
+                            "minecraft:the_nether", 0, 0, 0, 1, 1, 1));
+            assertEquals(WebFacade.StockingAreaRegistryOutcome.TOO_LARGE,
+                    facade.createStockingArea("warehouse", owner, false,
+                            "minecraft:overworld", Integer.MIN_VALUE, 0, Integer.MIN_VALUE,
+                            Integer.MAX_VALUE, 0, Integer.MAX_VALUE));
+            assertEquals(WebFacade.StockingAreaRegistryOutcome.CREATED,
+                    facade.createStockingArea("warehouse", owner, false,
+                            "minecraft:overworld", 1, 2, 3, 4, 5, 6));
+            final UUID areaId = context.getMaterialService().getStockingAreaRegistry()
+                    .getByName("warehouse").getId();
+            assertEquals(WebFacade.StockingAreaRegistryOutcome.DUPLICATE_NAME,
+                    facade.createStockingArea("warehouse", owner, false,
+                            "minecraft:overworld", 0, 0, 0, 1, 1, 1));
 
-            // Only the server bootstrap may write the reserved default entry;
-            // a player asking for that name must not overwrite the default.
-            assertEquals(StockingAreaRegistry.CreateOutcome.RESERVED_NAME,
-                    service.createStockingArea(StockingAreaRegistry.RESERVED_DEFAULT_NAME,
-                            area(0, 0, 0, 1, 1, 1), owner.uuid));
-            assertNull(service.resolveStockingArea(placement));
+            assertEquals(WebFacade.StockingAreaRegistryOutcome.FORBIDDEN,
+                    facade.updateStockingArea(areaId, stranger, false,
+                            "minecraft:overworld", 0, 0, 0, 2, 2, 2));
+            assertEquals(WebFacade.StockingAreaRegistryOutcome.UPDATED,
+                    facade.updateStockingArea(areaId, owner, false,
+                            "minecraft:overworld", 0, 0, 0, 2, 2, 2));
 
-            assertEquals(StockingAreaRegistry.CreateOutcome.CREATED,
-                    service.createStockingArea("yard", area(1, 2, 3, 4, 5, 6), owner.uuid));
-            final UUID yardId = service.getStockingAreaRegistry().getByName("yard").getId();
+            assertEquals(WebFacade.StockingAreaOutcome.FORBIDDEN,
+                    facade.setStockingAreaRef(placement.getId(), stranger, false, areaId));
+            assertEquals(WebFacade.StockingAreaOutcome.UPDATED,
+                    facade.setStockingAreaRef(placement.getId(), owner, false, areaId));
+            final WebDtos.StockingArea area = facade.getStockingArea(placement.getId()).orElseThrow();
+            assertEquals("minecraft:overworld", area.dimension());
+            assertEquals(2, area.maxX());
+            assertEquals(areaId.toString(), area.refId());
+            assertEquals("warehouse", area.refName());
 
-            assertEquals(MaterialService.StockingAreaBindOutcome.UNKNOWN_AREA,
-                    service.bindStockingArea(placement, UUID.randomUUID()));
-            assertEquals(MaterialService.StockingAreaBindOutcome.BOUND,
-                    service.bindStockingArea(placement, yardId));
-
-            final StockingAreaDefinition resolved = service.resolveStockingArea(placement);
-            assertEquals("minecraft:overworld", resolved.getDimensionId());
-            assertEquals(1, resolved.getMin().getX());
-            assertEquals(6, resolved.getMax().getZ());
-            assertTrue(service.hasBoundStockingArea(placement));
-            assertEquals(resolved, service.getStockingArea(placement.getId()));
-
-            assertEquals(MaterialService.StockingAreaBindOutcome.CLEARED,
-                    service.bindStockingArea(placement, null));
-            assertFalse(service.hasBoundStockingArea(placement));
-            assertNull(service.resolveStockingArea(placement));
+            assertEquals(WebFacade.StockingAreaRegistryOutcome.IN_USE,
+                    facade.deleteStockingArea(areaId, false, owner, false));
+            assertEquals(WebFacade.StockingAreaRegistryOutcome.DELETED,
+                    facade.deleteStockingArea(areaId, true, owner, false));
+            assertNull(placement.getStockingAreaRef(), "force delete unbinds referencing projects");
         } finally {
             context.shutdown();
         }
     }
 
     @Test
-    void stockingAreaReusesLimitsAndConfigurableOwnerPolicy() {
+    void stockingAreaBindingKeepsOwnerPolicyAndDisableOutcome() {
         final Context context = newServerContext();
         try {
             final PlayerIdentifier owner = player(context, "Owner");
             final ServerPlacement placement = placement(context, owner);
-            final MaterialService service = context.getMaterialService();
+            final WebFacade facade = new WebFacade(context, "minecraft:overworld"::equals);
+            facade.createStockingArea("warehouse", owner, false,
+                    "minecraft:overworld", 0, 0, 0, 1, 1, 1);
+            final UUID areaId = context.getMaterialService().getStockingAreaRegistry()
+                    .getByName("warehouse").getId();
 
-            assertEquals(StockingAreaRegistry.CreateOutcome.TOO_LARGE,
-                    service.createStockingArea("huge", new StockingAreaDefinition(
-                            "minecraft:overworld",
-                            new BlockPos(Integer.MIN_VALUE, 0, Integer.MIN_VALUE),
-                            new BlockPos(Integer.MAX_VALUE, 0, Integer.MAX_VALUE)), owner.uuid));
+            assertEquals(WebFacade.StockingAreaOutcome.UNKNOWN_AREA,
+                    facade.setStockingAreaRef(placement.getId(), owner, false, UUID.randomUUID()));
+            assertEquals(WebFacade.StockingAreaOutcome.UPDATED,
+                    facade.setStockingAreaRef(placement.getId(), owner, false, areaId));
+            assertEquals(WebFacade.StockingAreaOutcome.UNCHANGED,
+                    facade.setStockingAreaRef(placement.getId(), owner, false, areaId));
+            assertEquals(WebFacade.StockingAreaOutcome.UPDATED,
+                    facade.setStockingAreaRef(placement.getId(), owner, false, null));
+            assertNull(placement.getStockingAreaRef());
 
-            service.configure(new OwnerManagementDisabledConfiguration());
-            assertFalse(PlacementAccessPolicy.canManageStockingArea(
-                    owner.uuid, placement.getOwner().uuid, false,
-                    service.isOwnerStockingAreaManagementEnabled()));
-            assertTrue(PlacementAccessPolicy.canManageStockingArea(
-                    owner.uuid, placement.getOwner().uuid, true,
-                    service.isOwnerStockingAreaManagementEnabled()));
+            context.getMaterialService().configure(new OwnerManagementDisabledConfiguration());
+            assertEquals(WebFacade.StockingAreaOutcome.FORBIDDEN,
+                    facade.setStockingAreaRef(placement.getId(), owner, false, areaId));
+            assertEquals(WebFacade.StockingAreaOutcome.UPDATED,
+                    facade.setStockingAreaRef(placement.getId(), owner, true, areaId));
 
-            assertEquals(StockingAreaRegistry.CreateOutcome.CREATED,
-                    service.createStockingArea("yard", area(0, 0, 0, 1, 1, 1), owner.uuid));
+            context.getMaterialService().configure(new DisabledConfiguration());
+            assertEquals(WebFacade.StockingAreaOutcome.DISABLED,
+                    facade.setStockingAreaRef(placement.getId(), owner, true, areaId));
         } finally {
             context.shutdown();
         }
@@ -300,11 +308,8 @@ final class WebFacadeTest {
             final StockingAreaDefinition area = area(0, 0, 0, 1, 1, 1);
             assertEquals(StockingAreaRegistry.CreateOutcome.CREATED,
                     context.getMaterialService().createStockingArea("yard", area, owner.uuid));
-            assertEquals(MaterialService.StockingAreaBindOutcome.BOUND,
-                    context.getMaterialService().bindStockingArea(placement,
-                            context.getMaterialService().getStockingAreaRegistry()
-                                    .getByName("yard").getId()));
-            assertEquals(area, context.getMaterialService().resolveStockingArea(placement));
+            assertEquals(WebFacade.StockingAreaOutcome.DISABLED,
+                    facade.setStockingAreaRef(placement.getId(), owner, false, UUID.randomUUID()));
             assertFalse(context.getMaterialService().isEnabled());
         } finally {
             context.shutdown();

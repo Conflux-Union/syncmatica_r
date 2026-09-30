@@ -71,6 +71,12 @@ public final class WebDtos {
     ) {
     }
 
+    /**
+     * Resolved stocking area of a placement: the definition the service
+     * resolves (the bound entry, or the default area as fallback) plus the id
+     * and name of the bound registry entry; both are null while the placement
+     * only uses the default area.
+     */
     public record StockingArea(
             String dimension,
             int minX,
@@ -79,7 +85,25 @@ public final class WebDtos {
             int maxX,
             int maxY,
             int maxZ,
-            long volume
+            long volume,
+            String refId,
+            String refName
+    ) {
+    }
+
+    /** Registry entry as listed by the areas endpoint; owner is null for server-owned areas. */
+    public record StockingAreaRecord(
+            String id,
+            String name,
+            String dimension,
+            int minX,
+            int minY,
+            int minZ,
+            int maxX,
+            int maxY,
+            int maxZ,
+            String owner,
+            int referencedBy
     ) {
     }
 

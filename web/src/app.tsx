@@ -18,7 +18,6 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -48,6 +47,7 @@ import {
   type ProjectSummary,
   type Session,
   type StockingArea,
+  type StockingAreaRecord,
 } from "./api";
 import { Button } from "./components/ui/button";
 import { Card } from "./components/ui/card";
@@ -101,6 +101,10 @@ const translations = {
     sortMaterials: "Sort materials",
     stockingArea: "Stocking area",
     allStockingAreas: "All stocking areas",
+    defaultArea: "(default)",
+    stockingAreas: "Stocking areas",
+    noAreas: "No stocking areas yet",
+    bounds: "Bounds",
     recent: "Recently modified",
     name: "Name",
     missing: "Missing",
@@ -145,19 +149,16 @@ const translations = {
     overworld: "Overworld",
     nether: "Nether",
     end: "End",
-    minX: "Minimum X",
-    minY: "Minimum Y",
-    minZ: "Minimum Z",
-    maxX: "Maximum X",
-    maxY: "Maximum Y",
-    maxZ: "Maximum Z",
     volume: "Volume",
-    saveArea: "Save stocking area",
-    saving: "Saving…",
     ownerOnly: "Only the project owner can edit this area.",
     noArea: "No stocking area is configured.",
-    invalidBounds: "Minimum coordinates must not exceed maximum coordinates.",
-    saved: "Stocking area saved.",
+    saved: "Stocking area updated.",
+    areaDeleted: "Stocking area deleted.",
+    deleteArea: "Delete area",
+    forceDeleteConfirm:
+      "This stocking area is used by other projects. Unbind them and delete it?",
+    usedByProjects: (count: number) =>
+      count === 1 ? "Used by 1 project" : `Used by ${count} projects`,
     claimUpdated: "Claim updated.",
     region: "Region",
     blocks: "Blocks",
@@ -198,6 +199,10 @@ const translations = {
     sortMaterials: "材料排序",
     stockingArea: "备货区",
     allStockingAreas: "全部备货区",
+    defaultArea: "（默认）",
+    stockingAreas: "备货区列表",
+    noAreas: "暂无备货区",
+    bounds: "范围",
     recent: "最近修改",
     name: "名称",
     missing: "缺少",
@@ -242,19 +247,14 @@ const translations = {
     overworld: "主世界",
     nether: "下界",
     end: "末地",
-    minX: "最小 X",
-    minY: "最小 Y",
-    minZ: "最小 Z",
-    maxX: "最大 X",
-    maxY: "最大 Y",
-    maxZ: "最大 Z",
     volume: "体积",
-    saveArea: "保存备货区",
-    saving: "正在保存…",
     ownerOnly: "只有项目所有者可以编辑此区域。",
     noArea: "尚未配置备货区。",
-    invalidBounds: "最小坐标不能大于最大坐标。",
-    saved: "备货区已保存。",
+    saved: "备货区已更新。",
+    areaDeleted: "备货区已删除。",
+    deleteArea: "删除备货区",
+    forceDeleteConfirm: "该备货区正被其他项目使用。解除绑定并删除？",
+    usedByProjects: (count: number) => `被 ${count} 个项目使用`,
     claimUpdated: "认领状态已更新。",
     region: "区域",
     blocks: "方块",
@@ -732,7 +732,7 @@ function ProjectPage({ api, copy, language, session }: PageProps & { session: Se
         { id: "regions", label: copy.regionsTab },
       ]}>
         {tab === "materials" && <ProjectMaterials api={api} copy={copy} id={id} language={language} session={session} />}
-        {tab === "stocking" && <StockingAreaPanel api={api} copy={copy} id={id} language={language} owner={project.owner.id === session.playerId} positionDimension={project.position.dimension} />}
+        {tab === "stocking" && <StockingAreaPanel api={api} copy={copy} id={id} language={language} owner={project.owner.id === session.playerId} />}
         {tab === "regions" && <BuildRegionsPanel api={api} copy={copy} id={id} language={language} session={session} />}
       </Tabs>
     </>
@@ -788,64 +788,132 @@ function ProjectMaterials({ api, copy, id, language, session }: PageProps & { id
   </section>;
 }
 
-type AreaDraft = Omit<StockingArea, "volume">;
-const coordinateKeys = ["minX", "minY", "minZ", "maxX", "maxY", "maxZ"] as const;
-
-function StockingAreaPanel({ api, copy, id, language, owner, positionDimension }: PageProps & { id: string; owner: boolean; positionDimension: string }) {
-  const empty = useMemo<AreaDraft>(() => ({ dimension: positionDimension, minX: 0, minY: 0, minZ: 0, maxX: 0, maxY: 0, maxZ: 0 }), [positionDimension]);
+function StockingAreaPanel({ api, copy, id, language, owner }: PageProps & { id: string; owner: boolean }) {
   const [area, setArea] = useState<StockingArea>();
-  const [draft, setDraft] = useState<AreaDraft>(empty);
+  const [records, setRecords] = useState<StockingAreaRecord[]>([]);
+  const [selection, setSelection] = useState("");
   const [dirty, setDirty] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [toast, setToast] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const load = useCallback((signal: AbortSignal) => api.stockingArea(id, signal), [api, id]);
-  const receive = useCallback((value: StockingArea) => {
-    setArea(value); setLoading(false); setError("");
-    if (!dirty) setDraft(({ ...value }));
+  const [busy, setBusy] = useState(false);
+  const load = useCallback((signal: AbortSignal) => Promise.all([
+    api.stockingArea(id, signal).catch((failure: unknown) => {
+      // No bound area and no default: the project simply has nothing resolved.
+      if (failure instanceof ApiError && failure.code === "stocking_area_not_found") {
+        return undefined;
+      }
+      throw failure;
+    }),
+    api.stockingAreas(signal),
+  ]), [api, id]);
+  const receive = useCallback(([nextArea, nextRecords]: [StockingArea | undefined, StockingAreaRecord[]]) => {
+    setArea(nextArea);
+    setRecords(nextRecords);
+    if (!dirty) setSelection(nextArea?.refId ?? "");
+    setLoading(false);
+    setError("");
   }, [dirty]);
   const fail = useCallback((failure: unknown) => {
     setLoading(false);
-    if (failure instanceof ApiError && failure.code === "stocking_area_not_found") {
-      setArea(undefined); setError("");
-    } else setError(errorMessage(failure, language));
+    setError(errorMessage(failure, language));
   }, [language]);
   usePolling(load, receive, fail);
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    if (draft.minX > draft.maxX || draft.minY > draft.maxY || draft.minZ > draft.maxZ) {
-      setToast(copy.invalidBounds); return;
-    }
-    setSaving(true);
+
+  async function bind(value: string) {
+    setDirty(true);
+    setSelection(value);
+    setBusy(true);
     try {
-      await api.setStockingArea(id, draft);
-      setDirty(false); setToast(copy.saved);
-      receive(await api.stockingArea(id));
+      await api.setStockingAreaRef(id, value === "" ? null : value);
+      setToast(copy.saved);
+      setDirty(false);
+      receive(await load(new AbortController().signal));
     } catch (failure) {
+      // Let the next poll resync the picker with the unchanged server state.
+      setDirty(false);
       setToast(errorMessage(failure, language));
     } finally {
-      setSaving(false);
+      setBusy(false);
     }
   }
+
+  async function remove(record: StockingAreaRecord) {
+    let conflict = false;
+    try {
+      await api.deleteStockingArea(record.id);
+      setToast(copy.areaDeleted);
+      await refresh();
+      return;
+    } catch (failure) {
+      conflict = failure instanceof ApiError && failure.code === "stocking_area_in_use";
+      if (!conflict) setToast(errorMessage(failure, language));
+    }
+    if (!conflict || !window.confirm(copy.forceDeleteConfirm)) return;
+    try {
+      await api.deleteStockingArea(record.id, true);
+      setToast(copy.areaDeleted);
+    } catch (failure) {
+      setToast(errorMessage(failure, language));
+    }
+    await refresh();
+  }
+
+  async function refresh() {
+    try {
+      receive(await load(new AbortController().signal));
+    } catch (failure) {
+      setToast(errorMessage(failure, language));
+    }
+  }
+
   if (loading) return <section className="tab-section"><Skeleton label={copy.loadingArea} /></section>;
   if (error) return <section className="tab-section"><ErrorState error={error} label={copy.tryAgain} onRetry={() => void load(new AbortController().signal).then(receive).catch(fail)} /></section>;
   return (
     <section className="tab-section">
       {!owner && <p className="notice"><Warehouse aria-hidden="true" />{copy.ownerOnly}</p>}
-      {owner ? <form className="coordinate-form" onSubmit={submit}>
-        <label className="dimension-field">{copy.dimension} · {dimensionName(draft.dimension, copy)}<input onChange={(event) => { setDirty(true); setDraft({ ...draft, dimension: event.target.value }); }} required value={draft.dimension} /></label>
-        <div className="coordinate-grid">{coordinateKeys.map((key) => <label key={key}>{copy[key]}<input inputMode="numeric" onChange={(event) => { setDirty(true); setDraft({ ...draft, [key]: Number(event.target.value) }); }} required type="number" value={draft[key]} /></label>)}</div>
-        {area && <p className="volume">{copy.volume}: {area.volume.toLocaleString()}</p>}
-        <Button disabled={saving} size="default" type="submit" variant="primary">{saving ? copy.saving : copy.saveArea}</Button>
-      </form> : area ? <AreaReadOnly area={area} copy={copy} /> : <EmptyState icon={<Warehouse />} title={copy.noArea} />}
+      {owner && (
+        <>
+          <label className="sr-only" htmlFor="stocking-area-select">{copy.stockingArea}</label>
+          <select
+            aria-label={copy.stockingArea}
+            className="area-select"
+            disabled={busy}
+            id="stocking-area-select"
+            onChange={(event) => void bind(event.target.value)}
+            value={selection}
+          >
+            <option value="">{copy.defaultArea}</option>
+            {records.map((record) => <option key={record.id} value={record.id}>{record.name}</option>)}
+          </select>
+        </>
+      )}
+      {area ? <AreaReadOnly area={area} copy={copy} /> : <EmptyState icon={<Warehouse />} title={copy.noArea} />}
+      <section className="areas-section">
+        <h2>{copy.stockingAreas}</h2>
+        {records.length === 0 ? <EmptyState icon={<Warehouse />} title={copy.noAreas} /> :
+          <DataTable label={copy.stockingAreas}>
+            <thead><tr><th>{copy.name}</th><th>{copy.dimension}</th><th>{copy.bounds}</th><th>{copy.actions}</th></tr></thead>
+            <tbody>{records.map((record) => <tr key={record.id}>
+              <td><strong>{record.name}</strong><small>{copy.usedByProjects(record.referencedBy)}</small></td>
+              <td>{dimensionName(record.dimension, copy)}</td>
+              <td>{record.minX}, {record.minY}, {record.minZ} → {record.maxX}, {record.maxY}, {record.maxZ}</td>
+              <td><Button onClick={() => void remove(record)} size="default" variant="outline">{copy.deleteArea}</Button></td>
+            </tr>)}</tbody>
+          </DataTable>}
+      </section>
       <Toast message={toast} />
     </section>
   );
 }
 
 function AreaReadOnly({ area, copy }: { area: StockingArea; copy: Copy }) {
-  return <Card className="area-readonly"><strong>{dimensionName(area.dimension, copy)}</strong><span>{area.minX}, {area.minY}, {area.minZ} → {area.maxX}, {area.maxY}, {area.maxZ}</span><small>{copy.volume}: {area.volume.toLocaleString()}</small></Card>;
+  return <Card className="area-readonly">
+    {area.refName && <strong>{area.refName}</strong>}
+    <span>{dimensionName(area.dimension, copy)}</span>
+    <span>{area.minX}, {area.minY}, {area.minZ} → {area.maxX}, {area.maxY}, {area.maxZ}</span>
+    <small>{copy.volume}: {area.volume.toLocaleString()}</small>
+  </Card>;
 }
 
 function BuildRegionsPanel({ api, copy, id, language, session }: PageProps & { id: string; session: Session }) {
