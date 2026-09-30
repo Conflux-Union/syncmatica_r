@@ -15,6 +15,7 @@ import java.util.function.LongSupplier;
 public class SyncmaticManager {
     public static final String PLACEMENTS_JSON_KEY = "placements";
     public static final String DEFAULT_STOCKING_AREA_JSON_KEY = "defaultStockingArea";
+    public static final String STOCKING_AREAS_JSON_KEY = "stockingAreas";
     private static final String PLACEMENT_FILE_SUFFIX = ".placement.json";
     private static final String META_FILE_NAME = "meta.json";
     private static final long SAVE_DEBOUNCE_MILLIS = 1500L;
@@ -247,7 +248,9 @@ public class SyncmaticManager {
                     final cn.net.rms.syncmatica_r.material.StockingAreaDefinition def =
                             cn.net.rms.syncmatica_r.material.StockingAreaDefinition.fromJson(
                                     obj.getAsJsonObject(DEFAULT_STOCKING_AREA_JSON_KEY));
-                    context.getMaterialService().loadDefaultStockingArea(def);
+                    context.getMaterialService().createStockingArea(
+                            cn.net.rms.syncmatica_r.material.StockingAreaRegistry.RESERVED_DEFAULT_NAME,
+                            def, null);
                 }
 
             } catch (final IllegalStateException | NullPointerException e) {
@@ -256,24 +259,32 @@ public class SyncmaticManager {
             dirtyPlacements.addAll(schematics.keySet());
             metaDirty = true;
             markDirty();
+            migrateLegacyPlacementAreas();
         }
     }
 
-    private void loadDefaultStockingAreaFromMeta(final File folder) {
+    private void loadStockingAreaStateFromMeta(final File folder) {
         final File meta = new File(folder, META_FILE_NAME);
         if (!meta.exists() || !meta.isFile()) {
             return;
         }
             try (final FileReader reader = new FileReader(meta)) {
             final JsonObject obj = new JsonParser().parse(reader).getAsJsonObject();
-            if (obj == null || !obj.has(DEFAULT_STOCKING_AREA_JSON_KEY)) {
+            if (obj == null || context.getMaterialService() == null) {
                 return;
             }
-            if (context.getMaterialService() != null) {
+            if (obj.has(STOCKING_AREAS_JSON_KEY)) {
+                context.getMaterialService()
+                        .loadStockingAreaState(obj.getAsJsonObject(STOCKING_AREAS_JSON_KEY));
+            } else if (obj.has(DEFAULT_STOCKING_AREA_JSON_KEY)) {
+                // Pre-registry servers stored one coordinate area; it becomes the
+                // reserved default entry of the registry.
                 final cn.net.rms.syncmatica_r.material.StockingAreaDefinition def =
                         cn.net.rms.syncmatica_r.material.StockingAreaDefinition.fromJson(
                                 obj.getAsJsonObject(DEFAULT_STOCKING_AREA_JSON_KEY));
-                context.getMaterialService().loadDefaultStockingArea(def);
+                context.getMaterialService().createStockingArea(
+                        cn.net.rms.syncmatica_r.material.StockingAreaRegistry.RESERVED_DEFAULT_NAME,
+                        def, null);
             }
         } catch (final Exception exception) {
             LogManager.getLogger(SyncmaticManager.class).warn("Failed to load placement metadata", exception);
@@ -332,12 +343,10 @@ public class SyncmaticManager {
         final File incoming = new File(folder, META_FILE_NAME + ".new");
         final File backup = new File(folder, META_FILE_NAME + ".bak");
         final JsonObject obj = new JsonObject();
+        // Written even when empty so a stale legacy defaultStockingArea key is
+        // overwritten instead of lingering next to the registry payload.
         if (context.getMaterialService() != null) {
-            final cn.net.rms.syncmatica_r.material.StockingAreaDefinition def =
-                    context.getMaterialService().getDefaultStockingArea();
-            if (def != null) {
-                obj.add(DEFAULT_STOCKING_AREA_JSON_KEY, def.toJson());
-            }
+            obj.add(STOCKING_AREAS_JSON_KEY, context.getMaterialService().stockingAreaStateJson());
         }
         try (final FileWriter writer = new FileWriter(incoming)) {
             GSON.toJson(obj, writer);
@@ -412,8 +421,44 @@ public class SyncmaticManager {
                 }
             }
         }
-        loadDefaultStockingAreaFromMeta(folder);
+        loadStockingAreaStateFromMeta(folder);
+        migrateLegacyPlacementAreas();
         return loaded || hasMetaFile(folder);
+    }
+
+    /**
+     * Pre-registry placements embedded their stocking area as coordinates.
+     * Each becomes a registry entry named after the placement so the
+     * projects keep scanning the same region after the upgrade.
+     */
+    private void migrateLegacyPlacementAreas() {
+        if (context == null || context.getMaterialService() == null) {
+            return;
+        }
+        final cn.net.rms.syncmatica_r.service.MaterialService materialService = context.getMaterialService();
+        for (final ServerPlacement placement : schematics.values()) {
+            final cn.net.rms.syncmatica_r.material.StockingAreaDefinition legacy =
+                    placement.getLegacyStockingArea();
+            if (legacy == null) {
+                continue;
+            }
+            String name = placement.getName();
+            final String taken = materialService.getStockingAreaRegistry().findUniqueIdFor(name);
+            if (taken != null) {
+                name = taken;
+            }
+            final UUID owner = placement.getOwner() == null ? null : placement.getOwner().uuid;
+            if (materialService.createStockingArea(name, legacy, owner)
+                    != cn.net.rms.syncmatica_r.material.StockingAreaRegistry.CreateOutcome.CREATED) {
+                LogManager.getLogger(SyncmaticManager.class).warn(
+                        "Could not migrate stocking area of placement '{}'", placement.getName());
+                continue;
+            }
+            placement.setStockingAreaRef(
+                    materialService.getStockingAreaRegistry().getByName(name).getId());
+            placement.clearLegacyStockingArea();
+            markPlacementDirty(placement.getId());
+        }
     }
 
 }

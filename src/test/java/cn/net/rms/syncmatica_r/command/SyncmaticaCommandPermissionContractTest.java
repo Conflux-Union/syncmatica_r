@@ -31,9 +31,9 @@ final class SyncmaticaCommandPermissionContractTest {
         assertTrue(
                 commandSource.contains(".requires(SyncmaticaCommand::hasCommandPermission)"),
                 "privileged project commands must retain the general command permission");
-        assertTrue(
-                commandSource.contains(".requires(SyncmaticaCommand::hasManagePermission)"),
-                "default stocking-area commands must require elevated management permission");
+        // The coordinate-based default stocking-area subtree is gone with the
+        // named registry; its replacement is rebuilt together with its
+        // elevated-permission contract in the command-surface task.
     }
 
     @Test

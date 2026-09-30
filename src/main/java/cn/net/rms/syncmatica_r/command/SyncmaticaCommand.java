@@ -6,7 +6,6 @@ import cn.net.rms.syncmatica_r.Syncmatica;
 import cn.net.rms.syncmatica_r.communication.PlacementAccessPolicy;
 import cn.net.rms.syncmatica_r.communication.ServerCommunicationManager;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
-import cn.net.rms.syncmatica_r.material.StockingAreaDefinition;
 import cn.net.rms.syncmatica_r.schematic.SchematicPeek;
 import cn.net.rms.syncmatica_r.schematic.SchematicPeeker;
 import cn.net.rms.syncmatica_r.service.MaterialService;
@@ -19,11 +18,9 @@ import com.mojang.brigadier.LiteralMessage;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import me.lucko.fabric.api.permissions.v0.Permissions;
-import net.minecraft.command.argument.BlockPosArgumentType;
 import net.minecraft.entity.Entity;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
@@ -70,8 +67,7 @@ public final class SyncmaticaCommand {
                 .then(loadArgument())
                 .then(configArgument())
                 .then(webArgument())
-                .then(projectArgument())
-                .then(defaultArgument());
+                .then(projectArgument());
         dispatcher.register(root);
     }
 
@@ -527,10 +523,6 @@ public final class SyncmaticaCommand {
                     }
                     return builder.buildFuture();
                 })
-                .then(CommandManager.literal("setStockingarea")
-                        .then(CommandManager.argument("pos1", BlockPosArgumentType.blockPos())
-                                .then(CommandManager.argument("pos2", BlockPosArgumentType.blockPos())
-                                        .executes(SyncmaticaCommand::handleSetStockingArea))))
                 .then(CommandManager.literal("rescanBuild")
                         .requires(SyncmaticaCommand::hasCommandPermission)
                         .executes(SyncmaticaCommand::handleRescanBuild));
@@ -564,48 +556,6 @@ public final class SyncmaticaCommand {
         return 1;
     }
 
-    private static int handleSetStockingArea(final CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
-        final Context syncmaticaContext = Syncmatica.getContext(Syncmatica.SERVER_CONTEXT);
-        if (syncmaticaContext == null || syncmaticaContext.getMaterialService() == null) {
-            context.getSource().sendError(literal("Syncmatica_r materials service unavailable"));
-            return 0;
-        }
-        final MaterialService materialService = syncmaticaContext.getMaterialService();
-        if (!materialService.isEnabled()) {
-            context.getSource().sendError(literal("Material sharing is disabled"));
-            return 0;
-        }
-        final String projectName = context.getArgument("project_name", String.class);
-        final Optional<ServerPlacement> placement = syncmaticaContext.getSyncmaticManager().getAll().stream()
-                .filter(candidate -> candidate.getName().equals(projectName))
-                .findFirst();
-        if (!placement.isPresent()) {
-            context.getSource().sendError(literal("Unknown Syncmatica_r project: " + projectName));
-            return 0;
-        }
-        if (!canManageStockingArea(context.getSource(), placement.get(), materialService)) {
-            context.getSource().sendError(literal("You do not have permission to manage this stocking area"));
-            return 0;
-        }
-        final BlockPos first = BlockPosArgumentType.getBlockPos(context, "pos1");
-        final BlockPos second = BlockPosArgumentType.getBlockPos(context, "pos2");
-        final String dimensionId = context.getSource().getWorld().getRegistryKey().getValue().toString();
-        final StockingAreaDefinition definition = new StockingAreaDefinition(dimensionId, first, second);
-        if (!materialService.isStockingAreaAllowed(definition)) {
-            context.getSource().sendError(literal("Stocking area exceeds the configured block limit"));
-            return 0;
-        }
-        materialService.setStockingArea(placement.get(), definition);
-
-        materialService.scanNow(context.getSource().getServer(), placement.get());
-//#if MC >= 12001
-//$$         context.getSource().sendFeedback(() -> literal("Stocking area updated; scan scheduled for " + projectName), false);
-//#else
-        context.getSource().sendFeedback(literal("Stocking area updated; scan scheduled for " + projectName), false);
-//#endif
-        return 1;
-    }
-
     private static boolean canManageStockingArea(final ServerCommandSource source,
                                                   final ServerPlacement placement,
                                                   final MaterialService materialService) {
@@ -628,47 +578,6 @@ public final class SyncmaticaCommand {
         );
     }
 
-    private static LiteralArgumentBuilder<ServerCommandSource> defaultArgument() {
-
-        return CommandManager.literal("default")
-                .requires(SyncmaticaCommand::hasManagePermission)
-                .then(CommandManager.literal("setStockingarea")
-                        .then(CommandManager.argument("pos1", BlockPosArgumentType.blockPos())
-                                .then(CommandManager.argument("pos2", BlockPosArgumentType.blockPos())
-                                        .executes(SyncmaticaCommand::handleSetDefaultStockingArea))));
-    }
-
-    private static int handleSetDefaultStockingArea(final CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
-        final Context syncmaticaContext = Syncmatica.getContext(Syncmatica.SERVER_CONTEXT);
-        if (syncmaticaContext == null || syncmaticaContext.getMaterialService() == null) {
-            context.getSource().sendError(literal("Syncmatica_r materials service unavailable"));
-            return 0;
-        }
-        final MaterialService materialService = syncmaticaContext.getMaterialService();
-        if (!materialService.isEnabled()) {
-            context.getSource().sendError(literal("Material sharing is disabled"));
-            return 0;
-        }
-        final BlockPos first = BlockPosArgumentType.getBlockPos(context, "pos1");
-        final BlockPos second = BlockPosArgumentType.getBlockPos(context, "pos2");
-        final String dimensionId = context.getSource().getWorld().getRegistryKey().getValue().toString();
-        final StockingAreaDefinition definition = new StockingAreaDefinition(dimensionId, first, second);
-        if (!materialService.isStockingAreaAllowed(definition)) {
-            context.getSource().sendError(literal("Stocking area exceeds the configured block limit"));
-            return 0;
-        }
-        materialService.setDefaultStockingArea(definition);
-
-        materialService.scanDefaultNow(context.getSource().getServer());
-        syncmaticaContext.getSyncmaticManager().saveServerState();
-//#if MC >= 12001
-//$$         context.getSource().sendFeedback(() -> literal("Default stocking area updated; scan scheduled"), false);
-//#else
-        context.getSource().sendFeedback(literal("Default stocking area updated; scan scheduled"), false);
-//#endif
-        return 1;
-    }
-
     private static boolean hasCommandPermission(final ServerCommandSource source) {
         return Permissions.check(source, COMMAND_PERMISSION, COMMAND_PERMISSION_LEVEL);
     }
@@ -680,14 +589,6 @@ public final class SyncmaticaCommand {
 
     private static boolean hasConfigPermission(final ServerCommandSource source) {
         return Permissions.check(source, CONFIG_PERMISSION, COMMAND_PERMISSION_LEVEL);
-    }
-
-    private static boolean hasManagePermission(final ServerCommandSource source) {
-        return Permissions.check(
-                source,
-                PlacementAccessPolicy.MANAGE_PERMISSION,
-                PlacementAccessPolicy.MANAGE_PERMISSION_LEVEL
-        );
     }
 
     private static net.minecraft.text.Text literal(final String message) {

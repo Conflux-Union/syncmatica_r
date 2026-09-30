@@ -396,6 +396,11 @@ public class ServerPlacement {
         return legacyStockingArea;
     }
 
+    /** Consumed by the migration pass so a reload cannot re-register the area. */
+    public void clearLegacyStockingArea() {
+        legacyStockingArea = null;
+    }
+
     public void applyMaterialProgressSnapshot(final MaterialProgressState snapshot) {
         materialProgress.clear();
         if (snapshot == null || snapshot.isEmpty()) {

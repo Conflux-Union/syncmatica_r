@@ -19,9 +19,12 @@ final class StockingAreaPermissionContractTest {
                 StandardCharsets.UTF_8
         );
 
+        // Pre-registry clients push raw coordinates; the named-registry server
+        // rejects those pushes with an upgrade hint instead of silently losing
+        // the selection.
         assertTrue(
-                source.contains("canManageStockingArea(source, placement, materialService)"),
-                "placement stocking-area requests must use their dedicated access check");
+                source.contains("syncmatica_r.error.stocking_area.unsupported"),
+                "coordinate stocking-area pushes must be answered with the upgrade hint");
         assertTrue(
                 source.contains("PlacementAccessPolicy.canManageStockingArea"),
                 "the network path must use the shared owner-aware access policy");

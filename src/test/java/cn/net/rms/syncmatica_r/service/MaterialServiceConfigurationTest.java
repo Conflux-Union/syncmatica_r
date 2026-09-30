@@ -17,6 +17,7 @@ import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
 import cn.net.rms.syncmatica_r.communication.exchange.Exchange;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
 import cn.net.rms.syncmatica_r.material.StockingAreaDefinition;
+import cn.net.rms.syncmatica_r.material.StockingAreaRegistry;
 import com.google.gson.JsonObject;
 import java.io.File;
 import java.nio.file.Files;
@@ -184,8 +185,15 @@ final class MaterialServiceConfigurationTest {
             final ServerPlacement placement = addPlacement(context, "build");
             final StockingAreaDefinition area = new StockingAreaDefinition(
                     "minecraft:overworld", BlockPos.ORIGIN, new BlockPos(10, 10, 10));
-            context.getMaterialService().setStockingArea(placement, area);
-            context.getMaterialService().setDefaultStockingArea(area);
+            assertEquals(StockingAreaRegistry.CreateOutcome.CREATED,
+                    context.getMaterialService().createStockingArea("build", area, null));
+            assertEquals(MaterialService.StockingAreaBindOutcome.BOUND,
+                    context.getMaterialService().bindStockingArea(placement,
+                            context.getMaterialService().getStockingAreaRegistry()
+                                    .getByName("build").getId()));
+            assertEquals(StockingAreaRegistry.CreateOutcome.CREATED,
+                    context.getMaterialService().createStockingArea(
+                            StockingAreaRegistry.RESERVED_DEFAULT_NAME, area, null));
             context.getMaterialService().scanDefaultNow(null);
             assertTrue(context.getMaterialService().hasDefaultStockingScan());
 

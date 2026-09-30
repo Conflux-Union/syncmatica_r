@@ -174,7 +174,12 @@ public final class StockingAreaRegistry {
         return CreateOutcome.CREATED;
     }
 
-    void restoreFrom(final StockingAreaRegistry other) {
+    /**
+     * Persistence seam for {@code MaterialService.loadStockingAreaState}:
+     * replaces the live registry with a deserialized one, keeping entry ids
+     * stable so persisted placement references survive reloads.
+     */
+    public void restoreFrom(final StockingAreaRegistry other) {
         areasById.clear();
         idsByName.clear();
         areasById.putAll(other.areasById);
@@ -205,7 +210,8 @@ public final class StockingAreaRegistry {
     /**
      * Pure inverse of {@link #toJson()}: silently skips entries with invalid
      * or duplicate names (hand-edited duplicates: first wins), unparsable
-     * definitions, or oversized areas instead of failing the whole load.
+     * definitions or UUIDs, or oversized areas instead of failing the whole
+     * load.
      */
     public static StockingAreaRegistry fromJson(final JsonObject json, final long maxBlocks) {
         final StockingAreaRegistry registry = new StockingAreaRegistry();
@@ -217,23 +223,29 @@ public final class StockingAreaRegistry {
                 continue;
             }
             final JsonObject obj = element.getAsJsonObject();
-            if (!obj.has(FIELD_ID) || !obj.has(FIELD_NAME)) {
-                continue;
+            try {
+                if (!obj.has(FIELD_ID) || !obj.has(FIELD_NAME)) {
+                    continue;
+                }
+                final String name = obj.get(FIELD_NAME).getAsString();
+                if (!isValidName(name) || registry.idsByName.containsKey(name)) {
+                    continue;
+                }
+                final StockingAreaDefinition definition = StockingAreaDefinition.fromJson(obj);
+                if (definition == null || definition.getVolume() > maxBlocks) {
+                    continue;
+                }
+                final UUID owner = obj.has(FIELD_OWNER)
+                        ? UUID.fromString(obj.get(FIELD_OWNER).getAsString())
+                        : null;
+                final UUID id = UUID.fromString(obj.get(FIELD_ID).getAsString());
+                registry.areasById.put(id, new Entry(id, name, definition, owner));
+                registry.idsByName.put(name, id);
+            } catch (final RuntimeException exception) {
+                // Hand-edited files may carry an unparsable UUID or a broken
+                // definition object; the entry is skipped like the other
+                // invalid cases instead of aborting the whole load.
             }
-            final String name = obj.get(FIELD_NAME).getAsString();
-            if (!isValidName(name) || registry.idsByName.containsKey(name)) {
-                continue;
-            }
-            final StockingAreaDefinition definition = StockingAreaDefinition.fromJson(obj);
-            if (definition == null || definition.getVolume() > maxBlocks) {
-                continue;
-            }
-            final UUID owner = obj.has(FIELD_OWNER)
-                    ? UUID.fromString(obj.get(FIELD_OWNER).getAsString())
-                    : null;
-            final UUID id = UUID.fromString(obj.get(FIELD_ID).getAsString());
-            registry.areasById.put(id, new Entry(id, name, definition, owner));
-            registry.idsByName.put(name, id);
         }
         return registry;
     }

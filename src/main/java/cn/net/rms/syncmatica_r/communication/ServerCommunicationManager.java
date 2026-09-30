@@ -8,7 +8,6 @@ import cn.net.rms.syncmatica_r.communication.MessageType;
 import cn.net.rms.syncmatica_r.communication.exchange.FeatureExchange;
 import cn.net.rms.syncmatica_r.communication.exchange.ShareLitematicExchange;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
-import cn.net.rms.syncmatica_r.material.StockingAreaDefinition;
 import cn.net.rms.syncmatica_r.schematic.SchematicPeek;
 import cn.net.rms.syncmatica_r.schematic.SchematicPeeker;
 import cn.net.rms.syncmatica_r.service.BuildService;
@@ -27,7 +26,6 @@ import net.minecraft.text.LiteralText;
 //#endif
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
-import net.minecraft.util.math.BlockPos;
 import me.lucko.fabric.api.permissions.v0.Permissions;
 
 import org.apache.logging.log4j.LogManager;
@@ -315,59 +313,16 @@ public class ServerCommunicationManager extends CommunicationManager {
     }
 
     /**
-     * Client-driven counterpart of {@code /syncmatica_r ... setStockingarea}: the
-     * client sends the two corners it read from the player's Litematica area
-     * selection. The dimension is taken from the player rather than the packet so
-     * a crafted payload cannot register an area in a world the sender is not in.
+     * Pre-registry clients push raw coordinates for the stocking area; the
+     * named-registry server no longer accepts anonymous areas, so the sender
+     * is told to upgrade instead of silently losing the selection.
      */
     private void handleSetStockingArea(final ExchangeTarget source, final PacketByteBuf packetBuf) {
-        final boolean isDefault = packetBuf.readBoolean();
-        final UUID placementId = packetBuf.readUuid();
-        final BlockPos first = packetBuf.readBlockPos();
-        final BlockPos second = packetBuf.readBlockPos();
-
-        final MaterialService materialService = context.getMaterialService();
-        if (materialService == null || !materialService.isEnabled()) {
-            sendMessage(source, MessageType.ERROR, "syncmatica_r.error.material_disabled");
-            return;
-        }
+        packetBuf.readerIndex(packetBuf.writerIndex());
         final ServerPlayerEntity player = playerMap.get(source);
-        if (player == null) {
-            return;
+        if (player != null) {
+            sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area.unsupported");
         }
-
-        final ServerPlacement placement = isDefault ? null : context.getSyncmaticManager().getPlacement(placementId);
-        if (!isDefault && placement == null) {
-            sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area_unknown_placement");
-            return;
-        }
-        final boolean allowed = isDefault
-                ? Permissions.check(player, PlacementAccessPolicy.MANAGE_PERMISSION,
-                        PlacementAccessPolicy.MANAGE_PERMISSION_LEVEL)
-                : canManageStockingArea(source, placement, materialService);
-        if (!allowed) {
-            sendMessage(source, MessageType.ERROR, "syncmatica_r.error.permission_denied");
-            return;
-        }
-
-        final String dimensionId = player.getServerWorld().getRegistryKey().getValue().toString();
-        final StockingAreaDefinition definition = new StockingAreaDefinition(dimensionId, first, second);
-        if (!materialService.isStockingAreaAllowed(definition)) {
-            sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area_too_large",
-                    Long.toString(definition.getVolume()));
-            return;
-        }
-
-        // ServerPlayerEntity#getServer was removed in 1.21.10; the world still exposes it.
-        if (isDefault) {
-            materialService.setDefaultStockingArea(definition);
-            materialService.scanDefaultNow(player.getServerWorld().getServer());
-            context.getSyncmaticManager().saveServerState();
-        } else {
-            materialService.setStockingArea(placement, definition);
-            materialService.scanNow(player.getServerWorld().getServer(), placement);
-        }
-        sendMessage(source, MessageType.SUCCESS, "syncmatica_r.success.stocking_area_updated");
     }
 
     @Override

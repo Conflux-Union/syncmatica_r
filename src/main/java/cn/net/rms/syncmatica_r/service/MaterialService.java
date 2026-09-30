@@ -27,6 +27,7 @@ import net.minecraft.util.registry.Registry;
 import net.minecraft.util.registry.RegistryKey;
 import net.minecraft.world.World;
 import cn.net.rms.syncmatica_r.util.IdentifierUtil;
+import com.google.gson.JsonObject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -61,9 +62,11 @@ public class MaterialService extends AbstractService {
 
     private final Map<UUID, Map<MaterialKey, Integer>> stockingTotals = new HashMap<>();
 
-    private final Map<UUID, StockingAreaDefinition> stockingAreas = new HashMap<>();
+    private final StockingAreaRegistry stockingAreaRegistry = new StockingAreaRegistry();
 
-    private StockingAreaDefinition defaultStockingArea;
+    // Placements whose dangling stocking-area reference was already reported;
+    // keeps the periodic resolve from spamming the log with the same warning.
+    private final Set<UUID> warnedDanglingStockingRefs = new HashSet<>();
 
     private boolean enabled = ENABLED_DEFAULT;
     private int scanInterval = SCAN_INTERVAL_DEFAULT;
@@ -112,6 +115,19 @@ public class MaterialService extends AbstractService {
         ALREADY_RELEASED,
         UNKNOWN_PLACEMENT,
         DISABLED
+    }
+
+    public enum StockingAreaDeleteOutcome {
+        DELETED,
+        IN_USE,
+        NOT_FOUND,
+        RESERVED_NAME
+    }
+
+    public enum StockingAreaBindOutcome {
+        BOUND,
+        CLEARED,
+        UNKNOWN_AREA
     }
 
     public boolean isEnabled() {
@@ -223,7 +239,6 @@ public class MaterialService extends AbstractService {
 
     public void attachPlacement(final ServerPlacement placement) {
         placements.put(placement.getId(), placement);
-        stockingAreas.put(placement.getId(), placement.getResolvedStockingArea());
         cancelPlacementScan(placement.getId());
         seedFromExistingSnapshot(placement);
         if (enabled && placement.getMaterialProgress().isEmpty()) {
@@ -237,7 +252,6 @@ public class MaterialService extends AbstractService {
         placements.remove(placement.getId());
         requiredTotals.remove(placement.getId());
         stockingTotals.remove(placement.getId());
-        stockingAreas.remove(placement.getId());
         pendingExtractionTokens.remove(placement.getId());
         deferredExtractionIds.remove(placement.getId());
         deferredExtractions.removeIf(id -> id.equals(placement.getId()));
@@ -268,55 +282,183 @@ public class MaterialService extends AbstractService {
         }
     }
 
+    /**
+     * @deprecated Coordinate-based areas no longer drive scans; retained only
+     *     until the web facade switches to {@link #bindStockingArea}.
+     */
+    @Deprecated
     public void setStockingArea(final ServerPlacement placement, final StockingAreaDefinition area) {
-        if (!isStockingAreaAllowed(area)) {
-            throw new IllegalArgumentException("Stocking area exceeds the configured block limit");
-        }
-        if (Objects.equals(stockingAreas.get(placement.getId()), area)) {
-            return;
-        }
-        stockingAreas.put(placement.getId(), area);
         placement.setResolvedStockingArea(area);
+    }
+
+    public StockingAreaRegistry getStockingAreaRegistry() {
+        return stockingAreaRegistry;
+    }
+
+    public StockingAreaDefinition resolveStockingArea(final ServerPlacement placement) {
+        if (placement == null) {
+            return null;
+        }
+        if (placement.getStockingAreaRef() != null) {
+            final StockingAreaRegistry.Entry entry = stockingAreaRegistry.getById(placement.getStockingAreaRef());
+            if (entry != null) {
+                warnedDanglingStockingRefs.remove(placement.getId());
+                return entry.getDefinition();
+            }
+            if (warnedDanglingStockingRefs.add(placement.getId())) {
+                LOGGER.warn("Placement '{}' references missing stocking area {}; falling back to default",
+                        placement.getName(), placement.getStockingAreaRef());
+            }
+        }
+        final StockingAreaRegistry.Entry fallback = stockingAreaRegistry.getDefaultArea();
+        return fallback == null ? null : fallback.getDefinition();
+    }
+
+    public StockingAreaDefinition getStockingArea(final UUID placementId) {
+        return resolveStockingArea(placements.get(placementId));
+    }
+
+    public boolean hasBoundStockingArea(final ServerPlacement placement) {
+        return placement != null && placement.getStockingAreaRef() != null;
+    }
+
+    public List<ServerPlacement> getPlacementsReferencing(final UUID areaId) {
+        final List<ServerPlacement> result = new ArrayList<>();
+        for (final ServerPlacement placement : placements.values()) {
+            if (areaId.equals(placement.getStockingAreaRef())) {
+                result.add(placement);
+            }
+        }
+        return result;
+    }
+
+    public StockingAreaRegistry.CreateOutcome createStockingArea(final String name,
+                                                                 final StockingAreaDefinition definition,
+                                                                 final UUID ownerPlayerId) {
+        // Only the server bootstrap (migration, legacy default load) may write
+        // the reserved default entry; a player asking for that name would
+        // otherwise silently overwrite the default area.
+        if (StockingAreaRegistry.RESERVED_DEFAULT_NAME.equals(name) && ownerPlayerId != null) {
+            return StockingAreaRegistry.CreateOutcome.RESERVED_NAME;
+        }
+        // A null-owner create of the reserved name delegates to the registry's
+        // default bootstrap; every other name takes the regular create path.
+        final StockingAreaRegistry.CreateOutcome outcome =
+                stockingAreaRegistry.create(name, definition, ownerPlayerId, maxStockingAreaBlocks);
+        if (outcome == StockingAreaRegistry.CreateOutcome.CREATED) {
+            markStockingAreaRegistryDirty();
+        }
+        return outcome;
+    }
+
+    /**
+     * Redefines an area and pushes the new definition to every referencing
+     * placement. Scanning is left to the caller, which holds the server.
+     */
+    public StockingAreaRegistry.UpdateOutcome updateStockingArea(final UUID areaId,
+                                                                 final StockingAreaDefinition definition) {
+        final StockingAreaRegistry.UpdateOutcome outcome =
+                stockingAreaRegistry.update(areaId, definition, maxStockingAreaBlocks);
+        if (outcome != StockingAreaRegistry.UpdateOutcome.UPDATED) {
+            return outcome;
+        }
+        markStockingAreaRegistryDirty();
+        refreshPlacementsBoundTo(areaId);
+        return outcome;
+    }
+
+    public StockingAreaDeleteOutcome deleteStockingArea(final UUID areaId, final boolean force) {
+        final StockingAreaRegistry.Entry entry = stockingAreaRegistry.getById(areaId);
+        if (entry == null) {
+            return StockingAreaDeleteOutcome.NOT_FOUND;
+        }
+        if (StockingAreaRegistry.RESERVED_DEFAULT_NAME.equals(entry.getName())) {
+            return StockingAreaDeleteOutcome.RESERVED_NAME;
+        }
+        final List<ServerPlacement> referencing = getPlacementsReferencing(areaId);
+        if (!referencing.isEmpty() && !force) {
+            return StockingAreaDeleteOutcome.IN_USE;
+        }
+        final StockingAreaRegistry.DeleteOutcome outcome = stockingAreaRegistry.delete(areaId);
+        if (outcome != StockingAreaRegistry.DeleteOutcome.DELETED) {
+            return StockingAreaDeleteOutcome.valueOf(outcome.name());
+        }
+        markStockingAreaRegistryDirty();
+        // Unbound placements fall back to the default area on their next resolve.
+        for (final ServerPlacement placement : referencing) {
+            placement.setStockingAreaRef(null);
+            refreshPlacement(placement, resolveStockingArea(placement));
+        }
+        return StockingAreaDeleteOutcome.DELETED;
+    }
+
+    /** null clears the binding; the placement then falls back to the default area. */
+    public StockingAreaBindOutcome bindStockingArea(final ServerPlacement placement, final UUID areaId) {
+        if (areaId != null && stockingAreaRegistry.getById(areaId) == null) {
+            return StockingAreaBindOutcome.UNKNOWN_AREA;
+        }
+        if (Objects.equals(placement.getStockingAreaRef(), areaId)) {
+            return areaId == null ? StockingAreaBindOutcome.CLEARED : StockingAreaBindOutcome.BOUND;
+        }
+        placement.setStockingAreaRef(areaId);
         cancelPlacementScan(placement.getId());
         placement.touchModified(System.currentTimeMillis());
         if (context != null) {
             context.getSyncmaticManager().updateServerPlacement(placement);
             if (context.getCommunicationManager() instanceof ServerCommunicationManager) {
-                ((ServerCommunicationManager) context.getCommunicationManager()).broadcastPlacementUpdate(placement);
+                ((ServerCommunicationManager) context.getCommunicationManager())
+                        .broadcastPlacementUpdate(placement);
             }
+        }
+        return areaId == null ? StockingAreaBindOutcome.CLEARED : StockingAreaBindOutcome.BOUND;
+    }
+
+    /**
+     * Re-runs scans for a set of placements; command and packet handlers own
+     * the {@link MinecraftServer} reference, so they drive this after a
+     * registry mutation instead of the mutation scanning on its own.
+     */
+    public void rescanPlacements(final MinecraftServer server, final List<ServerPlacement> placementsToScan) {
+        for (final ServerPlacement placement : placementsToScan) {
+            scanNow(server, placement);
         }
     }
 
-    public StockingAreaDefinition getStockingArea(final UUID placementId) {
-        return stockingAreas.get(placementId);
+    private void refreshPlacementsBoundTo(final UUID areaId) {
+        for (final ServerPlacement placement : getPlacementsReferencing(areaId)) {
+            refreshPlacement(placement, resolveStockingArea(placement));
+        }
+    }
+
+    private void refreshPlacement(final ServerPlacement placement, final StockingAreaDefinition resolved) {
+        placement.setResolvedStockingArea(resolved);
+        placement.touchModified(System.currentTimeMillis());
+        persistAndBroadcast(placement);
+    }
+
+    private void markStockingAreaRegistryDirty() {
+        if (context != null && context.isServer()) {
+            context.getSyncmaticManager().markDefaultStockingAreaDirty();
+        }
+    }
+
+    public void loadStockingAreaState(final JsonObject meta) {
+        final StockingAreaRegistry loaded =
+                StockingAreaRegistry.fromJson(meta, maxStockingAreaBlocks);
+        stockingAreaRegistry.restoreFrom(loaded);
+    }
+
+    public JsonObject stockingAreaStateJson() {
+        return stockingAreaRegistry.toJson();
+    }
+
+    private StockingAreaDefinition defaultArea() {
+        final StockingAreaRegistry.Entry entry = stockingAreaRegistry.getDefaultArea();
+        return entry == null ? null : entry.getDefinition();
     }
 
     public StockingAreaDefinition getDefaultStockingArea() {
-        return defaultStockingArea;
-    }
-
-    public void setDefaultStockingArea(final StockingAreaDefinition area) {
-        applyDefaultStockingArea(area, true);
-    }
-
-    public void loadDefaultStockingArea(final StockingAreaDefinition area) {
-        applyDefaultStockingArea(area, false);
-    }
-
-    private void applyDefaultStockingArea(final StockingAreaDefinition area, final boolean notifyManager) {
-        if (!isStockingAreaAllowed(area)) {
-            LOGGER.warn("Ignoring stocking area with {} blocks; configured maximum is {}",
-                    area == null ? 0L : area.getVolume(), maxStockingAreaBlocks);
-            return;
-        }
-        if (Objects.equals(defaultStockingArea, area)) {
-            return;
-        }
-        defaultStockingArea = area;
-        defaultScanState = null;
-        if (notifyManager && context != null && context.isServer()) {
-            context.getSyncmaticManager().markDefaultStockingAreaDirty();
-        }
+        return defaultArea();
     }
 
     public boolean isStockingAreaAllowed(final StockingAreaDefinition area) {
@@ -387,18 +529,22 @@ public class MaterialService extends AbstractService {
 
     private void schedulePlacementScans(final MinecraftServer server) {
         for (final ServerPlacement placement : placements.values()) {
-            final StockingAreaDefinition area = stockingAreas.get(placement.getId());
-            if (area == null) {
+            if (!hasBoundStockingArea(placement)) {
                 continue;
             }
             if (activePlacementScans.containsKey(placement.getId())) {
                 continue;
             }
+            final StockingAreaDefinition area = resolveStockingArea(placement);
+            if (area == null) {
+                continue;
+            }
             queuePlacementScan(server, placement, area);
         }
-        if (defaultStockingArea != null) {
+        final StockingAreaDefinition defaultDefinition = defaultArea();
+        if (defaultDefinition != null) {
             if (defaultScanState == null || defaultScanState.isFinished()) {
-                defaultScanState = newDefaultStockingScanState(server, defaultStockingArea);
+                defaultScanState = newDefaultStockingScanState(server, defaultDefinition);
             }
         } else {
             defaultScanState = null;
@@ -409,22 +555,26 @@ public class MaterialService extends AbstractService {
         if (!enabled) {
             return;
         }
-        final StockingAreaDefinition area = stockingAreas.get(placement.getId());
-        if (area != null) {
-            cancelPlacementScan(placement.getId());
-            queuePlacementScan(server, placement, area);
+        if (hasBoundStockingArea(placement)) {
+            final StockingAreaDefinition area = resolveStockingArea(placement);
+            if (area != null) {
+                cancelPlacementScan(placement.getId());
+                queuePlacementScan(server, placement, area);
+            }
             return;
         }
-        if (defaultStockingArea != null) {
-            defaultScanState = newDefaultStockingScanState(server, defaultStockingArea);
+        final StockingAreaDefinition defaultDefinition = defaultArea();
+        if (defaultDefinition != null) {
+            defaultScanState = newDefaultStockingScanState(server, defaultDefinition);
         }
     }
 
     public void scanDefaultNow(final MinecraftServer server) {
-        if (!enabled || defaultStockingArea == null) {
+        final StockingAreaDefinition defaultDefinition = defaultArea();
+        if (!enabled || defaultDefinition == null) {
             return;
         }
-        defaultScanState = newDefaultStockingScanState(server, defaultStockingArea);
+        defaultScanState = newDefaultStockingScanState(server, defaultDefinition);
     }
 
     private DefaultStockingScanState newDefaultStockingScanState(final MinecraftServer server,
@@ -466,7 +616,7 @@ public class MaterialService extends AbstractService {
 
     private void applyDefaultScanResults(final Map<String, Map<MaterialKey, Integer>> totals) {
         for (final ServerPlacement placement : placements.values()) {
-            if (stockingAreas.get(placement.getId()) != null) {
+            if (hasBoundStockingArea(placement)) {
                 continue;
             }
             final Map<MaterialKey, Integer> contribution = totals.getOrDefault(placement.getName(), Collections.emptyMap());
@@ -633,8 +783,7 @@ public class MaterialService extends AbstractService {
         placements.clear();
         requiredTotals.clear();
         stockingTotals.clear();
-        stockingAreas.clear();
-        defaultStockingArea = null;
+        warnedDanglingStockingRefs.clear();
         activePlacementScans.clear();
         placementScanQueue.clear();
         completedExtractions.clear();

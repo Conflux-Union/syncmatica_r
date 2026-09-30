@@ -3,7 +3,6 @@ package cn.net.rms.syncmatica_r.material;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -98,6 +97,25 @@ final class StockingAreaRegistryTest {
                 new JsonParser().parse(duplicated).getAsJsonObject(), LIMIT);
         assertEquals(1, registry.getAll().size());
         assertEquals(first, registry.getByName("warehouse").getId());
+    }
+
+    @Test
+    void fromJsonSkipsMalformedEntriesInsteadOfFailingTheLoad() {
+        final String valid = areaJson("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "warehouse");
+        final String brokenId = areaJson("not-a-uuid", "broken-id");
+        final String brokenOwner = "{\"id\":\"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb\","
+                + "\"name\":\"broken-owner\",\"owner\":\"not-a-uuid\","
+                + "\"dimension\":\"minecraft:overworld\","
+                + "\"minX\":0,\"minY\":64,\"minZ\":0,\"maxX\":9,\"maxY\":64,\"maxZ\":9}";
+        final String missingMinX = "{\"id\":\"cccccccc-cccc-cccc-cccc-cccccccccccc\","
+                + "\"name\":\"broken-definition\",\"dimension\":\"minecraft:overworld\","
+                + "\"minY\":64,\"minZ\":0,\"maxX\":9,\"maxY\":64,\"maxZ\":9}";
+        final StockingAreaRegistry registry = StockingAreaRegistry.fromJson(
+                new JsonParser().parse("{\"areas\":[" + valid + "," + brokenId
+                        + "," + brokenOwner + "," + missingMinX + "]}").getAsJsonObject(),
+                LIMIT);
+        assertEquals(1, registry.getAll().size());
+        assertNotNull(registry.getByName("warehouse"));
     }
 
     private static String areaJson(final String id, final String name) {
