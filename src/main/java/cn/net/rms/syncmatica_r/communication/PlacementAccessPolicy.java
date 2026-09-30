@@ -27,4 +27,14 @@ public final class PlacementAccessPolicy {
                                                  final boolean ownerManagementEnabled) {
         return elevated || (ownerManagementEnabled && playerId != null && playerId.equals(ownerId));
     }
+
+    /**
+     * Registry entries belong to their creator; server-owned entries (null
+     * owner, including the reserved default area) stay elevated-only.
+     */
+    public static boolean canManageStockingAreaEntry(final UUID playerId,
+                                                     final UUID areaOwnerId,
+                                                     final boolean elevated) {
+        return elevated || (areaOwnerId != null && areaOwnerId.equals(playerId));
+    }
 }

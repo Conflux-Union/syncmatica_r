@@ -35,4 +35,22 @@ final class StockingAreaPermissionContractTest {
                 source.contains("materialService.isOwnerStockingAreaManagementEnabled()"),
                 "the network path must honor the materials owner-management setting");
     }
+
+    @Test
+    void registryCommandsUseCreatorAwarePolicy() throws IOException {
+        final String commandSource = Files.readString(
+                projectRoot.resolve(
+                        "src/main/java/cn/net/rms/syncmatica_r/command/SyncmaticaCommand.java"),
+                StandardCharsets.UTF_8
+        );
+        assertTrue(
+                commandSource.contains("PlacementAccessPolicy.canManageStockingAreaEntry"),
+                "area edit/delete must check the creator-aware policy");
+        assertTrue(
+                commandSource.contains("deleteStockingArea"),
+                "delete must go through the reference-checking service method");
+        assertTrue(
+                commandSource.contains("bindStockingArea"),
+                "binding must go through the service bind method");
+    }
 }

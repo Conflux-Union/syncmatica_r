@@ -6,6 +6,8 @@ import cn.net.rms.syncmatica_r.Syncmatica;
 import cn.net.rms.syncmatica_r.communication.PlacementAccessPolicy;
 import cn.net.rms.syncmatica_r.communication.ServerCommunicationManager;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
+import cn.net.rms.syncmatica_r.material.StockingAreaDefinition;
+import cn.net.rms.syncmatica_r.material.StockingAreaRegistry;
 import cn.net.rms.syncmatica_r.schematic.SchematicPeek;
 import cn.net.rms.syncmatica_r.schematic.SchematicPeeker;
 import cn.net.rms.syncmatica_r.service.MaterialService;
@@ -18,9 +20,11 @@ import com.mojang.brigadier.LiteralMessage;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import me.lucko.fabric.api.permissions.v0.Permissions;
+import net.minecraft.command.argument.BlockPosArgumentType;
 import net.minecraft.entity.Entity;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
@@ -40,6 +44,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -47,6 +52,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static com.mojang.brigadier.arguments.StringArgumentType.string;
 import static com.mojang.brigadier.arguments.StringArgumentType.greedyString;
@@ -67,7 +73,8 @@ public final class SyncmaticaCommand {
                 .then(loadArgument())
                 .then(configArgument())
                 .then(webArgument())
-                .then(projectArgument());
+                .then(projectArgument())
+                .then(stockingAreaArgument());
         dispatcher.register(root);
     }
 
@@ -525,7 +532,13 @@ public final class SyncmaticaCommand {
                 })
                 .then(CommandManager.literal("rescanBuild")
                         .requires(SyncmaticaCommand::hasCommandPermission)
-                        .executes(SyncmaticaCommand::handleRescanBuild));
+                        .executes(SyncmaticaCommand::handleRescanBuild))
+                .then(CommandManager.literal("setStockingarea")
+                        .then(CommandManager.argument("area_name", string())
+                                .suggests(SyncmaticaCommand::suggestExistingAreaNames)
+                                .executes(SyncmaticaCommand::handleBindStockingArea)))
+                .then(CommandManager.literal("clearStockingarea")
+                        .executes(SyncmaticaCommand::handleClearStockingArea));
     }
 
     /**
@@ -554,6 +567,306 @@ public final class SyncmaticaCommand {
         }
         sendFeedback(context, "Build progress of '" + projectName + "' will be measured again");
         return 1;
+    }
+
+    private static Optional<ServerPlacement> findPlacement(final Context syncmaticaContext,
+                                                           final String projectName) {
+        return syncmaticaContext.getSyncmaticManager().getAll().stream()
+                .filter(candidate -> candidate.getName().equals(projectName))
+                .findFirst();
+    }
+
+    private static int handleBindStockingArea(final CommandContext<ServerCommandSource> context) {
+        final Context syncmaticaContext = Syncmatica.getContext(Syncmatica.SERVER_CONTEXT);
+        if (syncmaticaContext == null || syncmaticaContext.getMaterialService() == null) {
+            context.getSource().sendError(literal("Syncmatica_r materials service unavailable"));
+            return 0;
+        }
+        final MaterialService materialService = syncmaticaContext.getMaterialService();
+        if (!materialService.isEnabled()) {
+            context.getSource().sendError(literal("Material sharing is disabled"));
+            return 0;
+        }
+        final String projectName = context.getArgument("project_name", String.class);
+        final Optional<ServerPlacement> placement = findPlacement(syncmaticaContext, projectName);
+        if (!placement.isPresent()) {
+            context.getSource().sendError(literal("Unknown Syncmatica_r project: " + projectName));
+            return 0;
+        }
+        if (!canManageStockingArea(context.getSource(), placement.get(), materialService)) {
+            context.getSource().sendError(literal("You do not have permission to manage this stocking area"));
+            return 0;
+        }
+        final String areaName = context.getArgument("area_name", String.class);
+        final StockingAreaRegistry.Entry entry =
+                materialService.getStockingAreaRegistry().getByName(areaName);
+        if (entry == null) {
+            context.getSource().sendError(literal("Unknown stocking area: " + areaName));
+            return 0;
+        }
+        if (materialService.bindStockingArea(placement.get(), entry.getId())
+                == MaterialService.StockingAreaBindOutcome.UNKNOWN_AREA) {
+            context.getSource().sendError(literal("Unknown stocking area: " + areaName));
+            return 0;
+        }
+        materialService.scanNow(context.getSource().getServer(), placement.get());
+        sendFeedback(context, "Stocking area of '" + projectName + "' set to '" + areaName + "'");
+        return 1;
+    }
+
+    private static int handleClearStockingArea(final CommandContext<ServerCommandSource> context) {
+        final Context syncmaticaContext = Syncmatica.getContext(Syncmatica.SERVER_CONTEXT);
+        if (syncmaticaContext == null || syncmaticaContext.getMaterialService() == null) {
+            context.getSource().sendError(literal("Syncmatica_r materials service unavailable"));
+            return 0;
+        }
+        final MaterialService materialService = syncmaticaContext.getMaterialService();
+        if (!materialService.isEnabled()) {
+            context.getSource().sendError(literal("Material sharing is disabled"));
+            return 0;
+        }
+        final String projectName = context.getArgument("project_name", String.class);
+        final Optional<ServerPlacement> placement = findPlacement(syncmaticaContext, projectName);
+        if (!placement.isPresent()) {
+            context.getSource().sendError(literal("Unknown Syncmatica_r project: " + projectName));
+            return 0;
+        }
+        if (!canManageStockingArea(context.getSource(), placement.get(), materialService)) {
+            context.getSource().sendError(literal("You do not have permission to manage this stocking area"));
+            return 0;
+        }
+        materialService.bindStockingArea(placement.get(), null);
+        materialService.scanNow(context.getSource().getServer(), placement.get());
+        sendFeedback(context, "Stocking area of '" + projectName
+                + "' cleared; it falls back to the default area");
+        return 1;
+    }
+
+    private static LiteralArgumentBuilder<ServerCommandSource> stockingAreaArgument() {
+        return CommandManager.literal("stockingArea")
+                .requires(SyncmaticaCommand::hasCommandPermission)
+                .then(CommandManager.literal("list")
+                        .executes(SyncmaticaCommand::handleListStockingAreas))
+                .then(CommandManager.literal("new")
+                        .then(CommandManager.argument("area_name", string())
+                                .then(CommandManager.argument("pos1", BlockPosArgumentType.blockPos())
+                                        .then(CommandManager.argument("pos2", BlockPosArgumentType.blockPos())
+                                                .executes(SyncmaticaCommand::handleNewStockingArea)))))
+                .then(CommandManager.literal("edit")
+                        .then(CommandManager.argument("area_name", string())
+                                .suggests(SyncmaticaCommand::suggestExistingAreaNames)
+                                .then(CommandManager.argument("pos1", BlockPosArgumentType.blockPos())
+                                        .then(CommandManager.argument("pos2", BlockPosArgumentType.blockPos())
+                                                .executes(SyncmaticaCommand::handleEditStockingArea)))))
+                .then(CommandManager.literal("delete")
+                        .then(CommandManager.argument("area_name", string())
+                                .suggests(SyncmaticaCommand::suggestExistingAreaNames)
+                                .executes(context -> handleDeleteStockingArea(context, false))
+                                .then(CommandManager.literal("force")
+                                        .executes(context -> handleDeleteStockingArea(context, true)))));
+    }
+
+    private static CompletableFuture<Suggestions> suggestExistingAreaNames(
+            final CommandContext<ServerCommandSource> context, final SuggestionsBuilder builder) {
+        final Context syncmaticaContext = Syncmatica.getContext(Syncmatica.SERVER_CONTEXT);
+        if (syncmaticaContext != null && syncmaticaContext.getMaterialService() != null) {
+            syncmaticaContext.getMaterialService().getStockingAreaRegistry().getAll()
+                    .forEach(entry -> builder.suggest(entry.getName()));
+        }
+        return builder.buildFuture();
+    }
+
+    private static int handleListStockingAreas(final CommandContext<ServerCommandSource> context) {
+        final Context syncmaticaContext = Syncmatica.getContext(Syncmatica.SERVER_CONTEXT);
+        if (syncmaticaContext == null || syncmaticaContext.getMaterialService() == null) {
+            context.getSource().sendError(literal("Syncmatica_r materials service unavailable"));
+            return 0;
+        }
+        final MaterialService materialService = syncmaticaContext.getMaterialService();
+        if (!materialService.isEnabled()) {
+            context.getSource().sendError(literal("Material sharing is disabled"));
+            return 0;
+        }
+        final Collection<StockingAreaRegistry.Entry> areas =
+                materialService.getStockingAreaRegistry().getAll();
+        if (areas.isEmpty()) {
+            sendPrivateFeedback(context, "No stocking areas are registered");
+            return 0;
+        }
+        for (final StockingAreaRegistry.Entry entry : areas) {
+            sendPrivateFeedback(context, describeStockingArea(materialService, entry));
+        }
+        return 1;
+    }
+
+    private static String describeStockingArea(final MaterialService materialService,
+                                               final StockingAreaRegistry.Entry entry) {
+        final StockingAreaDefinition definition = entry.getDefinition();
+        final String owner = entry.getOwnerPlayerId() == null
+                ? "server"
+                : entry.getOwnerPlayerId().toString();
+        return entry.getName()
+                + " [" + definition.getDimensionId() + "] "
+                + blockPosText(definition.getMin()) + "-" + blockPosText(definition.getMax())
+                + " owner=" + owner
+                + " used-by=" + materialService.getPlacementsReferencing(entry.getId()).size();
+    }
+
+    private static String blockPosText(final BlockPos pos) {
+        return "(" + pos.getX() + "," + pos.getY() + "," + pos.getZ() + ")";
+    }
+
+    private static int handleNewStockingArea(final CommandContext<ServerCommandSource> context)
+            throws CommandSyntaxException {
+        final Context syncmaticaContext = Syncmatica.getContext(Syncmatica.SERVER_CONTEXT);
+        if (syncmaticaContext == null || syncmaticaContext.getMaterialService() == null) {
+            context.getSource().sendError(literal("Syncmatica_r materials service unavailable"));
+            return 0;
+        }
+        final MaterialService materialService = syncmaticaContext.getMaterialService();
+        if (!materialService.isEnabled()) {
+            context.getSource().sendError(literal("Material sharing is disabled"));
+            return 0;
+        }
+        final Entity entity = context.getSource().getEntity();
+        final ServerPlayerEntity player = entity instanceof ServerPlayerEntity
+                ? (ServerPlayerEntity) entity
+                : null;
+        // Console-created areas are server-owned and therefore elevated-only to modify.
+        final UUID ownerId = player == null ? null : SyncmaticaUtil.getProfileId(player.getGameProfile());
+        final String name = context.getArgument("area_name", String.class);
+        final BlockPos first = BlockPosArgumentType.getBlockPos(context, "pos1");
+        final BlockPos second = BlockPosArgumentType.getBlockPos(context, "pos2");
+        final String dimensionId = context.getSource().getWorld().getRegistryKey().getValue().toString();
+        final StockingAreaRegistry.CreateOutcome outcome = materialService.createStockingArea(
+                name, new StockingAreaDefinition(dimensionId, first, second), ownerId);
+        switch (outcome) {
+            case CREATED:
+                sendFeedback(context, "Stocking area '" + name + "' created");
+                return 1;
+            case INVALID_NAME:
+                context.getSource().sendError(literal(
+                        "Area names may contain letters, digits, '_' and '-' (max 32)"));
+                return 0;
+            case DUPLICATE_NAME:
+                context.getSource().sendError(literal(
+                        "A stocking area named '" + name + "' already exists"));
+                return 0;
+            case RESERVED_NAME:
+                context.getSource().sendError(literal("The name 'default' is reserved"));
+                return 0;
+            case TOO_LARGE:
+                context.getSource().sendError(literal("Stocking area exceeds the configured block limit"));
+                return 0;
+            default:
+                context.getSource().sendError(literal("Could not create the stocking area"));
+                return 0;
+        }
+    }
+
+    private static int handleEditStockingArea(final CommandContext<ServerCommandSource> context)
+            throws CommandSyntaxException {
+        final Context syncmaticaContext = Syncmatica.getContext(Syncmatica.SERVER_CONTEXT);
+        if (syncmaticaContext == null || syncmaticaContext.getMaterialService() == null) {
+            context.getSource().sendError(literal("Syncmatica_r materials service unavailable"));
+            return 0;
+        }
+        final MaterialService materialService = syncmaticaContext.getMaterialService();
+        if (!materialService.isEnabled()) {
+            context.getSource().sendError(literal("Material sharing is disabled"));
+            return 0;
+        }
+        final String name = context.getArgument("area_name", String.class);
+        final StockingAreaRegistry.Entry entry =
+                materialService.getStockingAreaRegistry().getByName(name);
+        if (entry == null) {
+            context.getSource().sendError(literal("Unknown stocking area: " + name));
+            return 0;
+        }
+        if (!canManageStockingAreaEntry(context.getSource(), entry)) {
+            context.getSource().sendError(literal("You do not have permission to manage this stocking area"));
+            return 0;
+        }
+        final BlockPos first = BlockPosArgumentType.getBlockPos(context, "pos1");
+        final BlockPos second = BlockPosArgumentType.getBlockPos(context, "pos2");
+        final String dimensionId = context.getSource().getWorld().getRegistryKey().getValue().toString();
+        final StockingAreaRegistry.UpdateOutcome outcome = materialService.updateStockingArea(
+                entry.getId(), new StockingAreaDefinition(dimensionId, first, second));
+        switch (outcome) {
+            case UPDATED:
+                final List<ServerPlacement> referencing =
+                        materialService.getPlacementsReferencing(entry.getId());
+                materialService.rescanPlacements(context.getSource().getServer(), referencing);
+                sendFeedback(context, "Stocking area '" + name + "' updated; "
+                        + referencing.size() + " project(s) will be rescanned");
+                return 1;
+            case TOO_LARGE:
+                context.getSource().sendError(literal("Stocking area exceeds the configured block limit"));
+                return 0;
+            case NOT_FOUND:
+                context.getSource().sendError(literal("Unknown stocking area: " + name));
+                return 0;
+            default:
+                context.getSource().sendError(literal("Could not update the stocking area"));
+                return 0;
+        }
+    }
+
+    private static int handleDeleteStockingArea(final CommandContext<ServerCommandSource> context,
+                                                final boolean force) {
+        final Context syncmaticaContext = Syncmatica.getContext(Syncmatica.SERVER_CONTEXT);
+        if (syncmaticaContext == null || syncmaticaContext.getMaterialService() == null) {
+            context.getSource().sendError(literal("Syncmatica_r materials service unavailable"));
+            return 0;
+        }
+        final MaterialService materialService = syncmaticaContext.getMaterialService();
+        if (!materialService.isEnabled()) {
+            context.getSource().sendError(literal("Material sharing is disabled"));
+            return 0;
+        }
+        final String name = context.getArgument("area_name", String.class);
+        final StockingAreaRegistry.Entry entry =
+                materialService.getStockingAreaRegistry().getByName(name);
+        if (entry == null) {
+            context.getSource().sendError(literal("Unknown stocking area: " + name));
+            return 0;
+        }
+        if (!canManageStockingAreaEntry(context.getSource(), entry)) {
+            context.getSource().sendError(literal("You do not have permission to manage this stocking area"));
+            return 0;
+        }
+        switch (materialService.deleteStockingArea(entry.getId(), force)) {
+            case DELETED:
+                sendFeedback(context, "Stocking area '" + name + "' deleted");
+                return 1;
+            case IN_USE:
+                final String projects = materialService.getPlacementsReferencing(entry.getId()).stream()
+                        .map(ServerPlacement::getName)
+                        .collect(Collectors.joining(", "));
+                context.getSource().sendError(literal("Stocking area '" + name + "' is used by: "
+                        + projects + " (use delete " + name + " force to unbind them)"));
+                return 0;
+            case NOT_FOUND:
+                context.getSource().sendError(literal("Unknown stocking area: " + name));
+                return 0;
+            case RESERVED_NAME:
+                context.getSource().sendError(literal("The name 'default' is reserved"));
+                return 0;
+            default:
+                context.getSource().sendError(literal("Could not delete the stocking area"));
+                return 0;
+        }
+    }
+
+    private static boolean canManageStockingAreaEntry(final ServerCommandSource source,
+                                                      final StockingAreaRegistry.Entry entry) {
+        final Entity entity = source.getEntity();
+        final UUID playerId = entity instanceof ServerPlayerEntity
+                ? SyncmaticaUtil.getProfileId(((ServerPlayerEntity) entity).getGameProfile())
+                : null;
+        final boolean elevated = Permissions.check(
+                source, PlacementAccessPolicy.MANAGE_PERMISSION, PlacementAccessPolicy.MANAGE_PERMISSION_LEVEL);
+        return PlacementAccessPolicy.canManageStockingAreaEntry(playerId, entry.getOwnerPlayerId(), elevated);
     }
 
     private static boolean canManageStockingArea(final ServerCommandSource source,
