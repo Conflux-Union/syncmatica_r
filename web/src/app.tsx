@@ -732,7 +732,7 @@ function ProjectPage({ api, copy, language, session }: PageProps & { session: Se
         { id: "regions", label: copy.regionsTab },
       ]}>
         {tab === "materials" && <ProjectMaterials api={api} copy={copy} id={id} language={language} session={session} />}
-        {tab === "stocking" && <StockingAreaPanel api={api} copy={copy} id={id} language={language} owner={project.owner.id === session.playerId} />}
+        {tab === "stocking" && <StockingAreaPanel api={api} copy={copy} id={id} language={language} owner={project.owner.id === session.playerId} session={session} />}
         {tab === "regions" && <BuildRegionsPanel api={api} copy={copy} id={id} language={language} session={session} />}
       </Tabs>
     </>
@@ -788,7 +788,10 @@ function ProjectMaterials({ api, copy, id, language, session }: PageProps & { id
   </section>;
 }
 
-function StockingAreaPanel({ api, copy, id, language, owner }: PageProps & { id: string; owner: boolean }) {
+/** Mirrors the server registry's reserved default-area name. */
+const RESERVED_AREA_NAME = "default";
+
+function StockingAreaPanel({ api, copy, id, language, owner, session }: PageProps & { id: string; owner: boolean; session: Session }) {
   const [area, setArea] = useState<StockingArea>();
   const [records, setRecords] = useState<StockingAreaRecord[]>([]);
   const [selection, setSelection] = useState("");
@@ -884,7 +887,12 @@ function StockingAreaPanel({ api, copy, id, language, owner }: PageProps & { id:
             value={selection}
           >
             <option value="">{copy.defaultArea}</option>
-            {records.map((record) => <option key={record.id} value={record.id}>{record.name}</option>)}
+            {records
+              // The reserved default entry is already covered by the
+              // "(default)" option above; listing it twice would let the
+              // picker bind the reserved record explicitly.
+              .filter((record) => record.name !== RESERVED_AREA_NAME)
+              .map((record) => <option key={record.id} value={record.id}>{record.name}</option>)}
           </select>
         </>
       )}
@@ -898,7 +906,11 @@ function StockingAreaPanel({ api, copy, id, language, owner }: PageProps & { id:
               <td><strong>{record.name}</strong><small>{copy.usedByProjects(record.referencedBy)}</small></td>
               <td>{dimensionName(record.dimension, copy)}</td>
               <td>{record.minX}, {record.minY}, {record.minZ} → {record.maxX}, {record.maxY}, {record.maxZ}</td>
-              <td><Button onClick={() => void remove(record)} size="default" variant="outline">{copy.deleteArea}</Button></td>
+              {/* Server-owned rows (null owner) stay deletable; whether the
+                  caller is elevated is not knowable client-side, the server
+                  answers that with 403. */}
+              <td>{(record.owner === null || record.owner === session.playerId)
+                && <Button onClick={() => void remove(record)} size="default" variant="outline">{copy.deleteArea}</Button>}</td>
             </tr>)}</tbody>
           </DataTable>}
       </section>

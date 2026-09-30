@@ -456,6 +456,89 @@ describe("App project views", () => {
     expect(screen.getByText("Yard")).toBeInTheDocument();
   });
 
+  it("keeps the reserved record out of the picker and other users' areas undeletable", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      routeFetch({
+        "/api/v1/auth/session": session,
+        "/api/v1/projects/project-1": detail,
+        "/api/v1/projects/project-1/materials": [],
+        "/api/v1/projects/project-1/stocking-area": {
+          dimension: "minecraft:overworld",
+          minX: 1,
+          minY: 2,
+          minZ: 3,
+          maxX: 4,
+          maxY: 5,
+          maxZ: 6,
+          volume: 120,
+          refId: "area-1",
+          refName: "Yard",
+        },
+        "/api/v1/stocking-areas": [
+          {
+            id: "area-1",
+            name: "Yard",
+            dimension: "minecraft:overworld",
+            minX: 1,
+            minY: 2,
+            minZ: 3,
+            maxX: 4,
+            maxY: 5,
+            maxZ: 6,
+            owner: session.playerId,
+            referencedBy: 0,
+          },
+          {
+            id: "area-2",
+            name: "default",
+            dimension: "minecraft:overworld",
+            minX: 0,
+            minY: 0,
+            minZ: 0,
+            maxX: 1,
+            maxY: 1,
+            maxZ: 1,
+            owner: null,
+            referencedBy: 3,
+          },
+          {
+            id: "area-3",
+            name: "Plot7",
+            dimension: "minecraft:overworld",
+            minX: 0,
+            minY: 0,
+            minZ: 0,
+            maxX: 1,
+            maxY: 1,
+            maxZ: 1,
+            owner: "someone-else",
+            referencedBy: 0,
+          },
+        ],
+      }),
+    );
+    renderApp("/projects/project-1");
+
+    await user.click(await screen.findByRole("tab", { name: "Stocking Area" }));
+    const select = await screen.findByLabelText("Stocking area");
+    // The reserved record is reachable only through the "(default)" option.
+    expect(screen.getAllByRole("option", { name: "(default)" })).toHaveLength(1);
+    expect(screen.queryByRole("option", { name: "default" })).not.toBeInTheDocument();
+    expect(within(select).getByRole("option", { name: "Yard" })).toBeInTheDocument();
+    expect(within(select).getByRole("option", { name: "Plot7" })).toBeInTheDocument();
+
+    const rowOf = (label: string) =>
+      screen.getAllByRole("row").find((row) => within(row).queryByText(label));
+    const owned = rowOf("Yard");
+    const reserved = rowOf("default");
+    const foreign = rowOf("Plot7");
+    expect(owned && within(owned).getByRole("button", { name: "Delete area" })).toBeInTheDocument();
+    expect(reserved && within(reserved).getByRole("button", { name: "Delete area" })).toBeInTheDocument();
+    expect(foreign && within(foreign).queryByRole("button", { name: "Delete area" })).not.toBeInTheDocument();
+  });
+
   it("claims a build region with its encoded name", async () => {
     const user = userEvent.setup();
     const fetcher = routeFetch({

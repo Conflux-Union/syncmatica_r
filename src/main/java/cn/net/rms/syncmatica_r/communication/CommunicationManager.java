@@ -435,18 +435,30 @@ public abstract class CommunicationManager {
 
     /**
      * Only the server owns stocking areas. Named peers exchange the registry
-     * reference; pre-registry peers receive the server-resolved coordinates
-     * read-only. A client echoing metadata back writes the same byte shape so
-     * the reader stays feature-flag driven, and the server discards what it
-     * reads so a client never dictates server state.
+     * reference plus the server-resolved definition (the client GUI groups by
+     * it without holding a registry); pre-registry peers receive the resolved
+     * coordinates read-only. A client echoing metadata back writes the same
+     * byte shape — the definition it was last told — so the reader stays
+     * feature-flag driven, and the server discards what it reads so a client
+     * never dictates server state.
      */
     private void putStockingArea(final ServerPlacement placement, final PacketByteBuf buf,
                                  final ExchangeTarget exchangeTarget) {
         if (supportsNamedStockingAreas(exchangeTarget)) {
             final UUID ref = placement.getStockingAreaRef();
             buf.writeBoolean(ref != null);
-            if (ref != null) {
-                buf.writeUuid(ref);
+            if (ref == null) {
+                return;
+            }
+            buf.writeUuid(ref);
+            final StockingAreaDefinition resolved = context.isServer()
+                    ? context.getMaterialService().resolveStockingArea(placement)
+                    : placement.getResolvedStockingArea();
+            buf.writeBoolean(resolved != null);
+            if (resolved != null) {
+                buf.writeString(resolved.getDimensionId(), ProtocolLimits.MAX_DIMENSION_ID_LENGTH);
+                buf.writeBlockPos(resolved.getMin());
+                buf.writeBlockPos(resolved.getMax());
             }
             return;
         }
@@ -475,12 +487,31 @@ public abstract class CommunicationManager {
             if (!buf.readBoolean()) {
                 if (!context.isServer() && placement != null) {
                     placement.setStockingAreaRef(null);
+                    placement.setResolvedStockingArea(null);
                 }
                 return;
             }
             final UUID ref = buf.readUuid();
             if (!context.isServer() && placement != null) {
                 placement.setStockingAreaRef(ref);
+            }
+            // The resolved definition mirrors what the writer appended after
+            // the reference; it must be consumed on both ends to keep the
+            // following sections aligned, but only a client may store it.
+            if (buf.readableBytes() < Byte.BYTES) {
+                return;
+            }
+            if (!buf.readBoolean()) {
+                if (!context.isServer() && placement != null) {
+                    placement.setResolvedStockingArea(null);
+                }
+                return;
+            }
+            final String dimensionId = buf.readString(ProtocolLimits.MAX_DIMENSION_ID_LENGTH);
+            final BlockPos min = buf.readBlockPos();
+            final BlockPos max = buf.readBlockPos();
+            if (!context.isServer() && placement != null) {
+                placement.setResolvedStockingArea(new StockingAreaDefinition(dimensionId, min, max));
             }
             return;
         }

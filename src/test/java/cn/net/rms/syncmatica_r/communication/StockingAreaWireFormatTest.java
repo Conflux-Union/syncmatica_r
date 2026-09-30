@@ -219,8 +219,13 @@ final class StockingAreaWireFormatTest {
         final Context serverContext = newServerContext(serverManager);
         final Context clientContext = newClientContext(clientManager);
         try {
+            assertEquals(cn.net.rms.syncmatica_r.material.StockingAreaRegistry.CreateOutcome.CREATED,
+                    serverContext.getMaterialService().createStockingArea("depot",
+                            new StockingAreaDefinition("minecraft:overworld",
+                                    new BlockPos(1, 2, 3), new BlockPos(4, 5, 6)), null));
             final ServerPlacement placement = newPlacement("with_ref");
-            final UUID ref = UUID.randomUUID();
+            final UUID ref = serverContext.getMaterialService()
+                    .getStockingAreaRegistry().getByName("depot").getId();
             placement.setStockingAreaRef(ref);
 
             final FeatureSet shared = serverContext.getFeatureSet();
@@ -230,8 +235,13 @@ final class StockingAreaWireFormatTest {
 
             assertEquals(0, buf.readableBytes(), "metadata payload must be fully consumed");
             assertEquals(ref, received.getStockingAreaRef());
-            assertNull(received.getResolvedStockingArea(),
-                    "named peers must not receive resolved coordinates");
+            // The client GUI groups placements by the resolved definition, so
+            // the named branch has to deliver it alongside the reference.
+            final StockingAreaDefinition area = received.getResolvedStockingArea();
+            assertNotNull(area, "named peers must receive the resolved definition");
+            assertEquals("minecraft:overworld", area.getDimensionId());
+            assertEquals(new BlockPos(1, 2, 3), area.getMin());
+            assertEquals(new BlockPos(4, 5, 6), area.getMax());
         } finally {
             clientContext.shutdown();
             serverContext.shutdown();
@@ -274,19 +284,21 @@ final class StockingAreaWireFormatTest {
     @Test
     void managePacketOpcodesRoundTrip() {
         final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
+        // Field order pinned to the create handler (and the client helper):
+        // name, hasBind, placementId, pos1, pos2.
         buf.writeByte(StockingAreaManageOpcodes.OP_CREATE);
         buf.writeString("warehouse", 32);
-        buf.writeBlockPos(new BlockPos(1, 2, 3));
-        buf.writeBlockPos(new BlockPos(4, 5, 6));
         buf.writeBoolean(true);
         buf.writeUuid(UUID.randomUUID());
+        buf.writeBlockPos(new BlockPos(1, 2, 3));
+        buf.writeBlockPos(new BlockPos(4, 5, 6));
 
         assertEquals(StockingAreaManageOpcodes.OP_CREATE, buf.readByte());
         assertEquals("warehouse", buf.readString(32));
-        assertEquals(new BlockPos(1, 2, 3), buf.readBlockPos());
-        assertEquals(new BlockPos(4, 5, 6), buf.readBlockPos());
         assertTrue(buf.readBoolean());
         assertNotNull(buf.readUuid());
+        assertEquals(new BlockPos(1, 2, 3), buf.readBlockPos());
+        assertEquals(new BlockPos(4, 5, 6), buf.readBlockPos());
         assertEquals(0, buf.readableBytes(), "payload must be fully consumed");
     }
 

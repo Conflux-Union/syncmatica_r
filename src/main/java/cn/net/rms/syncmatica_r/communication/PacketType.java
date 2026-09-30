@@ -46,6 +46,10 @@ public enum PacketType {
 
     BUILD_REGION_CLAIM("build_region_claim"),
 
+    // 0.4.x button path; the named-registry server only answers it with an
+    // unsupported error so old clients are not left pressing into silence.
+    SET_STOCKING_AREA("set_stocking_area"),
+
     STOCKING_AREA_MANAGE("stocking_area_manage");
 
     private static final String NEW_NAMESPACE = "syncmatica_r";

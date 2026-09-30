@@ -281,6 +281,10 @@ public class ServerCommunicationManager extends CommunicationManager {
             handleBuildRegionClaim(source, packetBuf);
             return;
         }
+        if (type == PacketType.SET_STOCKING_AREA) {
+            handleSetStockingArea(source, packetBuf);
+            return;
+        }
         if (type == PacketType.STOCKING_AREA_MANAGE) {
             handleStockingAreaManage(source, packetBuf);
             return;
@@ -314,6 +318,19 @@ public class ServerCommunicationManager extends CommunicationManager {
             final PlayerIdentifier owner = buildService.getClaimant(placement, regionName);
             sendMessage(source, MessageType.WARNING, "syncmatica_r.error.build.region_taken",
                     owner == null ? "" : owner.getName());
+        }
+    }
+
+    /**
+     * Pre-registry clients push raw coordinates for the stocking area; the
+     * named-registry server no longer accepts anonymous areas, so the sender
+     * is told to upgrade instead of silently losing the selection.
+     */
+    private void handleSetStockingArea(final ExchangeTarget source, final PacketByteBuf packetBuf) {
+        packetBuf.readerIndex(packetBuf.writerIndex());
+        final ServerPlayerEntity player = playerMap.get(source);
+        if (player != null) {
+            sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area.unsupported");
         }
     }
 
@@ -368,9 +385,7 @@ public class ServerCommunicationManager extends CommunicationManager {
         final StockingAreaDefinition definition = new StockingAreaDefinition(playerDimension(player), first, second);
         final StockingAreaRegistry.CreateOutcome outcome = materialService.createStockingArea(name, definition, ownerPlayerId);
         String createdName = outcome == StockingAreaRegistry.CreateOutcome.CREATED ? name : null;
-        if (createdName == null && hasBind
-                && (outcome == StockingAreaRegistry.CreateOutcome.INVALID_NAME
-                || outcome == StockingAreaRegistry.CreateOutcome.RESERVED_NAME)) {
+        if (createdName == null && shouldFallbackToSlug(hasBind, outcome)) {
             createdName = createUnderPlacementSlug(materialService, definition, ownerPlayerId, bindPlacementId);
         }
         if (createdName == null) {
@@ -399,12 +414,32 @@ public class ServerCommunicationManager extends CommunicationManager {
     }
 
     /**
+     * A bound create retries under the slug for any name the registry refuses
+     * to store, so the "from selection" button never dead-ends: two players
+     * pressing it for same-named placements must both get an area.
+     */
+    static boolean shouldFallbackToSlug(final boolean hasBind,
+                                        final StockingAreaRegistry.CreateOutcome outcome) {
+        if (!hasBind) {
+            return false;
+        }
+        switch (outcome) {
+            case INVALID_NAME:
+            case RESERVED_NAME:
+            case DUPLICATE_NAME:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /**
      * GUI creates are named after the placement, whose display name may not be
      * a valid area name (mainstream zh_cn names, spaces, the reserved default
-     * name); those retry under a placement-id slug — the same fallback the
-     * registry migration uses — so the "from selection" button still works.
-     * Pure creates never call this, keeping strict validation for typo'd
-     * command-style names.
+     * name, an already-taken name); those retry under a placement-id slug —
+     * the same fallback the registry migration uses — so the "from selection"
+     * button still works. Pure creates never call this, keeping strict
+     * validation for typo'd command-style names.
      *
      * @return the name the area was created under, or null when the retry
      *         itself failed (e.g. the area is oversized).

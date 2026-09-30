@@ -10,6 +10,7 @@ import cn.net.rms.syncmatica_r.communication.PacketType;
 import cn.net.rms.syncmatica_r.communication.ProtocolLimits;
 import cn.net.rms.syncmatica_r.communication.StockingAreaManageOpcodes;
 import cn.net.rms.syncmatica_r.litematica.LitematicManager;
+import cn.net.rms.syncmatica_r.material.StockingAreaRegistry;
 import fi.dy.masa.litematica.data.DataManager;
 import fi.dy.masa.litematica.selection.AreaSelection;
 import fi.dy.masa.litematica.selection.Box;
@@ -83,13 +84,28 @@ public final class StockingAreaSelectionHelper {
                 buf.writeUuid(existingRef);
             } else {
                 buf.writeByte(StockingAreaManageOpcodes.OP_CREATE);
-                buf.writeString(placement.getName(), ProtocolLimits.MAX_STOCKING_AREA_NAME_LENGTH);
+                buf.writeString(createCandidateName(placement), ProtocolLimits.MAX_STOCKING_AREA_NAME_LENGTH);
                 buf.writeBoolean(true);
                 buf.writeUuid(placement.getId());
             }
             buf.writeBlockPos(first);
             buf.writeBlockPos(second);
         });
+    }
+
+    /**
+     * The create payload names the area after the placement, but the wire
+     * field only holds registry-valid names: a display name the registry
+     * forbids (CJK, spaces, longer than 32 chars) would make the write itself
+     * throw before the packet ever leaves. Invalid names go out as the same
+     * placement-id slug the server's fallback creates under.
+     */
+    private static String createCandidateName(final ServerPlacement placement) {
+        final String name = placement.getName();
+        if (StockingAreaRegistry.isValidName(name)) {
+            return name;
+        }
+        return "area-" + placement.getId().toString().replace("-", "").substring(0, 8);
     }
 
     /**

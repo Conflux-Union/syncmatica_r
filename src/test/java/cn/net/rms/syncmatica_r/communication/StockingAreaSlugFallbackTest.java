@@ -1,8 +1,10 @@
 package cn.net.rms.syncmatica_r.communication;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import cn.net.rms.syncmatica_r.Context;
 import cn.net.rms.syncmatica_r.FileStorage;
@@ -96,6 +98,24 @@ final class StockingAreaSlugFallbackTest {
         assertNull(ServerCommunicationManager.createUnderPlacementSlug(
                 materialService, oversized, OWNER, placementId));
         assertNull(materialService.getStockingAreaRegistry().getByName("area-1a2b3c4d"));
+    }
+
+    @Test
+    void duplicateNamesRetryUnderTheSlugToo() {
+        // Two same-named placements pressing the button both want an area;
+        // the second create's DUPLICATE_NAME must retry, not dead-end.
+        assertTrue(ServerCommunicationManager.shouldFallbackToSlug(
+                true, StockingAreaRegistry.CreateOutcome.DUPLICATE_NAME));
+        assertTrue(ServerCommunicationManager.shouldFallbackToSlug(
+                true, StockingAreaRegistry.CreateOutcome.INVALID_NAME));
+        assertTrue(ServerCommunicationManager.shouldFallbackToSlug(
+                true, StockingAreaRegistry.CreateOutcome.RESERVED_NAME));
+        assertFalse(ServerCommunicationManager.shouldFallbackToSlug(
+                true, StockingAreaRegistry.CreateOutcome.TOO_LARGE),
+                "an oversized selection must surface its error instead of retrying");
+        assertFalse(ServerCommunicationManager.shouldFallbackToSlug(
+                false, StockingAreaRegistry.CreateOutcome.DUPLICATE_NAME),
+                "pure creates keep strict name validation");
     }
 
     private static StockingAreaDefinition smallArea() {

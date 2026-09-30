@@ -732,6 +732,13 @@ public final class SyncmaticaCommand {
         // Console-created areas are server-owned and therefore elevated-only to modify.
         final UUID ownerId = player == null ? null : SyncmaticaUtil.getProfileId(player.getGameProfile());
         final String name = context.getArgument("area_name", String.class);
+        // The command never bootstraps the registry; a null-owner console
+        // create of the reserved name would otherwise be routed into the
+        // default area's replace branch, so refuse it for every executor.
+        if (StockingAreaRegistry.RESERVED_DEFAULT_NAME.equals(name)) {
+            context.getSource().sendError(literal("The name 'default' is reserved"));
+            return 0;
+        }
         final BlockPos first = BlockPosArgumentType.getBlockPos(context, "pos1");
         final BlockPos second = BlockPosArgumentType.getBlockPos(context, "pos2");
         final String dimensionId = context.getSource().getWorld().getRegistryKey().getValue().toString();
