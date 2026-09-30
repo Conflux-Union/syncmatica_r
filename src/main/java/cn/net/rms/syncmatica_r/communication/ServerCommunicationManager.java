@@ -381,34 +381,62 @@ public class ServerCommunicationManager extends CommunicationManager {
         final UUID bindPlacementId = hasBind ? buf.readUuid() : null;
         final BlockPos first = buf.readBlockPos();
         final BlockPos second = buf.readBlockPos();
-        final StockingAreaRegistry.CreateOutcome outcome = materialService.createStockingArea(
-                name,
-                new StockingAreaDefinition(playerDimension(player), first, second),
-                SyncmaticaUtil.getProfileId(player.getGameProfile())
-        );
-        switch (outcome) {
-            case CREATED:
-                break;
-            case INVALID_NAME:
-                sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area_invalid_name", name);
-                return;
-            case DUPLICATE_NAME:
-            case RESERVED_NAME:
-                // The reserved default name is taken by definition, so the
-                // name-taken reply covers both outcomes.
-                sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area_name_taken", name);
-                return;
-            case TOO_LARGE:
-                sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area_too_large", name);
-                return;
-            default:
-                return;
+        final UUID ownerPlayerId = SyncmaticaUtil.getProfileId(player.getGameProfile());
+        final StockingAreaDefinition definition = new StockingAreaDefinition(playerDimension(player), first, second);
+        final StockingAreaRegistry.CreateOutcome outcome = materialService.createStockingArea(name, definition, ownerPlayerId);
+        String createdName = outcome == StockingAreaRegistry.CreateOutcome.CREATED ? name : null;
+        if (createdName == null && hasBind
+                && (outcome == StockingAreaRegistry.CreateOutcome.INVALID_NAME
+                || outcome == StockingAreaRegistry.CreateOutcome.RESERVED_NAME)) {
+            createdName = createUnderPlacementSlug(materialService, definition, ownerPlayerId, bindPlacementId);
         }
-        final StockingAreaRegistry.Entry entry = materialService.getStockingAreaRegistry().getByName(name);
-        sendMessage(source, MessageType.SUCCESS, "syncmatica_r.success.stocking_area_created", name);
+        if (createdName == null) {
+            switch (outcome) {
+                case INVALID_NAME:
+                    sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area_invalid_name", name);
+                    return;
+                case DUPLICATE_NAME:
+                case RESERVED_NAME:
+                    // The reserved default name is taken by definition, so the
+                    // name-taken reply covers both outcomes.
+                    sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area_name_taken", name);
+                    return;
+                case TOO_LARGE:
+                    sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area_too_large", name);
+                    return;
+                default:
+                    return;
+            }
+        }
+        final StockingAreaRegistry.Entry entry = materialService.getStockingAreaRegistry().getByName(createdName);
+        sendMessage(source, MessageType.SUCCESS, "syncmatica_r.success.stocking_area_created", createdName);
         if (hasBind) {
             bindStockingArea(source, player, materialService, bindPlacementId, entry.getId());
         }
+    }
+
+    /**
+     * GUI creates are named after the placement, whose display name may not be
+     * a valid area name (mainstream zh_cn names, spaces, the reserved default
+     * name); those retry under a placement-id slug — the same fallback the
+     * registry migration uses — so the "from selection" button still works.
+     * Pure creates never call this, keeping strict validation for typo'd
+     * command-style names.
+     *
+     * @return the name the area was created under, or null when the retry
+     *         itself failed (e.g. the area is oversized).
+     */
+    static String createUnderPlacementSlug(final MaterialService materialService,
+                                           final StockingAreaDefinition definition,
+                                           final UUID ownerPlayerId,
+                                           final UUID placementId) {
+        String name = "area-" + placementId.toString().replace("-", "").substring(0, 8);
+        final String taken = materialService.getStockingAreaRegistry().findUniqueIdFor(name);
+        if (taken != null) {
+            name = taken;
+        }
+        return materialService.createStockingArea(name, definition, ownerPlayerId)
+                == StockingAreaRegistry.CreateOutcome.CREATED ? name : null;
     }
 
     private void handleStockingAreaUpdate(final ExchangeTarget source, final ServerPlayerEntity player,
