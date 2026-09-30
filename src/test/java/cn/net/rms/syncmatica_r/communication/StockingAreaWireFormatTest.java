@@ -3,6 +3,7 @@ package cn.net.rms.syncmatica_r.communication;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import cn.net.rms.syncmatica_r.Context;
 import cn.net.rms.syncmatica_r.Feature;
@@ -67,14 +68,21 @@ final class StockingAreaWireFormatTest {
         final Context serverContext = newServerContext(serverManager);
         final Context clientContext = newClientContext(clientManager);
         try {
+            // Coordinates only still travel for a pre-registry peer; the shared
+            // feature set now routes named peers through the reference branch.
+            assertEquals(cn.net.rms.syncmatica_r.material.StockingAreaRegistry.CreateOutcome.CREATED,
+                    serverContext.getMaterialService().createStockingArea("depot",
+                            new StockingAreaDefinition("minecraft:overworld",
+                                    new BlockPos(10, 60, -5), new BlockPos(-3, 70, 12)), null));
             final ServerPlacement placement = newPlacement("with_area");
-            placement.setResolvedStockingArea(new StockingAreaDefinition(
-                    "minecraft:overworld", new BlockPos(10, 60, -5), new BlockPos(-3, 70, 12)));
+            placement.setStockingAreaRef(serverContext.getMaterialService()
+                    .getStockingAreaRegistry().getByName("depot").getId());
 
-            final FeatureSet shared = serverContext.getFeatureSet();
+            final FeatureSet legacy = FeatureSet.fromString(
+                    "CORE\nCORE_EX\nMATERIAL_PROGRESS\nSTOCKING_AREA_SETUP");
             final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
-            serverManager.putMetaData(placement, buf, peerWith(shared));
-            final ServerPlacement received = clientManager.receiveMetaData(buf, peerWith(shared));
+            serverManager.putMetaData(placement, buf, peerWith(legacy));
+            final ServerPlacement received = clientManager.receiveMetaData(buf, peerWith(legacy));
 
             assertEquals(0, buf.readableBytes(), "metadata payload must be fully consumed");
             final StockingAreaDefinition area = received.getResolvedStockingArea();
@@ -142,6 +150,7 @@ final class StockingAreaWireFormatTest {
             final ServerPlacement placement = newPlacement("client_authored");
             placement.setResolvedStockingArea(new StockingAreaDefinition(
                     "minecraft:the_end", BlockPos.ORIGIN, new BlockPos(64, 64, 64)));
+            placement.setStockingAreaRef(UUID.randomUUID());
 
             final FeatureSet shared = clientContext.getFeatureSet();
             final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
@@ -150,6 +159,7 @@ final class StockingAreaWireFormatTest {
 
             assertEquals(0, buf.readableBytes(), "metadata payload must be fully consumed");
             assertNull(received.getResolvedStockingArea(), "a client must not be able to set a stocking area");
+            assertNull(received.getStockingAreaRef(), "a client must not be able to set a stocking area reference");
         } finally {
             clientContext.shutdown();
             serverContext.shutdown();
@@ -163,16 +173,23 @@ final class StockingAreaWireFormatTest {
         final Context serverContext = newServerContext(serverManager);
         final Context clientContext = newClientContext(clientManager);
         try {
+            // The modification stream still carries coordinates for a
+            // pre-registry peer; named peers receive the reference instead.
+            assertEquals(cn.net.rms.syncmatica_r.material.StockingAreaRegistry.CreateOutcome.CREATED,
+                    serverContext.getMaterialService().createStockingArea("modified_area",
+                            new StockingAreaDefinition("minecraft:overworld",
+                                    new BlockPos(1, 2, 3), new BlockPos(4, 5, 6)), null));
             final ServerPlacement placement = newPlacement("modified");
-            placement.setResolvedStockingArea(new StockingAreaDefinition(
-                    "minecraft:overworld", new BlockPos(1, 2, 3), new BlockPos(4, 5, 6)));
+            placement.setStockingAreaRef(serverContext.getMaterialService()
+                    .getStockingAreaRegistry().getByName("modified_area").getId());
 
-            final FeatureSet shared = serverContext.getFeatureSet();
+            final FeatureSet legacy = FeatureSet.fromString(
+                    "CORE\nCORE_EX\nMATERIAL_PROGRESS\nSTOCKING_AREA_SETUP");
             final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
-            serverManager.putModificationData(placement, buf, peerWith(shared));
+            serverManager.putModificationData(placement, buf, peerWith(legacy));
 
             final ServerPlacement target = newPlacement("modified");
-            clientManager.receiveModificationData(target, buf, peerWith(shared));
+            clientManager.receiveModificationData(target, buf, peerWith(legacy));
 
             assertEquals(0, buf.readableBytes(), "modification payload must be fully consumed");
             assertNotNull(target.getResolvedStockingArea());
@@ -193,6 +210,84 @@ final class StockingAreaWireFormatTest {
         } finally {
             context.shutdown();
         }
+    }
+
+    @Test
+    void namedPeersExchangeTheReferenceInsteadOfCoordinates() {
+        final StubCommunicationManager serverManager = new StubCommunicationManager();
+        final StubCommunicationManager clientManager = new StubCommunicationManager();
+        final Context serverContext = newServerContext(serverManager);
+        final Context clientContext = newClientContext(clientManager);
+        try {
+            final ServerPlacement placement = newPlacement("with_ref");
+            final UUID ref = UUID.randomUUID();
+            placement.setStockingAreaRef(ref);
+
+            final FeatureSet shared = serverContext.getFeatureSet();
+            final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
+            serverManager.putMetaData(placement, buf, peerWith(shared));
+            final ServerPlacement received = clientManager.receiveMetaData(buf, peerWith(shared));
+
+            assertEquals(0, buf.readableBytes(), "metadata payload must be fully consumed");
+            assertEquals(ref, received.getStockingAreaRef());
+            assertNull(received.getResolvedStockingArea(),
+                    "named peers must not receive resolved coordinates");
+        } finally {
+            clientContext.shutdown();
+            serverContext.shutdown();
+        }
+    }
+
+    @Test
+    void legacyPeerStillReceivesResolvedCoordinates() {
+        final StubCommunicationManager serverManager = new StubCommunicationManager();
+        final StubCommunicationManager clientManager = new StubCommunicationManager();
+        final Context serverContext = newServerContext(serverManager);
+        final Context clientContext = newClientContext(clientManager);
+        try {
+            assertEquals(cn.net.rms.syncmatica_r.material.StockingAreaRegistry.CreateOutcome.CREATED,
+                    serverContext.getMaterialService().createStockingArea("warehouse",
+                            new StockingAreaDefinition("minecraft:overworld",
+                                    new BlockPos(1, 2, 3), new BlockPos(4, 5, 6)), null));
+            final ServerPlacement placement = newPlacement("legacy_view");
+            placement.setStockingAreaRef(serverContext.getMaterialService()
+                    .getStockingAreaRegistry().getByName("warehouse").getId());
+
+            final FeatureSet legacy = FeatureSet.fromString(
+                    "CORE\nCORE_EX\nMATERIAL_PROGRESS\nSTOCKING_AREA_SETUP");
+            final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
+            serverManager.putMetaData(placement, buf, peerWith(legacy));
+            final ServerPlacement received = clientManager.receiveMetaData(buf, peerWith(legacy));
+
+            assertEquals(0, buf.readableBytes(), "metadata payload must be fully consumed");
+            assertNull(received.getStockingAreaRef(), "legacy peers get no reference");
+            final StockingAreaDefinition area = received.getResolvedStockingArea();
+            assertNotNull(area, "legacy peers still see the resolved area read-only");
+            assertEquals(new BlockPos(1, 2, 3), area.getMin());
+            assertEquals(new BlockPos(4, 5, 6), area.getMax());
+        } finally {
+            clientContext.shutdown();
+            serverContext.shutdown();
+        }
+    }
+
+    @Test
+    void managePacketOpcodesRoundTrip() {
+        final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
+        buf.writeByte(StockingAreaManageOpcodes.OP_CREATE);
+        buf.writeString("warehouse", 32);
+        buf.writeBlockPos(new BlockPos(1, 2, 3));
+        buf.writeBlockPos(new BlockPos(4, 5, 6));
+        buf.writeBoolean(true);
+        buf.writeUuid(UUID.randomUUID());
+
+        assertEquals(StockingAreaManageOpcodes.OP_CREATE, buf.readByte());
+        assertEquals("warehouse", buf.readString(32));
+        assertEquals(new BlockPos(1, 2, 3), buf.readBlockPos());
+        assertEquals(new BlockPos(4, 5, 6), buf.readBlockPos());
+        assertTrue(buf.readBoolean());
+        assertNotNull(buf.readUuid());
+        assertEquals(0, buf.readableBytes(), "payload must be fully consumed");
     }
 
     private static ExchangeTarget peerWith(final FeatureSet featureSet) {

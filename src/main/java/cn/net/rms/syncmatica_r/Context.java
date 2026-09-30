@@ -197,6 +197,7 @@ public class Context {
             features.remove(Feature.MATERIAL_PROGRESS);
             features.remove(Feature.MATERIAL_CLAIMS);
             features.remove(Feature.STOCKING_AREA_SETUP);
+            features.remove(Feature.NAMED_STOCKING_AREAS);
         }
         // Build management reads the schematic itself, so it stands or falls on
         // its own switch rather than on whether materials are tracked.

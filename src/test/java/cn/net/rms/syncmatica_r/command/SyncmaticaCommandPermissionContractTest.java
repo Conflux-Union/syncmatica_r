@@ -22,9 +22,19 @@ final class SyncmaticaCommandPermissionContractTest {
         assertTrue(
                 commandSource.contains("syncmatica_r.command"),
                 "SyncmaticaCommand must expose the syncmatica_r.command permission node");
+        // The command permission node and level are single-sourced in
+        // PlacementAccessPolicy so the packet layer re-checks the exact same
+        // constants instead of duplicating the literals.
+        final String policySource = read("src/main/java/cn/net/rms/syncmatica_r/communication/PlacementAccessPolicy.java");
         assertTrue(
-                commandSource.matches("(?s).*COMMAND_PERMISSION_LEVEL\\s*=\\s*2.*"),
-                "SyncmaticaCommand must keep permission level 2 as the fallback");
+                policySource.matches("(?s).*COMMAND_PERMISSION\\s*=\\s*\"syncmatica_r\\.command\".*"),
+                "PlacementAccessPolicy must own the syncmatica_r.command permission node");
+        assertTrue(
+                policySource.matches("(?s).*COMMAND_PERMISSION_LEVEL\\s*=\\s*2.*"),
+                "the command permission must keep level 2 as the fallback");
+        assertTrue(
+                commandSource.contains("PlacementAccessPolicy.COMMAND_PERMISSION"),
+                "SyncmaticaCommand must use the shared command permission constants");
         assertFalse(
                 commandSource.contains(".requires(Permissions.require(COMMAND_PERMISSION, COMMAND_PERMISSION_LEVEL))"),
                 "the command root must remain visible to placement owners");
@@ -49,7 +59,7 @@ final class SyncmaticaCommandPermissionContractTest {
         assertTrue(
                 commandSource.contains("hasCommandPermission(source)")
                         && commandSource.contains(
-                                "Permissions.check(source, LOAD_PERMISSION, COMMAND_PERMISSION_LEVEL)"),
+                                "Permissions.check(source, LOAD_PERMISSION, PlacementAccessPolicy.COMMAND_PERMISSION_LEVEL)"),
                 "load subcommand must retain both the general and dedicated permission checks");
     }
 

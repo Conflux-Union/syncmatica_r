@@ -434,16 +434,28 @@ public abstract class CommunicationManager {
     }
 
     /**
-     * Only the server owns stocking areas. A client echoing metadata back writes
-     * an empty section so the byte stream keeps the same shape in both
-     * directions, which is what lets the reader stay feature-flag driven.
+     * Only the server owns stocking areas. Named peers exchange the registry
+     * reference; pre-registry peers receive the server-resolved coordinates
+     * read-only. A client echoing metadata back writes the same byte shape so
+     * the reader stays feature-flag driven, and the server discards what it
+     * reads so a client never dictates server state.
      */
     private void putStockingArea(final ServerPlacement placement, final PacketByteBuf buf,
                                  final ExchangeTarget exchangeTarget) {
+        if (supportsNamedStockingAreas(exchangeTarget)) {
+            final UUID ref = placement.getStockingAreaRef();
+            buf.writeBoolean(ref != null);
+            if (ref != null) {
+                buf.writeUuid(ref);
+            }
+            return;
+        }
         if (!supportsStockingAreaSetup(exchangeTarget)) {
             return;
         }
-        final StockingAreaDefinition area = context.isServer() ? placement.getResolvedStockingArea() : null;
+        final StockingAreaDefinition area = context.isServer()
+                ? context.getMaterialService().resolveStockingArea(placement)
+                : null;
         if (area == null) {
             buf.writeBoolean(false);
             return;
@@ -456,6 +468,22 @@ public abstract class CommunicationManager {
 
     private void receiveStockingArea(final ServerPlacement placement, final PacketByteBuf buf,
                                      final ExchangeTarget exchangeTarget) {
+        if (supportsNamedStockingAreas(exchangeTarget)) {
+            if (buf.readableBytes() < Byte.BYTES) {
+                return;
+            }
+            if (!buf.readBoolean()) {
+                if (!context.isServer() && placement != null) {
+                    placement.setStockingAreaRef(null);
+                }
+                return;
+            }
+            final UUID ref = buf.readUuid();
+            if (!context.isServer() && placement != null) {
+                placement.setStockingAreaRef(ref);
+            }
+            return;
+        }
         if (!supportsStockingAreaSetup(exchangeTarget) || buf.readableBytes() < Byte.BYTES) {
             return;
         }
@@ -474,10 +502,19 @@ public abstract class CommunicationManager {
     }
 
     private boolean supportsStockingAreaSetup(final ExchangeTarget exchangeTarget) {
+        return hasPartnerFeature(exchangeTarget, Feature.STOCKING_AREA_SETUP);
+    }
+
+    /** Both ends must advertise the feature; a client advertises it statically. */
+    public boolean supportsNamedStockingAreas(final ExchangeTarget exchangeTarget) {
+        return hasPartnerFeature(exchangeTarget, Feature.NAMED_STOCKING_AREAS);
+    }
+
+    private boolean hasPartnerFeature(final ExchangeTarget exchangeTarget, final Feature feature) {
         final FeatureSet partnerFeatures = exchangeTarget.getFeatureSet();
         final FeatureSet localFeatures = context.getFeatureSet();
-        return partnerFeatures != null && partnerFeatures.hasFeature(Feature.STOCKING_AREA_SETUP)
-                && localFeatures != null && localFeatures.hasFeature(Feature.STOCKING_AREA_SETUP);
+        return partnerFeatures != null && partnerFeatures.hasFeature(feature)
+                && localFeatures != null && localFeatures.hasFeature(feature);
     }
 
     public void download(final ServerPlacement syncmatic, final ExchangeTarget source) throws NoSuchAlgorithmException, IOException {

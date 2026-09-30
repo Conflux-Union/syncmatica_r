@@ -13,6 +13,13 @@ public final class PlacementAccessPolicy {
     public static final String BUILD_CLAIM_PERMISSION = "syncmatica_r.build.claim";
     public static final String MANAGE_PERMISSION = "syncmatica_r.manage";
     public static final int MANAGE_PERMISSION_LEVEL = 2;
+    /**
+     * Gate for privileged syncmatica commands. The packet layer cannot see
+     * Brigadier's {@code requires} predicates, so it re-checks these constants
+     * instead of duplicating the literals.
+     */
+    public static final String COMMAND_PERMISSION = "syncmatica_r.command";
+    public static final int COMMAND_PERMISSION_LEVEL = 2;
 
     private PlacementAccessPolicy() {
     }

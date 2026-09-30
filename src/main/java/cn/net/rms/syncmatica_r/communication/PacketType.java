@@ -46,7 +46,9 @@ public enum PacketType {
 
     BUILD_REGION_CLAIM("build_region_claim"),
 
-    SET_STOCKING_AREA("set_stocking_area");
+    SET_STOCKING_AREA("set_stocking_area"),
+
+    STOCKING_AREA_MANAGE("stocking_area_manage");
 
     private static final String NEW_NAMESPACE = "syncmatica_r";
     private static final String LEGACY_NAMESPACE = "syncmatica";

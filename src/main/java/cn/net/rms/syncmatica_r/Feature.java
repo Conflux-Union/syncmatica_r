@@ -17,7 +17,8 @@ public enum Feature {
     PLACEMENT_RENAME,
     LIMIT_REPORT,
     BUILD_MANAGEMENT,
-    STOCKING_AREA_SETUP;
+    STOCKING_AREA_SETUP,
+    NAMED_STOCKING_AREAS;
 
     public static Feature fromString(final String s) {
         for (final Feature f : Feature.values()) {

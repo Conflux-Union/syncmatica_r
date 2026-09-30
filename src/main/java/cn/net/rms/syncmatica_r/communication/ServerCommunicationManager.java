@@ -8,6 +8,8 @@ import cn.net.rms.syncmatica_r.communication.MessageType;
 import cn.net.rms.syncmatica_r.communication.exchange.FeatureExchange;
 import cn.net.rms.syncmatica_r.communication.exchange.ShareLitematicExchange;
 import cn.net.rms.syncmatica_r.extended_core.PlayerIdentifier;
+import cn.net.rms.syncmatica_r.material.StockingAreaDefinition;
+import cn.net.rms.syncmatica_r.material.StockingAreaRegistry;
 import cn.net.rms.syncmatica_r.schematic.SchematicPeek;
 import cn.net.rms.syncmatica_r.schematic.SchematicPeeker;
 import cn.net.rms.syncmatica_r.service.BuildService;
@@ -17,6 +19,7 @@ import cn.net.rms.syncmatica_r.util.SyncmaticaUtil;
 import com.mojang.authlib.GameProfile;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 //#if MC < 12001
 import net.minecraft.text.LiteralText;
@@ -26,6 +29,7 @@ import net.minecraft.text.LiteralText;
 //#endif
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
+import net.minecraft.util.math.BlockPos;
 import me.lucko.fabric.api.permissions.v0.Permissions;
 
 import org.apache.logging.log4j.LogManager;
@@ -34,6 +38,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class ServerCommunicationManager extends CommunicationManager {
 
@@ -280,6 +285,10 @@ public class ServerCommunicationManager extends CommunicationManager {
             handleSetStockingArea(source, packetBuf);
             return;
         }
+        if (type == PacketType.STOCKING_AREA_MANAGE) {
+            handleStockingAreaManage(source, packetBuf);
+            return;
+        }
     }
 
     /**
@@ -323,6 +332,265 @@ public class ServerCommunicationManager extends CommunicationManager {
         if (player != null) {
             sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area.unsupported");
         }
+    }
+
+    /**
+     * GUI-driven registry management carrying the same operations as the
+     * {@code /syncmatica_r stockingArea} commands, with the same permission
+     * matrix: CREATE needs the command permission, UPDATE/UPDATE_DEFAULT/
+     * DELETE need the area creator (the server-owned default entry has none,
+     * so it stays elevated-only) and BIND needs the placement's stocking-area
+     * manager. Dimensions always come from the sending player's world, so a
+     * crafted payload cannot aim an area at a dimension the player is not in.
+     */
+    private void handleStockingAreaManage(final ExchangeTarget source, final PacketByteBuf packetBuf) {
+        final ServerPlayerEntity player = playerMap.get(source);
+        final MaterialService materialService = context.getMaterialService();
+        if (player == null || materialService == null || !materialService.isEnabled()) {
+            return;
+        }
+        final byte opcode = packetBuf.readByte();
+        switch (opcode) {
+            case StockingAreaManageOpcodes.OP_CREATE:
+                handleStockingAreaCreate(source, player, materialService, packetBuf);
+                return;
+            case StockingAreaManageOpcodes.OP_UPDATE:
+                handleStockingAreaUpdate(source, player, materialService, packetBuf);
+                return;
+            case StockingAreaManageOpcodes.OP_DELETE:
+                handleStockingAreaDelete(source, player, materialService, packetBuf);
+                return;
+            case StockingAreaManageOpcodes.OP_BIND:
+                handleStockingAreaBind(source, player, materialService, packetBuf);
+                return;
+            case StockingAreaManageOpcodes.OP_UPDATE_DEFAULT:
+                handleStockingAreaUpdateDefault(source, player, materialService, packetBuf);
+                return;
+            default:
+        }
+    }
+
+    private void handleStockingAreaCreate(final ExchangeTarget source, final ServerPlayerEntity player,
+                                          final MaterialService materialService, final PacketByteBuf buf) {
+        if (!hasCommandPermission(player)) {
+            sendMessage(source, MessageType.ERROR, "syncmatica_r.error.permission_denied");
+            return;
+        }
+        final String name = buf.readString(ProtocolLimits.MAX_STOCKING_AREA_NAME_LENGTH);
+        final boolean hasBind = buf.readBoolean();
+        final UUID bindPlacementId = hasBind ? buf.readUuid() : null;
+        final BlockPos first = buf.readBlockPos();
+        final BlockPos second = buf.readBlockPos();
+        final StockingAreaRegistry.CreateOutcome outcome = materialService.createStockingArea(
+                name,
+                new StockingAreaDefinition(playerDimension(player), first, second),
+                SyncmaticaUtil.getProfileId(player.getGameProfile())
+        );
+        switch (outcome) {
+            case CREATED:
+                break;
+            case INVALID_NAME:
+                sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area_invalid_name", name);
+                return;
+            case DUPLICATE_NAME:
+            case RESERVED_NAME:
+                // The reserved default name is taken by definition, so the
+                // name-taken reply covers both outcomes.
+                sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area_name_taken", name);
+                return;
+            case TOO_LARGE:
+                sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area_too_large", name);
+                return;
+            default:
+                return;
+        }
+        final StockingAreaRegistry.Entry entry = materialService.getStockingAreaRegistry().getByName(name);
+        sendMessage(source, MessageType.SUCCESS, "syncmatica_r.success.stocking_area_created", name);
+        if (hasBind) {
+            bindStockingArea(source, player, materialService, bindPlacementId, entry.getId());
+        }
+    }
+
+    private void handleStockingAreaUpdate(final ExchangeTarget source, final ServerPlayerEntity player,
+                                          final MaterialService materialService, final PacketByteBuf buf) {
+        updateStockingAreaEntry(source, player, materialService,
+                materialService.getStockingAreaRegistry().getById(buf.readUuid()),
+                buf.readBlockPos(), buf.readBlockPos());
+    }
+
+    private void handleStockingAreaUpdateDefault(final ExchangeTarget source, final ServerPlayerEntity player,
+                                                 final MaterialService materialService, final PacketByteBuf buf) {
+        updateStockingAreaEntry(source, player, materialService,
+                materialService.getStockingAreaRegistry().getDefaultArea(),
+                buf.readBlockPos(), buf.readBlockPos());
+    }
+
+    private void updateStockingAreaEntry(final ExchangeTarget source, final ServerPlayerEntity player,
+                                         final MaterialService materialService,
+                                         final StockingAreaRegistry.Entry entry,
+                                         final BlockPos first, final BlockPos second) {
+        if (entry == null) {
+            sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area_unknown_area");
+            return;
+        }
+        if (!canManageStockingAreaEntry(player, entry)) {
+            sendMessage(source, MessageType.ERROR, "syncmatica_r.error.permission_denied");
+            return;
+        }
+        final StockingAreaRegistry.UpdateOutcome outcome = materialService.updateStockingArea(
+                entry.getId(), new StockingAreaDefinition(playerDimension(player), first, second));
+        if (outcome != StockingAreaRegistry.UpdateOutcome.UPDATED) {
+            if (outcome == StockingAreaRegistry.UpdateOutcome.TOO_LARGE) {
+                sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area_too_large", entry.getName());
+            } else {
+                sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area_unknown_area");
+            }
+            return;
+        }
+        // Update keeps the references intact, so the affected placements are
+        // queried after the mutation.
+        materialService.rescanPlacements(
+                serverOf(player), materialService.getPlacementsReferencing(entry.getId()));
+        sendMessage(source, MessageType.SUCCESS, "syncmatica_r.success.stocking_area_updated", entry.getName());
+    }
+
+    private void handleStockingAreaDelete(final ExchangeTarget source, final ServerPlayerEntity player,
+                                          final MaterialService materialService, final PacketByteBuf buf) {
+        final UUID areaId = buf.readUuid();
+        final boolean force = buf.readBoolean();
+        final StockingAreaRegistry.Entry entry = materialService.getStockingAreaRegistry().getById(areaId);
+        if (entry == null) {
+            sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area_unknown_area");
+            return;
+        }
+        if (!canManageStockingAreaEntry(player, entry)) {
+            sendMessage(source, MessageType.ERROR, "syncmatica_r.error.permission_denied");
+            return;
+        }
+        // Captured before the delete: a force delete unbinds the referencing
+        // placements, so asking afterwards would always yield an empty list.
+        final List<ServerPlacement> referencing = materialService.getPlacementsReferencing(areaId);
+        final MaterialService.StockingAreaDeleteOutcome outcome =
+                materialService.deleteStockingArea(areaId, force);
+        switch (outcome) {
+            case DELETED:
+                materialService.rescanPlacements(serverOf(player), referencing);
+                sendMessage(source, MessageType.SUCCESS, "syncmatica_r.success.stocking_area_deleted", entry.getName());
+                return;
+            case IN_USE:
+                final String projects = referencing.stream()
+                        .map(ServerPlacement::getName)
+                        .collect(Collectors.joining(", "));
+                sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area_in_use",
+                        clampDetail(entry.getName() + ": " + projects));
+                return;
+            case RESERVED_NAME:
+                // The reserved default entry is not deletable through this
+                // packet; the unknown-area reply keeps the key set small.
+            case NOT_FOUND:
+            default:
+                sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area_unknown_area");
+        }
+    }
+
+    private void handleStockingAreaBind(final ExchangeTarget source, final ServerPlayerEntity player,
+                                        final MaterialService materialService, final PacketByteBuf buf) {
+        final UUID placementId = buf.readUuid();
+        final boolean hasArea = buf.readBoolean();
+        bindStockingArea(source, player, materialService, placementId,
+                hasArea ? buf.readUuid() : null);
+    }
+
+    /** null areaId clears the binding; the placement then falls back to the default area. */
+    private void bindStockingArea(final ExchangeTarget source, final ServerPlayerEntity player,
+                                  final MaterialService materialService,
+                                  final UUID placementId, final UUID areaId) {
+        final ServerPlacement placement = context.getSyncmaticManager().getPlacement(placementId);
+        if (placement == null) {
+            sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area_unknown_placement");
+            return;
+        }
+        if (!canManageStockingArea(source, placement, materialService)) {
+            sendMessage(source, MessageType.ERROR, "syncmatica_r.error.permission_denied");
+            return;
+        }
+        final StockingAreaRegistry.Entry entry = areaId == null
+                ? null
+                : materialService.getStockingAreaRegistry().getById(areaId);
+        if (areaId != null && entry == null) {
+            sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area_unknown_area");
+            return;
+        }
+        final MaterialService.StockingAreaBindOutcome outcome =
+                materialService.bindStockingArea(placement, areaId);
+        if (outcome == MaterialService.StockingAreaBindOutcome.UNKNOWN_AREA) {
+            sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area_unknown_area");
+            return;
+        }
+        materialService.scanNow(serverOf(player), placement);
+        if (entry == null) {
+            sendMessage(source, MessageType.SUCCESS, "syncmatica_r.success.stocking_area_cleared",
+                    clampDetail(placement.getName()));
+        } else {
+            sendMessage(source, MessageType.SUCCESS, "syncmatica_r.success.stocking_area_bound",
+                    clampDetail(placement.getName() + ", " + entry.getName()));
+        }
+    }
+
+    private boolean hasCommandPermission(final ServerPlayerEntity player) {
+        return Permissions.check(
+                player,
+                PlacementAccessPolicy.COMMAND_PERMISSION,
+                PlacementAccessPolicy.COMMAND_PERMISSION_LEVEL
+        );
+    }
+
+    private boolean canManageStockingAreaEntry(final ServerPlayerEntity player,
+                                               final StockingAreaRegistry.Entry entry) {
+        final boolean elevated = Permissions.check(
+                player,
+                PlacementAccessPolicy.MANAGE_PERMISSION,
+                PlacementAccessPolicy.MANAGE_PERMISSION_LEVEL
+        );
+        return PlacementAccessPolicy.canManageStockingAreaEntry(
+                SyncmaticaUtil.getProfileId(player.getGameProfile()),
+                entry.getOwnerPlayerId(),
+                elevated
+        );
+    }
+
+    private static String playerDimension(final ServerPlayerEntity player) {
+        return player.getServerWorld().getRegistryKey().getValue().toString();
+    }
+
+    private static MinecraftServer serverOf(final ServerPlayerEntity player) {
+        // ServerPlayerEntity#getServer is gone from the newest mappings; the
+        // player's world keeps a stable reference to the MinecraftServer.
+        return player.getServerWorld().getServer();
+    }
+
+    /**
+     * Details ride a length-capped string field measured in UTF-8 bytes, and
+     * long CJK placement names or project lists would otherwise make the
+     * whole reply fail to encode.
+     */
+    private static String clampDetail(final String detail) {
+        final StringBuilder clamped = new StringBuilder();
+        int bytes = 0;
+        for (int i = 0; i < detail.length();) {
+            final int codePoint = detail.codePointAt(i);
+            final int codePointSize = codePoint <= 0x7F ? 1
+                    : codePoint <= 0x7FF ? 2
+                    : Character.isSupplementaryCodePoint(codePoint) ? 4
+                    : 3;
+            if (bytes + codePointSize > ProtocolLimits.MAX_MESSAGE_DETAIL_LENGTH) {
+                break;
+            }
+            clamped.appendCodePoint(codePoint);
+            bytes += codePointSize;
+            i += Character.charCount(codePoint);
+        }
+        return clamped.toString();
     }
 
     @Override

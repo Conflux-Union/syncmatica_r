@@ -58,10 +58,8 @@ import static com.mojang.brigadier.arguments.StringArgumentType.string;
 import static com.mojang.brigadier.arguments.StringArgumentType.greedyString;
 
 public final class SyncmaticaCommand {
-    private static final String COMMAND_PERMISSION = "syncmatica_r.command";
     private static final String LOAD_PERMISSION = "syncmatica_r.command.load";
     private static final String CONFIG_PERMISSION = "syncmatica_r.config";
-    private static final int COMMAND_PERMISSION_LEVEL = 2;
     private static final String LITEMATIC_EXTENSION = ".litematic";
     private static final Map<String, CachedPeek> PEEK_CACHE = new HashMap<>();
 
@@ -897,16 +895,20 @@ public final class SyncmaticaCommand {
     }
 
     private static boolean hasCommandPermission(final ServerCommandSource source) {
-        return Permissions.check(source, COMMAND_PERMISSION, COMMAND_PERMISSION_LEVEL);
+        return Permissions.check(
+                source,
+                PlacementAccessPolicy.COMMAND_PERMISSION,
+                PlacementAccessPolicy.COMMAND_PERMISSION_LEVEL
+        );
     }
 
     private static boolean hasLoadPermission(final ServerCommandSource source) {
         return hasCommandPermission(source)
-                && Permissions.check(source, LOAD_PERMISSION, COMMAND_PERMISSION_LEVEL);
+                && Permissions.check(source, LOAD_PERMISSION, PlacementAccessPolicy.COMMAND_PERMISSION_LEVEL);
     }
 
     private static boolean hasConfigPermission(final ServerCommandSource source) {
-        return Permissions.check(source, CONFIG_PERMISSION, COMMAND_PERMISSION_LEVEL);
+        return Permissions.check(source, CONFIG_PERMISSION, PlacementAccessPolicy.COMMAND_PERMISSION_LEVEL);
     }
 
     private static net.minecraft.text.Text literal(final String message) {
