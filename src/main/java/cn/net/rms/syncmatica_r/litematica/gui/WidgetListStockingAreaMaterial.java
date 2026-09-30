@@ -78,7 +78,7 @@ public class WidgetListStockingAreaMaterial extends WidgetListBase<
         // Linked hash map preserves deterministic ordering once the sort keys line up.
         final Map<StockingAreaKey, StockingAreaGroup> grouped = new LinkedHashMap<>();
         for (final ServerPlacement placement : placements) {
-            final StockingAreaKey key = StockingAreaKey.fromDefinition(placement.getStockingArea());
+            final StockingAreaKey key = StockingAreaKey.fromDefinition(placement.getResolvedStockingArea());
             grouped.computeIfAbsent(key, StockingAreaGroup::new).placements.add(placement);
         }
         final List<StockingAreaGroup> groups = new ArrayList<>(grouped.values());

@@ -443,7 +443,7 @@ public abstract class CommunicationManager {
         if (!supportsStockingAreaSetup(exchangeTarget)) {
             return;
         }
-        final StockingAreaDefinition area = context.isServer() ? placement.getStockingArea() : null;
+        final StockingAreaDefinition area = context.isServer() ? placement.getResolvedStockingArea() : null;
         if (area == null) {
             buf.writeBoolean(false);
             return;
@@ -461,7 +461,7 @@ public abstract class CommunicationManager {
         }
         if (!buf.readBoolean()) {
             if (!context.isServer() && placement != null) {
-                placement.setStockingArea(null);
+                placement.setResolvedStockingArea(null);
             }
             return;
         }
@@ -469,7 +469,7 @@ public abstract class CommunicationManager {
         final BlockPos min = buf.readBlockPos();
         final BlockPos max = buf.readBlockPos();
         if (!context.isServer() && placement != null) {
-            placement.setStockingArea(new StockingAreaDefinition(dimensionId, min, max));
+            placement.setResolvedStockingArea(new StockingAreaDefinition(dimensionId, min, max));
         }
     }
 

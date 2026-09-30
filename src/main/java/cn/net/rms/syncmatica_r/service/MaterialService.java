@@ -223,7 +223,7 @@ public class MaterialService extends AbstractService {
 
     public void attachPlacement(final ServerPlacement placement) {
         placements.put(placement.getId(), placement);
-        stockingAreas.put(placement.getId(), placement.getStockingArea());
+        stockingAreas.put(placement.getId(), placement.getResolvedStockingArea());
         cancelPlacementScan(placement.getId());
         seedFromExistingSnapshot(placement);
         if (enabled && placement.getMaterialProgress().isEmpty()) {
@@ -276,7 +276,7 @@ public class MaterialService extends AbstractService {
             return;
         }
         stockingAreas.put(placement.getId(), area);
-        placement.setStockingArea(area);
+        placement.setResolvedStockingArea(area);
         cancelPlacementScan(placement.getId());
         placement.touchModified(System.currentTimeMillis());
         if (context != null) {

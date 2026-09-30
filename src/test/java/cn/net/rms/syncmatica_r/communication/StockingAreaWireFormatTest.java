@@ -68,7 +68,7 @@ final class StockingAreaWireFormatTest {
         final Context clientContext = newClientContext(clientManager);
         try {
             final ServerPlacement placement = newPlacement("with_area");
-            placement.setStockingArea(new StockingAreaDefinition(
+            placement.setResolvedStockingArea(new StockingAreaDefinition(
                     "minecraft:overworld", new BlockPos(10, 60, -5), new BlockPos(-3, 70, 12)));
 
             final FeatureSet shared = serverContext.getFeatureSet();
@@ -77,7 +77,7 @@ final class StockingAreaWireFormatTest {
             final ServerPlacement received = clientManager.receiveMetaData(buf, peerWith(shared));
 
             assertEquals(0, buf.readableBytes(), "metadata payload must be fully consumed");
-            final StockingAreaDefinition area = received.getStockingArea();
+            final StockingAreaDefinition area = received.getResolvedStockingArea();
             assertNotNull(area, "client must learn the stocking area");
             assertEquals("minecraft:overworld", area.getDimensionId());
             assertEquals(new BlockPos(-3, 60, -5), area.getMin());
@@ -101,7 +101,7 @@ final class StockingAreaWireFormatTest {
             final ServerPlacement received = clientManager.receiveMetaData(buf, peerWith(shared));
 
             assertEquals(0, buf.readableBytes(), "metadata payload must be fully consumed");
-            assertNull(received.getStockingArea());
+            assertNull(received.getResolvedStockingArea());
         } finally {
             clientContext.shutdown();
             serverContext.shutdown();
@@ -116,7 +116,7 @@ final class StockingAreaWireFormatTest {
         final Context clientContext = newClientContext(clientManager);
         try {
             final ServerPlacement placement = newPlacement("legacy_peer");
-            placement.setStockingArea(new StockingAreaDefinition(
+            placement.setResolvedStockingArea(new StockingAreaDefinition(
                     "minecraft:overworld", BlockPos.ORIGIN, new BlockPos(4, 4, 4)));
 
             final FeatureSet legacy = FeatureSet.fromString("CORE\nCORE_EX\nMATERIAL_PROGRESS");
@@ -125,7 +125,7 @@ final class StockingAreaWireFormatTest {
             final ServerPlacement received = clientManager.receiveMetaData(buf, peerWith(legacy));
 
             assertEquals(0, buf.readableBytes(), "metadata payload must be fully consumed");
-            assertNull(received.getStockingArea(), "legacy peers must not gain a stocking area");
+            assertNull(received.getResolvedStockingArea(), "legacy peers must not gain a stocking area");
         } finally {
             clientContext.shutdown();
             serverContext.shutdown();
@@ -140,7 +140,7 @@ final class StockingAreaWireFormatTest {
         final Context clientContext = newClientContext(clientManager);
         try {
             final ServerPlacement placement = newPlacement("client_authored");
-            placement.setStockingArea(new StockingAreaDefinition(
+            placement.setResolvedStockingArea(new StockingAreaDefinition(
                     "minecraft:the_end", BlockPos.ORIGIN, new BlockPos(64, 64, 64)));
 
             final FeatureSet shared = clientContext.getFeatureSet();
@@ -149,7 +149,7 @@ final class StockingAreaWireFormatTest {
             final ServerPlacement received = serverManager.receiveMetaData(buf, peerWith(shared));
 
             assertEquals(0, buf.readableBytes(), "metadata payload must be fully consumed");
-            assertNull(received.getStockingArea(), "a client must not be able to set a stocking area");
+            assertNull(received.getResolvedStockingArea(), "a client must not be able to set a stocking area");
         } finally {
             clientContext.shutdown();
             serverContext.shutdown();
@@ -164,7 +164,7 @@ final class StockingAreaWireFormatTest {
         final Context clientContext = newClientContext(clientManager);
         try {
             final ServerPlacement placement = newPlacement("modified");
-            placement.setStockingArea(new StockingAreaDefinition(
+            placement.setResolvedStockingArea(new StockingAreaDefinition(
                     "minecraft:overworld", new BlockPos(1, 2, 3), new BlockPos(4, 5, 6)));
 
             final FeatureSet shared = serverContext.getFeatureSet();
@@ -175,9 +175,9 @@ final class StockingAreaWireFormatTest {
             clientManager.receiveModificationData(target, buf, peerWith(shared));
 
             assertEquals(0, buf.readableBytes(), "modification payload must be fully consumed");
-            assertNotNull(target.getStockingArea());
-            assertEquals(new BlockPos(1, 2, 3), target.getStockingArea().getMin());
-            assertEquals(new BlockPos(4, 5, 6), target.getStockingArea().getMax());
+            assertNotNull(target.getResolvedStockingArea());
+            assertEquals(new BlockPos(1, 2, 3), target.getResolvedStockingArea().getMin());
+            assertEquals(new BlockPos(4, 5, 6), target.getResolvedStockingArea().getMax());
         } finally {
             clientContext.shutdown();
             serverContext.shutdown();

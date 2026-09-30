@@ -40,7 +40,9 @@ public class ServerPlacement {
     private BlockRotation rotation;
     private BlockMirror mirror;
     private SubRegionData subRegionData = new SubRegionData();
-    private StockingAreaDefinition stockingArea;
+    private UUID stockingAreaRef;
+    private StockingAreaDefinition resolvedStockingArea;
+    private StockingAreaDefinition legacyStockingArea;
     private MaterialAvailability materialAvailability = MaterialAvailability.AVAILABLE;
 
     public ServerPlacement(final UUID id, final String fileName, final UUID hashValue, final PlayerIdentifier owner) {
@@ -143,8 +145,11 @@ public class ServerPlacement {
                 );
             }
 
+            if (obj.has("stockingAreaRef")) {
+                newPlacement.stockingAreaRef = UUID.fromString(obj.get("stockingAreaRef").getAsString());
+            }
             if (obj.has("stockingArea")) {
-                newPlacement.stockingArea = StockingAreaDefinition.fromJson(obj.getAsJsonObject("stockingArea"));
+                newPlacement.legacyStockingArea = StockingAreaDefinition.fromJson(obj.getAsJsonObject("stockingArea"));
             }
 
             return newPlacement;
@@ -365,12 +370,30 @@ public class ServerPlacement {
         }
     }
 
-    public StockingAreaDefinition getStockingArea() {
-        return stockingArea;
+    public UUID getStockingAreaRef() {
+        return stockingAreaRef;
     }
 
-    public void setStockingArea(final StockingAreaDefinition stockingArea) {
-        this.stockingArea = stockingArea;
+    public void setStockingAreaRef(final UUID stockingAreaRef) {
+        this.stockingAreaRef = stockingAreaRef;
+    }
+
+    /**
+     * Transient display value: the server fills it from the registry when
+     * talking to a pre-registry client, the client fills it from the
+     * metadata stream. Never persisted.
+     */
+    public StockingAreaDefinition getResolvedStockingArea() {
+        return resolvedStockingArea;
+    }
+
+    public void setResolvedStockingArea(final StockingAreaDefinition resolvedStockingArea) {
+        this.resolvedStockingArea = resolvedStockingArea;
+    }
+
+    /** Set only during deserialization of pre-registry state; the migration pass consumes it. */
+    public StockingAreaDefinition getLegacyStockingArea() {
+        return legacyStockingArea;
     }
 
     public void applyMaterialProgressSnapshot(final MaterialProgressState snapshot) {
@@ -431,8 +454,8 @@ public class ServerPlacement {
             obj.add("buildRegions", BuildRegionSerializer.toJson(buildRegions));
         }
 
-        if (stockingArea != null) {
-            obj.add("stockingArea", stockingArea.toJson());
+        if (stockingAreaRef != null) {
+            obj.add("stockingAreaRef", new JsonPrimitive(stockingAreaRef.toString()));
         }
 
         return obj;

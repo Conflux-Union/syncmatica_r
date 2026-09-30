@@ -213,7 +213,7 @@ final class WebFacadeTest {
             assertEquals(WebFacade.StockingAreaOutcome.DIMENSION_NOT_LOADED,
                     facade.setStockingArea(placement.getId(), owner, false,
                             "minecraft:the_nether", 0, 0, 0, 1, 1, 1));
-            assertNull(placement.getStockingArea());
+            assertNull(placement.getResolvedStockingArea());
 
             assertEquals(WebFacade.StockingAreaOutcome.UPDATED,
                     facade.setStockingArea(placement.getId(), owner, false,
@@ -222,7 +222,7 @@ final class WebFacadeTest {
             assertEquals("minecraft:overworld", area.dimension());
             assertEquals(1, area.minX());
             assertEquals(6, area.maxZ());
-            assertNotNull(placement.getStockingArea());
+            assertNotNull(placement.getResolvedStockingArea());
         } finally {
             context.shutdown();
         }
