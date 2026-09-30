@@ -7,6 +7,8 @@ import cn.net.rms.syncmatica_r.communication.ClientCommunicationManager;
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
 import cn.net.rms.syncmatica_r.communication.FeatureSet;
 import cn.net.rms.syncmatica_r.communication.PacketType;
+import cn.net.rms.syncmatica_r.communication.ProtocolLimits;
+import cn.net.rms.syncmatica_r.communication.StockingAreaManageOpcodes;
 import cn.net.rms.syncmatica_r.litematica.LitematicManager;
 import fi.dy.masa.litematica.data.DataManager;
 import fi.dy.masa.litematica.selection.AreaSelection;
@@ -22,9 +24,10 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Turns the player's current Litematica area selection into a stocking area on
- * the server, so an area can be picked with the schematic tool item instead of
- * typing six coordinates into {@code /syncmatica_r ... setStockingarea}.
+ * Turns the player's current Litematica area selection into a named stocking
+ * area managed through {@link PacketType#STOCKING_AREA_MANAGE}, so an area can
+ * be picked with the schematic tool item instead of typing coordinates into
+ * {@code /syncmatica_r ... stockingArea}.
  *
  * <p>Litematica keeps ownership of the selection and its in-world rendering;
  * this class only reads the resulting corners.
@@ -32,9 +35,6 @@ import java.util.UUID;
 public final class StockingAreaSelectionHelper {
 
     private static final Logger LOGGER = LogManager.getLogger();
-
-    /** Placeholder id for the default area, which is not tied to a placement. */
-    private static final UUID NIL_PLACEMENT = new UUID(0L, 0L);
 
     /** Outcome of a send attempt, so callers can pick the right user-facing message. */
     public enum Result {
@@ -67,15 +67,41 @@ public final class StockingAreaSelectionHelper {
         }
     }
 
-    public static Result sendForPlacement(final ServerPlacement placement) {
+    /**
+     * Uploads the selection as the placement's stocking area: UPDATE when the
+     * placement already references an area, otherwise CREATE with a name derived
+     * from the placement and an immediate bind so the two never drift apart.
+     */
+    public static Result sendSelectionAsBoundArea(final ServerPlacement placement) {
         if (placement == null) {
             return Result.FAILED;
         }
-        return send(false, placement.getId());
+        final UUID existingRef = placement.getStockingAreaRef();
+        return send((buf, first, second) -> {
+            if (existingRef != null) {
+                buf.writeByte(StockingAreaManageOpcodes.OP_UPDATE);
+                buf.writeUuid(existingRef);
+            } else {
+                buf.writeByte(StockingAreaManageOpcodes.OP_CREATE);
+                buf.writeString(placement.getName(), ProtocolLimits.MAX_STOCKING_AREA_NAME_LENGTH);
+                buf.writeBoolean(true);
+                buf.writeUuid(placement.getId());
+            }
+            buf.writeBlockPos(first);
+            buf.writeBlockPos(second);
+        });
     }
 
-    public static Result sendAsDefault() {
-        return send(true, NIL_PLACEMENT);
+    /**
+     * Uploads the selection as new corners for the reserved default area, which
+     * every placement without its own binding falls back to.
+     */
+    public static Result sendSelectionAsDefaultUpdate() {
+        return send((buf, first, second) -> {
+            buf.writeByte(StockingAreaManageOpcodes.OP_UPDATE_DEFAULT);
+            buf.writeBlockPos(first);
+            buf.writeBlockPos(second);
+        });
     }
 
     /**
@@ -106,7 +132,12 @@ public final class StockingAreaSelectionHelper {
         return box;
     }
 
-    private static Result send(final boolean isDefault, final UUID placementId) {
+    /** Writes an opcode payload between the selection's two corners. */
+    private interface PayloadWriter {
+        void write(PacketByteBuf buf, BlockPos first, BlockPos second);
+    }
+
+    private static Result send(final PayloadWriter payload) {
         final Box box = getSelectedBox();
         if (box == null) {
             return Result.NO_SELECTION;
@@ -120,19 +151,14 @@ public final class StockingAreaSelectionHelper {
             return Result.NO_SERVER;
         }
         final FeatureSet serverFeatures = server.getFeatureSet();
-        if (serverFeatures == null || !serverFeatures.hasFeature(Feature.STOCKING_AREA_SETUP)) {
+        if (serverFeatures == null || !serverFeatures.hasFeature(Feature.NAMED_STOCKING_AREAS)) {
             return Result.UNSUPPORTED;
         }
-
-        final BlockPos first = box.getPos1();
-        final BlockPos second = box.getPos2();
         try {
             final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
-            buf.writeBoolean(isDefault);
-            buf.writeUuid(placementId);
-            buf.writeBlockPos(first);
-            buf.writeBlockPos(second);
-            server.sendPacket(PacketType.SET_STOCKING_AREA.toIdentifier(server.getProtocolFlavor()), buf, context);
+            payload.write(buf, box.getPos1(), box.getPos2());
+            server.sendPacket(PacketType.STOCKING_AREA_MANAGE.toIdentifier(server.getProtocolFlavor()),
+                    buf, context);
             return Result.SENT;
         } catch (final RuntimeException exception) {
             LOGGER.error("Failed to send stocking area selection", exception);

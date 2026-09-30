@@ -48,7 +48,7 @@ public class GuiStockingAreaMaterialOverview extends GuiListBase<
      * cases where the packet never left the client.
      */
     private void applySelectionAsDefaultStockingArea() {
-        final StockingAreaSelectionHelper.Result result = StockingAreaSelectionHelper.sendAsDefault();
+        final StockingAreaSelectionHelper.Result result = StockingAreaSelectionHelper.sendSelectionAsDefaultUpdate();
         if (result != StockingAreaSelectionHelper.Result.SENT) {
             addMessage(Message.MessageType.ERROR, StockingAreaSelectionHelper.getFailureMessageKey(result));
         }

@@ -109,6 +109,11 @@ public class ClientCommunicationManager extends CommunicationManager {
             final String detail = MessageCodec.readDetail(packetBuf);
             if (detail.isEmpty()) {
                 ScreenHelper.ifPresent(s -> s.addMessage(guiType, text));
+            } else if (StringUtils.translate(text).split("%s", -1).length == 2) {
+                // The server packs the message value(s) into one detail string,
+                // so a single-placeholder key gets its value formatted in instead
+                // of appended in parentheses after a raw "%s".
+                ScreenHelper.ifPresent(s -> s.addMessage(guiType, text, detail));
             } else {
                 ScreenHelper.ifPresent(s -> s.addMessage(
                         guiType,

@@ -141,7 +141,8 @@ public class GuiSyncmaticaMaterialProgress extends GuiListBase<SyncmaticaMateria
      * cases where the packet never left the client.
      */
     private void applySelectionAsStockingArea() {
-        final StockingAreaSelectionHelper.Result result = StockingAreaSelectionHelper.sendForPlacement(placement);
+        final StockingAreaSelectionHelper.Result result =
+                StockingAreaSelectionHelper.sendSelectionAsBoundArea(placement);
         if (result != StockingAreaSelectionHelper.Result.SENT) {
             addMessage(Message.MessageType.ERROR, StockingAreaSelectionHelper.getFailureMessageKey(result));
         }
