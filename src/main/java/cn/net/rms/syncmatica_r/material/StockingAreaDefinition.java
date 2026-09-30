@@ -61,6 +61,28 @@ public final class StockingAreaDefinition {
         return max;
     }
 
+    public int getMinChunkX() {
+        return min.getX() >> 4;
+    }
+
+    public int getMaxChunkX() {
+        return max.getX() >> 4;
+    }
+
+    public int getMinChunkZ() {
+        return min.getZ() >> 4;
+    }
+
+    public int getMaxChunkZ() {
+        return max.getZ() >> 4;
+    }
+
+    public boolean contains(final BlockPos pos) {
+        return pos.getX() >= min.getX() && pos.getX() <= max.getX()
+                && pos.getY() >= min.getY() && pos.getY() <= max.getY()
+                && pos.getZ() >= min.getZ() && pos.getZ() <= max.getZ();
+    }
+
     public long getVolume() {
         try {
             final long x = (long) max.getX() - min.getX() + 1L;

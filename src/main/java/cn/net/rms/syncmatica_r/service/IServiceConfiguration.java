@@ -11,6 +11,18 @@ public interface IServiceConfiguration {
 
     void loadInteger(String key, IntConsumer loader);
 
+    /**
+     * Returns the integer stored under the key, or null when absent or
+     * malformed. Reads only; never mutates the configuration.
+     */
+    default Integer readInteger(String key) {
+        return null;
+    }
+
+    /** Removes the key from the configuration if present. */
+    default void removeKey(String key) {
+    }
+
     void saveInteger(String key, Integer value);
 
     default void loadString(final String key, final Consumer<String> loader) {

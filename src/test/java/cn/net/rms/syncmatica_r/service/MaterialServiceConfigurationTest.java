@@ -71,6 +71,53 @@ final class MaterialServiceConfigurationTest {
     }
 
     @Test
+    void migratesAndClampsLegacyScanBudgetKeyIntoReplacement() {
+        final MaterialService service = new MaterialService();
+        try {
+            final JsonObject configured = new JsonObject();
+            configured.addProperty("scan_blocks_per_tick", 65_536);
+            final JsonConfiguration configuration = new JsonConfiguration(configured);
+
+            service.configure(configuration);
+
+            assertTrue(configuration.didWriteDefaults());
+            assertEquals(8_192, configured.get("scan_block_entities_per_tick").getAsInt());
+            assertFalse(configured.has("scan_blocks_per_tick"));
+
+            final JsonObject carried = new JsonObject();
+            carried.addProperty("scan_blocks_per_tick", 512);
+            service.configure(new JsonConfiguration(carried));
+            assertEquals(512, carried.get("scan_block_entities_per_tick").getAsInt());
+            assertFalse(carried.has("scan_blocks_per_tick"));
+
+            final JsonObject clampedLow = new JsonObject();
+            clampedLow.addProperty("scan_blocks_per_tick", 1);
+            service.configure(new JsonConfiguration(clampedLow));
+            assertEquals(64, clampedLow.get("scan_block_entities_per_tick").getAsInt());
+        } finally {
+            service.shutdown();
+        }
+    }
+
+    @Test
+    void prefersReplacementScanBudgetKeyOverLegacyKey() {
+        final MaterialService service = new MaterialService();
+        try {
+            final JsonObject configured = new JsonObject();
+            configured.addProperty("scan_blocks_per_tick", 65_536);
+            configured.addProperty("scan_block_entities_per_tick", 256);
+            final JsonConfiguration configuration = new JsonConfiguration(configured);
+
+            service.configure(configuration);
+
+            assertEquals(256, configured.get("scan_block_entities_per_tick").getAsInt());
+            assertFalse(configured.has("scan_blocks_per_tick"));
+        } finally {
+            service.shutdown();
+        }
+    }
+
+    @Test
     void canDisablePlacementOwnerStockingAreaManagement() {
         final MaterialService service = new MaterialService();
         try {

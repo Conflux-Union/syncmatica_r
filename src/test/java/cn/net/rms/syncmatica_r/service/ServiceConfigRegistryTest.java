@@ -38,7 +38,7 @@ final class ServiceConfigRegistryTest {
             expected.put("materials.scan_interval", 200);
             expected.put("materials.include_container_contents", false);
             expected.put("materials.allow_owner_stocking_area_management", true);
-            expected.put("materials.scan_blocks_per_tick", 2048);
+            expected.put("materials.scan_block_entities_per_tick", 2048);
             expected.put("materials.max_schematic_megabytes", 64);
             expected.put("materials.max_schematic_blocks", 8_000_000);
             expected.put("materials.max_stocking_area_blocks", 1_000_000);

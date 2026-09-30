@@ -45,7 +45,7 @@ preferences are not included.
   "materials": {
     "enabled": true,
     "scan_interval": 200,
-    "scan_blocks_per_tick": 2048,
+    "scan_block_entities_per_tick": 2048,
     "include_container_contents": false,
     "allow_owner_stocking_area_management": true,
     "max_schematic_megabytes": 64,
@@ -98,15 +98,20 @@ loader recreates them if the game later runs as a server.
 |-----|---------|-------|---------|
 | enabled | `true` | — | Master toggle for material aggregation and syncing. |
 | scan_interval | `200` | ≥ `20` ticks | How often the default stocking area is rescanned while idle. |
-| scan_blocks_per_tick | `2048` | `64`–`65,536` blocks | Shared per-tick budget for incremental scans. |
+| scan_block_entities_per_tick | `2048` | `64`–`8,192` entities | Shared per-tick budget for stocking area scans: each fetched chunk and each inspected block entity costs one unit. |
 | include_container_contents | `false` | — | Count the inventories of chests and shulkers inside the schematic. |
 | allow_owner_stocking_area_management | `true` | — | Let placement owners set their own placement's stocking area through commands or the GUI. When `false`, both paths require `syncmatica_r.manage`. |
 | max_schematic_megabytes | `64` | `1`–`64` MB | Maximum compressed transfer size and decompressed NBT allocation. |
 | max_schematic_blocks | `8000000` | `1,000,000`–`64,000,000` | Maximum decoded schematic block volume. |
 | max_stocking_area_blocks | `1000000` | `1,024`–`64,000,000` | Maximum volume accepted for a stocking area. |
 
-- Lower `scan_blocks_per_tick` and raise `scan_interval` if scans cause server stutter;
-  raise the budget if scans take too long.
+- Stocking area scans enumerate loaded chunks and their block entities instead of
+  visiting every block, so scan cost scales with the container count rather than the
+  area volume.
+- Lower `scan_block_entities_per_tick` and raise `scan_interval` if scans cause server
+  stutter; raise the budget if scans take too long.
+- A legacy `scan_blocks_per_tick` value is migrated into `scan_block_entities_per_tick`
+  (clamped to the new range) on first load, then the old key is dropped.
 - Schematic extraction runs on a background worker; transfer size and decoded block
   volume are both validated before results are applied.
 - Changing extraction limits or `include_container_contents` re-extracts every shared

@@ -98,6 +98,30 @@ public class JsonConfiguration implements IServiceConfiguration {
     }
 
     @Override
+    public Integer readInteger(final String key) {
+        final JsonElement elem = configuration.get(key);
+        if (elem == null || !elem.isJsonPrimitive() || !elem.getAsJsonPrimitive().isNumber()) {
+            return null;
+        }
+        final String literal = elem.getAsString();
+        if (!literal.matches("-?(?:0|[1-9][0-9]*)")) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(literal);
+        } catch (final NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    @Override
+    public void removeKey(final String key) {
+        if (configuration.remove(key) != null) {
+            changed = true;
+        }
+    }
+
+    @Override
     public void replaceInteger(final String key, final Integer value) {
         configuration.addProperty(key, value);
         changed = true;

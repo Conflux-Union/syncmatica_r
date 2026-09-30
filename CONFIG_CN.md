@@ -40,7 +40,7 @@ Syncmatica_r 的全部运行配置保存在单个 `config.json` 文件中。启�
   "materials": {
     "enabled": true,
     "scan_interval": 200,
-    "scan_blocks_per_tick": 2048,
+    "scan_block_entities_per_tick": 2048,
     "include_container_contents": false,
     "allow_owner_stocking_area_management": true,
     "max_schematic_megabytes": 64,
@@ -90,15 +90,19 @@ Syncmatica_r 的全部运行配置保存在单个 `config.json` 文件中。启�
 |--------|--------|----------|------|
 | enabled | `true` | — | 总开关，控制材料统计与同步 |
 | scan_interval | `200` | ≥ `20` 游戏刻 | 空闲时重扫默认备货区的间隔 |
-| scan_blocks_per_tick | `2048` | `64`–`65,536` 个方块 | 增量扫描的每刻共享工作预算 |
+| scan_block_entities_per_tick | `2048` | `64`–`8,192` 个实体 | 备货区扫描的每刻共享预算：每取一个区块、每检查一个方块实体各消耗 1 点 |
 | include_container_contents | `false` | — | 是否统计原理图内箱子、潜影盒等容器的物品 |
 | allow_owner_stocking_area_management | `true` | — | 是否允许投影所有者通过命令或 GUI 设置自己投影的备货区；设为 `false` 后两条路径均要求 `syncmatica_r.manage` |
 | max_schematic_megabytes | `64` | `1`–`64` MB | 压缩传输大小与解压后 NBT 分配的上限 |
 | max_schematic_blocks | `8000000` | `1,000,000`–`64,000,000` | 解码后方块体积上限 |
 | max_stocking_area_blocks | `1000000` | `1,024`–`64,000,000` | 备货区允许的最大体积 |
 
-- 扫描引起服务器卡顿时，可调低 `scan_blocks_per_tick` 并调大 `scan_interval`；扫描过慢
-  则可调高预算。
+- 备货区扫描改为枚举已加载区块及其方块实体，不再逐方块遍历，扫描开销随容器
+  数量而非区域体积增长。
+- 扫描引起服务器卡顿时，可调低 `scan_block_entities_per_tick` 并调大 `scan_interval`；
+  扫描过慢则可调高预算。
+- 旧配置中的 `scan_blocks_per_tick` 会在首次加载时迁移到 `scan_block_entities_per_tick`
+  （按新范围截断），随后旧键被移除。
 - 原理图解析在后台线程执行，传输大小与解码体积均先经校验，通过后方在服务端生效。
 - 修改提取上限或 `include_container_contents` 后会重新提取所有共享原理图；其余配置项
   立即生效。
