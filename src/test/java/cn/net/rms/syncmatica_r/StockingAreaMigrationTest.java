@@ -1,6 +1,7 @@
 package cn.net.rms.syncmatica_r;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -107,6 +108,115 @@ final class StockingAreaMigrationTest {
         } finally {
             context.shutdown();
         }
+    }
+
+    @Test
+    void migratesAreasWhosePlacementNamesAreInvalidRegistryNames() throws IOException {
+        final Path store = tempDir.resolve("syncmatica_r").resolve("placement_store");
+        Files.createDirectories(store);
+        final String chineseId = "11111111-1111-1111-1111-111111111111";
+        final String defaultId = "22222222-2222-2222-2222-222222222222";
+        Files.writeString(store.resolve(chineseId + ".placement.json"),
+                legacyPlacementJson(chineseId, "chinese", "我的城堡"), StandardCharsets.UTF_8);
+        Files.writeString(store.resolve(defaultId + ".placement.json"),
+                legacyPlacementJson(defaultId, "default", null), StandardCharsets.UTF_8);
+
+        final SyncmaticManager manager = new SyncmaticManager();
+        final Context context = new Context(
+                new FileStorage(), new StubCommunicationManager(), manager,
+                true, tempDir.resolve("litematics3").toFile(), true, tempDir.toFile());
+        try {
+            manager.startup();
+            final cn.net.rms.syncmatica_r.service.MaterialService service = context.getMaterialService();
+            final StockingAreaRegistry registry = service.getStockingAreaRegistry();
+
+            // Non-ASCII display name and the reserved name both fail the direct
+            // create; the areas must survive under placement-id slugs instead.
+            final StockingAreaRegistry.Entry chineseEntry = registry.getByName("area-11111111");
+            assertNotNull(chineseEntry, "non-ASCII placement name must migrate under a slug");
+            final StockingAreaRegistry.Entry defaultEntry = registry.getByName("area-22222222");
+            assertNotNull(defaultEntry, "placement named 'default' must migrate under a slug");
+            assertNull(registry.getByName("我的城堡"));
+            assertNull(registry.getDefaultArea(), "owner-carrying placement must not become the default");
+
+            final ServerPlacement chinese = manager.getPlacement(UUID.fromString(chineseId));
+            assertEquals(chineseEntry.getId(), chinese.getStockingAreaRef());
+            assertNull(chinese.getLegacyStockingArea());
+            assertTrue(service.hasBoundStockingArea(chinese));
+            assertEquals(chineseEntry.getDefinition(), service.resolveStockingArea(chinese));
+
+            final ServerPlacement namedDefault = manager.getPlacement(UUID.fromString(defaultId));
+            assertEquals(defaultEntry.getId(), namedDefault.getStockingAreaRef());
+            assertNull(namedDefault.getLegacyStockingArea());
+            assertEquals(defaultEntry.getDefinition(), service.resolveStockingArea(namedDefault));
+        } finally {
+            context.shutdown();
+        }
+    }
+
+    @Test
+    void updateAndDeleteStockingAreasGuardReferencingPlacements() {
+        final SyncmaticManager manager = new SyncmaticManager();
+        final Context context = new Context(
+                new FileStorage(), new StubCommunicationManager(), manager,
+                true, tempDir.resolve("litematics4").toFile(), true, tempDir.toFile());
+        try {
+            final cn.net.rms.syncmatica_r.service.MaterialService service = context.getMaterialService();
+            final ServerPlacement placement = new ServerPlacement(
+                    UUID.randomUUID(), "castle", UUID.randomUUID(), PlayerIdentifier.MISSING_PLAYER);
+            placement.move("minecraft:overworld", BlockPos.ORIGIN,
+                    net.minecraft.util.BlockRotation.NONE, net.minecraft.util.BlockMirror.NONE);
+            manager.addPlacement(placement);
+
+            final StockingAreaDefinition yard = new StockingAreaDefinition(
+                    "minecraft:overworld", new BlockPos(0, 64, 0), new BlockPos(9, 64, 9));
+            assertEquals(StockingAreaRegistry.CreateOutcome.CREATED,
+                    service.createStockingArea("yard", yard, null));
+            final UUID yardId = service.getStockingAreaRegistry().getByName("yard").getId();
+            assertEquals(cn.net.rms.syncmatica_r.service.MaterialService.StockingAreaBindOutcome.BOUND,
+                    service.bindStockingArea(placement, yardId));
+
+            assertEquals(cn.net.rms.syncmatica_r.service.MaterialService.StockingAreaDeleteOutcome.IN_USE,
+                    service.deleteStockingArea(yardId, false));
+            assertNotNull(service.getStockingAreaRegistry().getById(yardId));
+
+            final StockingAreaDefinition moved = new StockingAreaDefinition(
+                    "minecraft:overworld", new BlockPos(0, 64, 0), new BlockPos(19, 64, 19));
+            assertEquals(StockingAreaRegistry.UpdateOutcome.UPDATED,
+                    service.updateStockingArea(yardId, moved));
+            assertEquals(moved, service.resolveStockingArea(placement));
+            assertEquals(StockingAreaRegistry.UpdateOutcome.NOT_FOUND,
+                    service.updateStockingArea(UUID.randomUUID(), moved));
+            assertEquals(StockingAreaRegistry.UpdateOutcome.TOO_LARGE,
+                    service.updateStockingArea(yardId, new StockingAreaDefinition(
+                            "minecraft:overworld",
+                            new BlockPos(Integer.MIN_VALUE, 0, 0),
+                            new BlockPos(Integer.MAX_VALUE, 0, 0))));
+
+            assertEquals(cn.net.rms.syncmatica_r.service.MaterialService.StockingAreaDeleteOutcome.DELETED,
+                    service.deleteStockingArea(yardId, true));
+            assertNull(placement.getStockingAreaRef());
+            assertNull(service.getStockingAreaRegistry().getById(yardId));
+            assertFalse(service.hasBoundStockingArea(placement));
+            assertNull(service.resolveStockingArea(placement));
+        } finally {
+            context.shutdown();
+        }
+    }
+
+    private static String legacyPlacementJson(final String id, final String fileName, final String displayName) {
+        final StringBuilder json = new StringBuilder();
+        json.append("{\"id\":\"").append(id).append("\",")
+                .append("\"file_name\":\"").append(fileName).append("\",");
+        if (displayName != null) {
+            json.append("\"display_name\":\"").append(displayName).append("\",");
+        }
+        json.append("\"hash\":\"00000000-0000-0000-0000-00000000000f\",")
+                .append("\"origin\":{\"position\":[0,64,0],\"dimension\":\"minecraft:overworld\"},")
+                .append("\"rotation\":\"NONE\",\"mirror\":\"NONE\",")
+                .append("\"stockingArea\":{\"dimension\":\"minecraft:overworld\",")
+                .append("\"minX\":0,\"minY\":64,\"minZ\":0,\"maxX\":9,\"maxY\":70,\"maxZ\":9}}");
+        return json.toString();
     }
 
     private static final class StubCommunicationManager extends CommunicationManager {

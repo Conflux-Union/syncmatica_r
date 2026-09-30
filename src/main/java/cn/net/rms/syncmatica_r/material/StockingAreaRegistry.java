@@ -4,6 +4,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -19,6 +21,7 @@ import java.util.regex.Pattern;
  * nothing about placements; reference checks live in MaterialService.
  */
 public final class StockingAreaRegistry {
+    private static final Logger LOGGER = LogManager.getLogger(StockingAreaRegistry.class);
     public static final String RESERVED_DEFAULT_NAME = "default";
     private static final Pattern NAME_PATTERN = Pattern.compile("[A-Za-z0-9_-]{1,32}");
     private static final String FIELD_AREAS = "areas";
@@ -218,6 +221,7 @@ public final class StockingAreaRegistry {
         if (json == null || !json.has(FIELD_AREAS) || !json.get(FIELD_AREAS).isJsonArray()) {
             return registry;
         }
+        int index = 0;
         for (final JsonElement element : json.getAsJsonArray(FIELD_AREAS)) {
             if (!element.isJsonObject()) {
                 continue;
@@ -245,7 +249,9 @@ public final class StockingAreaRegistry {
                 // Hand-edited files may carry an unparsable UUID or a broken
                 // definition object; the entry is skipped like the other
                 // invalid cases instead of aborting the whole load.
+                LOGGER.warn("Skipping malformed stocking area entry at index {}", index, exception);
             }
+            index++;
         }
         return registry;
     }

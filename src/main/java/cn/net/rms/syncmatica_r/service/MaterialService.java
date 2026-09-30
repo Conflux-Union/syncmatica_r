@@ -363,6 +363,12 @@ public class MaterialService extends AbstractService {
             return outcome;
         }
         markStockingAreaRegistryDirty();
+        final StockingAreaRegistry.Entry entry = stockingAreaRegistry.getById(areaId);
+        if (entry != null && StockingAreaRegistry.RESERVED_DEFAULT_NAME.equals(entry.getName())) {
+            // The default area changed; drop the in-flight sign-dispatch scan so
+            // the next tick rescans with the new definition.
+            defaultScanState = null;
+        }
         refreshPlacementsBoundTo(areaId);
         return outcome;
     }
@@ -384,7 +390,11 @@ public class MaterialService extends AbstractService {
             return StockingAreaDeleteOutcome.valueOf(outcome.name());
         }
         markStockingAreaRegistryDirty();
-        // Unbound placements fall back to the default area on their next resolve.
+        // Unbound placements fall back to the default area on their next resolve;
+        // restart the sign-dispatch scan so they rejoin it with current aliases.
+        if (!referencing.isEmpty()) {
+            defaultScanState = null;
+        }
         for (final ServerPlacement placement : referencing) {
             placement.setStockingAreaRef(null);
             refreshPlacement(placement, resolveStockingArea(placement));

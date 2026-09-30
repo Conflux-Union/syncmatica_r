@@ -248,9 +248,14 @@ public class SyncmaticManager {
                     final cn.net.rms.syncmatica_r.material.StockingAreaDefinition def =
                             cn.net.rms.syncmatica_r.material.StockingAreaDefinition.fromJson(
                                     obj.getAsJsonObject(DEFAULT_STOCKING_AREA_JSON_KEY));
-                    context.getMaterialService().createStockingArea(
-                            cn.net.rms.syncmatica_r.material.StockingAreaRegistry.RESERVED_DEFAULT_NAME,
-                            def, null);
+                    final cn.net.rms.syncmatica_r.material.StockingAreaRegistry.CreateOutcome outcome =
+                            context.getMaterialService().createStockingArea(
+                                    cn.net.rms.syncmatica_r.material.StockingAreaRegistry.RESERVED_DEFAULT_NAME,
+                                    def, null);
+                    if (outcome != cn.net.rms.syncmatica_r.material.StockingAreaRegistry.CreateOutcome.CREATED) {
+                        LogManager.getLogger(SyncmaticManager.class).warn(
+                                "Ignoring legacy default stocking area (outcome: {})", outcome);
+                    }
                 }
 
             } catch (final IllegalStateException | NullPointerException e) {
@@ -282,9 +287,14 @@ public class SyncmaticManager {
                 final cn.net.rms.syncmatica_r.material.StockingAreaDefinition def =
                         cn.net.rms.syncmatica_r.material.StockingAreaDefinition.fromJson(
                                 obj.getAsJsonObject(DEFAULT_STOCKING_AREA_JSON_KEY));
-                context.getMaterialService().createStockingArea(
-                        cn.net.rms.syncmatica_r.material.StockingAreaRegistry.RESERVED_DEFAULT_NAME,
-                        def, null);
+                final cn.net.rms.syncmatica_r.material.StockingAreaRegistry.CreateOutcome outcome =
+                        context.getMaterialService().createStockingArea(
+                                cn.net.rms.syncmatica_r.material.StockingAreaRegistry.RESERVED_DEFAULT_NAME,
+                                def, null);
+                if (outcome != cn.net.rms.syncmatica_r.material.StockingAreaRegistry.CreateOutcome.CREATED) {
+                    LogManager.getLogger(SyncmaticManager.class).warn(
+                            "Ignoring legacy default stocking area (outcome: {})", outcome);
+                }
             }
         } catch (final Exception exception) {
             LogManager.getLogger(SyncmaticManager.class).warn("Failed to load placement metadata", exception);
@@ -448,8 +458,22 @@ public class SyncmaticManager {
                 name = taken;
             }
             final UUID owner = placement.getOwner() == null ? null : placement.getOwner().uuid;
-            if (materialService.createStockingArea(name, legacy, owner)
-                    != cn.net.rms.syncmatica_r.material.StockingAreaRegistry.CreateOutcome.CREATED) {
+            cn.net.rms.syncmatica_r.material.StockingAreaRegistry.CreateOutcome outcome =
+                    materialService.createStockingArea(name, legacy, owner);
+            if (outcome == cn.net.rms.syncmatica_r.material.StockingAreaRegistry.CreateOutcome.INVALID_NAME
+                    || outcome == cn.net.rms.syncmatica_r.material.StockingAreaRegistry.CreateOutcome.RESERVED_NAME) {
+                // Display names may contain characters the registry forbids
+                // (non-ASCII, spaces, length) or claim the reserved default
+                // name; migrate under a slug derived from the placement id so
+                // the area survives instead of being dropped on the next save.
+                name = "area-" + placement.getId().toString().replace("-", "").substring(0, 8);
+                final String slugTaken = materialService.getStockingAreaRegistry().findUniqueIdFor(name);
+                if (slugTaken != null) {
+                    name = slugTaken;
+                }
+                outcome = materialService.createStockingArea(name, legacy, owner);
+            }
+            if (outcome != cn.net.rms.syncmatica_r.material.StockingAreaRegistry.CreateOutcome.CREATED) {
                 LogManager.getLogger(SyncmaticManager.class).warn(
                         "Could not migrate stocking area of placement '{}'", placement.getName());
                 continue;

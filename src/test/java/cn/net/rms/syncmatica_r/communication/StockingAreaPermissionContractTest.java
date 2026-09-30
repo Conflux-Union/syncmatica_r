@@ -25,6 +25,9 @@ final class StockingAreaPermissionContractTest {
         assertTrue(
                 source.contains("syncmatica_r.error.stocking_area.unsupported"),
                 "coordinate stocking-area pushes must be answered with the upgrade hint");
+        // Transitional: the owner-aware helper below has no caller until the
+        // packet paths are rebuilt on the registry API; these assertions keep
+        // the shared policy plumbing pinned for that rebuild.
         assertTrue(
                 source.contains("PlacementAccessPolicy.canManageStockingArea"),
                 "the network path must use the shared owner-aware access policy");

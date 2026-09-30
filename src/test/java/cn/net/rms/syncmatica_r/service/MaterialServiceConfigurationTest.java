@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -203,6 +204,51 @@ final class MaterialServiceConfigurationTest {
             assertSame(area, context.getMaterialService().getDefaultStockingArea());
             assertFalse(context.getMaterialService().hasDefaultStockingScan());
             assertFalse(context.getMaterialService().isStockingAreaAllowed(area));
+        } finally {
+            context.shutdown();
+        }
+    }
+
+    @Test
+    void updatingDefaultAreaOrForceDeletingBoundAreasRestartsDefaultScan() throws Exception {
+        final Context context = newServerContext();
+        try {
+            final MaterialService service = context.getMaterialService();
+            final ServerPlacement placement = addPlacement(context, "build");
+            final StockingAreaDefinition initial = new StockingAreaDefinition(
+                    "minecraft:overworld", BlockPos.ORIGIN, new BlockPos(4, 4, 4));
+            assertEquals(StockingAreaRegistry.CreateOutcome.CREATED,
+                    service.createStockingArea(StockingAreaRegistry.RESERVED_DEFAULT_NAME, initial, null));
+            final UUID defaultId = service.getStockingAreaRegistry().getDefaultArea().getId();
+
+            service.scanDefaultNow(null);
+            assertTrue(service.hasDefaultStockingScan());
+            final StockingAreaDefinition updated = new StockingAreaDefinition(
+                    "minecraft:overworld", BlockPos.ORIGIN, new BlockPos(6, 6, 6));
+            assertEquals(StockingAreaRegistry.UpdateOutcome.UPDATED,
+                    service.updateStockingArea(defaultId, updated));
+            assertFalse(service.hasDefaultStockingScan());
+            assertSame(updated, service.getDefaultStockingArea());
+
+            // Force-deleting a bound area returns the placement to the default
+            // scan, so the in-flight scan must restart to pick it up again.
+            assertEquals(StockingAreaRegistry.CreateOutcome.CREATED,
+                    service.createStockingArea("yard", initial, null));
+            final UUID yardId = service.getStockingAreaRegistry().getByName("yard").getId();
+            assertEquals(MaterialService.StockingAreaBindOutcome.BOUND,
+                    service.bindStockingArea(placement, yardId));
+            service.scanDefaultNow(null);
+            assertTrue(service.hasDefaultStockingScan());
+            assertEquals(MaterialService.StockingAreaDeleteOutcome.DELETED,
+                    service.deleteStockingArea(yardId, true));
+            assertFalse(service.hasDefaultStockingScan());
+            assertNull(placement.getStockingAreaRef());
+            // The placement falls back to the current default definition.
+            assertEquals(updated, service.resolveStockingArea(placement));
+
+            // Scan re-runs are caller-driven; the helper must tolerate the
+            // null server used in tests without starting a placement scan.
+            service.rescanPlacements(null, java.util.List.of(placement));
         } finally {
             context.shutdown();
         }
