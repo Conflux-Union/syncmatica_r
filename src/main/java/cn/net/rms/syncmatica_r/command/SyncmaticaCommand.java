@@ -604,11 +604,7 @@ public final class SyncmaticaCommand {
             context.getSource().sendError(literal("Unknown stocking area: " + areaName));
             return 0;
         }
-        if (materialService.bindStockingArea(placement.get(), entry.getId())
-                == MaterialService.StockingAreaBindOutcome.UNKNOWN_AREA) {
-            context.getSource().sendError(literal("Unknown stocking area: " + areaName));
-            return 0;
-        }
+        materialService.bindStockingArea(placement.get(), entry.getId());
         materialService.scanNow(context.getSource().getServer(), placement.get());
         sendFeedback(context, "Stocking area of '" + projectName + "' set to '" + areaName + "'");
         return 1;
@@ -669,8 +665,11 @@ public final class SyncmaticaCommand {
     private static CompletableFuture<Suggestions> suggestExistingAreaNames(
             final CommandContext<ServerCommandSource> context, final SuggestionsBuilder builder) {
         final Context syncmaticaContext = Syncmatica.getContext(Syncmatica.SERVER_CONTEXT);
-        if (syncmaticaContext != null && syncmaticaContext.getMaterialService() != null) {
-            syncmaticaContext.getMaterialService().getStockingAreaRegistry().getAll()
+        final MaterialService materialService = syncmaticaContext == null
+                ? null
+                : syncmaticaContext.getMaterialService();
+        if (materialService != null && materialService.isEnabled()) {
+            materialService.getStockingAreaRegistry().getAll()
                     .forEach(entry -> builder.suggest(entry.getName()));
         }
         return builder.buildFuture();
@@ -691,7 +690,7 @@ public final class SyncmaticaCommand {
                 materialService.getStockingAreaRegistry().getAll();
         if (areas.isEmpty()) {
             sendPrivateFeedback(context, "No stocking areas are registered");
-            return 0;
+            return 1;
         }
         for (final StockingAreaRegistry.Entry entry : areas) {
             sendPrivateFeedback(context, describeStockingArea(materialService, entry));
@@ -835,12 +834,18 @@ public final class SyncmaticaCommand {
             context.getSource().sendError(literal("You do not have permission to manage this stocking area"));
             return 0;
         }
+        // Captured before the delete call: the service clears the placement
+        // references as part of a force delete, so asking afterwards would
+        // always yield an empty list.
+        final List<ServerPlacement> referencing =
+                materialService.getPlacementsReferencing(entry.getId());
         switch (materialService.deleteStockingArea(entry.getId(), force)) {
             case DELETED:
+                materialService.rescanPlacements(context.getSource().getServer(), referencing);
                 sendFeedback(context, "Stocking area '" + name + "' deleted");
                 return 1;
             case IN_USE:
-                final String projects = materialService.getPlacementsReferencing(entry.getId()).stream()
+                final String projects = referencing.stream()
                         .map(ServerPlacement::getName)
                         .collect(Collectors.joining(", "));
                 context.getSource().sendError(literal("Stocking area '" + name + "' is used by: "

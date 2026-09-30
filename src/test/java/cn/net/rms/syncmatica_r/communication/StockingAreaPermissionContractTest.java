@@ -53,4 +53,23 @@ final class StockingAreaPermissionContractTest {
                 commandSource.contains("bindStockingArea"),
                 "binding must go through the service bind method");
     }
+
+    @Test
+    void forceDeleteRescansThePlacementsItUnbinds() throws IOException {
+        final String commandSource = Files.readString(
+                projectRoot.resolve(
+                        "src/main/java/cn/net/rms/syncmatica_r/command/SyncmaticaCommand.java"),
+                StandardCharsets.UTF_8
+        );
+        // Scoped to the delete handler body: the edit handler's rescan call
+        // must not satisfy this contract on its own.
+        final int handlerStart = commandSource.indexOf("handleDeleteStockingArea(final CommandContext");
+        final int handlerEnd = commandSource.indexOf("private static", handlerStart);
+        assertTrue(handlerStart >= 0 && handlerEnd > handlerStart,
+                "the delete handler must exist in SyncmaticaCommand");
+        final String handlerBody = commandSource.substring(handlerStart, handlerEnd);
+        assertTrue(
+                handlerBody.contains("rescanPlacements("),
+                "force-deleting must rescan the placements the delete unbound");
+    }
 }
