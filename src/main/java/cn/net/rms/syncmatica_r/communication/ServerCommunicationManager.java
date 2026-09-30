@@ -281,10 +281,6 @@ public class ServerCommunicationManager extends CommunicationManager {
             handleBuildRegionClaim(source, packetBuf);
             return;
         }
-        if (type == PacketType.SET_STOCKING_AREA) {
-            handleSetStockingArea(source, packetBuf);
-            return;
-        }
         if (type == PacketType.STOCKING_AREA_MANAGE) {
             handleStockingAreaManage(source, packetBuf);
             return;
@@ -318,19 +314,6 @@ public class ServerCommunicationManager extends CommunicationManager {
             final PlayerIdentifier owner = buildService.getClaimant(placement, regionName);
             sendMessage(source, MessageType.WARNING, "syncmatica_r.error.build.region_taken",
                     owner == null ? "" : owner.getName());
-        }
-    }
-
-    /**
-     * Pre-registry clients push raw coordinates for the stocking area; the
-     * named-registry server no longer accepts anonymous areas, so the sender
-     * is told to upgrade instead of silently losing the selection.
-     */
-    private void handleSetStockingArea(final ExchangeTarget source, final PacketByteBuf packetBuf) {
-        packetBuf.readerIndex(packetBuf.writerIndex());
-        final ServerPlayerEntity player = playerMap.get(source);
-        if (player != null) {
-            sendMessage(source, MessageType.ERROR, "syncmatica_r.error.stocking_area.unsupported");
         }
     }
 

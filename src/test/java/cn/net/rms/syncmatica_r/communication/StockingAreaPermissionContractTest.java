@@ -19,12 +19,28 @@ final class StockingAreaPermissionContractTest {
                 StandardCharsets.UTF_8
         );
 
-        // Pre-registry clients push raw coordinates; the named-registry server
-        // rejects those pushes with an upgrade hint instead of silently losing
-        // the selection.
+        // The pre-registry coordinate packet is fully retired: the server no
+        // longer recognizes its id, and only the client helper still surfaces
+        // the upgrade hint for servers that predate named areas.
+        final String packetTypes = Files.readString(
+                projectRoot.resolve(
+                        "src/main/java/cn/net/rms/syncmatica_r/communication/PacketType.java"),
+                StandardCharsets.UTF_8
+        );
         assertTrue(
-                source.contains("syncmatica_r.error.stocking_area.unsupported"),
-                "coordinate stocking-area pushes must be answered with the upgrade hint");
+                !packetTypes.contains("SET_STOCKING_AREA"),
+                "the legacy coordinate packet id must not be resurrected");
+        assertTrue(
+                !source.contains("handleSetStockingArea"),
+                "the server must not answer legacy coordinate pushes");
+        final String helper = Files.readString(
+                projectRoot.resolve(
+                        "src/main/java/cn/net/rms/syncmatica_r/util/StockingAreaSelectionHelper.java"),
+                StandardCharsets.UTF_8
+        );
+        assertTrue(
+                helper.contains("syncmatica_r.error.stocking_area.unsupported"),
+                "clients talking to pre-registry servers must still get the upgrade hint");
         // Transitional: the owner-aware helper below has no caller until the
         // packet paths are rebuilt on the registry API; these assertions keep
         // the shared policy plumbing pinned for that rebuild.

@@ -282,15 +282,6 @@ public class MaterialService extends AbstractService {
         }
     }
 
-    /**
-     * @deprecated Coordinate-based areas no longer drive scans; retained only
-     *     until the web facade switches to {@link #bindStockingArea}.
-     */
-    @Deprecated
-    public void setStockingArea(final ServerPlacement placement, final StockingAreaDefinition area) {
-        placement.setResolvedStockingArea(area);
-    }
-
     public StockingAreaRegistry getStockingAreaRegistry() {
         return stockingAreaRegistry;
     }
