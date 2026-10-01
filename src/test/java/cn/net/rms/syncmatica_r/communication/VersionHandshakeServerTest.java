@@ -79,7 +79,86 @@ final class VersionHandshakeServerTest {
         }
     }
 
+    @Test
+    void warnsReforgedClientWithoutNamedStockingAreas() {
+        final Context context = newServerContext();
+        try {
+            final CapturingTarget target = new CapturingTarget();
+            target.setProtocolFlavor(ProtocolFlavor.NEW);
+            final VersionHandshakeServer handshake = new VersionHandshakeServer(target, context);
+
+            completeHandshake(handshake, "CORE\nMESSAGE\nSTOCKING_AREA_SETUP");
+
+            final int messageIndex = target.ids.indexOf(PacketType.MESSAGE.toIdentifier(ProtocolFlavor.NEW));
+            assertTrue(messageIndex >= 0);
+            final PacketByteBuf payload =
+                    new PacketByteBuf(Unpooled.wrappedBuffer(target.payloads.get(messageIndex)));
+            assertEquals("WARNING", MessageCodec.readType(payload).toString());
+            final String text = MessageCodec.readIdentifier(payload);
+            assertTrue(text.contains("命名备货区"));
+            assertTrue(text.contains("named stocking areas"));
+            assertTrue(text.contains("0.4.2"));
+        } finally {
+            context.shutdown();
+        }
+    }
+
+    @Test
+    void staysSilentForClientAdvertisingNamedStockingAreas() {
+        final Context context = newServerContext();
+        try {
+            final CapturingTarget target = new CapturingTarget();
+            target.setProtocolFlavor(ProtocolFlavor.NEW);
+            final VersionHandshakeServer handshake = new VersionHandshakeServer(target, context);
+
+            completeHandshake(handshake, "CORE\nMESSAGE\nSTOCKING_AREA_SETUP\nNAMED_STOCKING_AREAS");
+
+            assertFalse(target.ids.contains(PacketType.MESSAGE.toIdentifier(ProtocolFlavor.NEW)));
+        } finally {
+            context.shutdown();
+        }
+    }
+
+    private Context newServerContext() {
+        return new Context(
+                new FileStorage(),
+                new StubServerCommunicationManager(),
+                new SyncmaticManager(),
+                true,
+                tempDir.resolve("litematics").toFile(),
+                true,
+                tempDir.toFile()
+        );
+    }
+
+    private static void completeHandshake(final VersionHandshakeServer handshake, final String clientFeatures) {
+        handshake.handle(
+                PacketType.REGISTER_VERSION.toIdentifier(ProtocolFlavor.NEW),
+                stringBuf("0.4.2", ProtocolLimits.MAX_VERSION_LENGTH)
+        );
+        handshake.handle(
+                PacketType.FEATURE.toIdentifier(ProtocolFlavor.NEW),
+                stringBuf(clientFeatures, ProtocolLimits.MAX_FEATURE_STRING_LENGTH)
+        );
+    }
+
+    private static PacketByteBuf stringBuf(final String value, final int maxLength) {
+        final PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
+        buf.writeString(value, maxLength);
+        return buf;
+    }
+
     private static final class StubCommunicationManager extends CommunicationManager {
+        @Override
+        protected void handle(final ExchangeTarget source, final Identifier id, final PacketByteBuf packetBuf) {
+        }
+
+        @Override
+        protected void handleExchange(final cn.net.rms.syncmatica_r.communication.exchange.Exchange exchange) {
+        }
+    }
+
+    private static final class StubServerCommunicationManager extends ServerCommunicationManager {
         @Override
         protected void handle(final ExchangeTarget source, final Identifier id, final PacketByteBuf packetBuf) {
         }

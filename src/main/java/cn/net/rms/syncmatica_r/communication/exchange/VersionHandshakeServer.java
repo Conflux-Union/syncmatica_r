@@ -1,6 +1,7 @@
 package cn.net.rms.syncmatica_r.communication.exchange;
 
 import cn.net.rms.syncmatica_r.Context;
+import cn.net.rms.syncmatica_r.Feature;
 import cn.net.rms.syncmatica_r.ServerPlacement;
 import cn.net.rms.syncmatica_r.Syncmatica;
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
@@ -82,6 +83,27 @@ public class VersionHandshakeServer extends FeatureExchange {
                     getPartner(),
                     MessageType.WARNING,
                     "This server uses the Reforged version of Syncmatica (syncmatica_r) and you are using the original Syncmatica. There may be compatibility issues."
+            );
+        } else if (getContext().getFeatureSet().hasFeature(Feature.NAMED_STOCKING_AREAS)
+                && getPartner().getFeatureSet() != null
+                && !getPartner().getFeatureSet().hasFeature(Feature.NAMED_STOCKING_AREAS)) {
+            // Both languages are inlined on purpose: a pre-registry client has
+            // no lang entry for a 0.5.0 key and may run either locale, so a
+            // translation key would render raw. The server-feature guard
+            // mirrors the protocol gate so no prompt fires when the server
+            // itself dropped the feature.
+            final String serverVersion = Syncmatica.getVersion();
+            final ServerCommunicationManager serverComms =
+                    (ServerCommunicationManager) getContext().getCommunicationManager();
+            serverComms.sendMessage(
+                    getPartner(),
+                    MessageType.WARNING,
+                    "本服务器启用了命名备货区（syncmatica_r " + serverVersion
+                            + "），你的客户端（" + partnerVersion
+                            + "）版本过旧，更新前备货区为只读。"
+                            + " | This server uses named stocking areas (syncmatica_r " + serverVersion
+                            + ") and your client (" + partnerVersion
+                            + ") is outdated: stocking areas are read-only until you update syncmatica_r."
             );
         }
     }
