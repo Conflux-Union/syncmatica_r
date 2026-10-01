@@ -81,20 +81,30 @@ Syncmatica Revolution 是一款面向 Litematica 多人协作建造的 Fabric �
 ### 备货区
 
 推荐方式为游戏内框选：使用 Litematica 的 area selection（原理图工具）框出容器区域，
-在放置的 **Materials** 界面点击 **用选区设为备货区**；**Material Overview** 提供同样的
-按钮，用于设置默认备货区。服务端校验区域后安排一次扫描。
+在放置的 **Materials** 界面点击 **用选区设为备货区**。首次点击会以放置名称创建备货区并
+绑定，之后的点击只更新其范围。**Material Overview** 提供同样的按钮，用于设置保留的默认
+备货区。服务端校验区域后安排一次扫描。
 
-亦可通过命令设置：
+亦可通过命令管理：
 
 ```text
-/syncmatica_r <名称> setStockingarea <x1> <y1> <z1> <x2> <y2> <z2>
-/syncmatica_r default setStockingarea <x1> <y1> <z1> <x2> <y2> <z2>
+/syncmatica_r stockingArea list
+/syncmatica_r stockingArea new <备货区名> <pos1> <pos2>
+/syncmatica_r stockingArea edit <备货区名> <pos1> <pos2>
+/syncmatica_r stockingArea delete <备货区名> [force]
+/syncmatica_r <名称> setStockingarea <备货区名>
+/syncmatica_r <名称> clearStockingarea
 ```
 
-专属备货区仅属于指定的原理图。默认备货区通过告示牌匹配：容器上告示牌的文字与某个共享
-原理图名称一致时，该容器的内容计入该原理图的库存。
+备货区以名称在服务端全局共享：多个放置可以引用同一个备货区；删除仍被引用的备货区需要
+`force`，此时相关放置会被解绑并回退到默认备货区。
 
-放置所有者可设置自己放置的备货区（服务端可通过配置禁用该授权）；默认备货区始终要求
+放置专属备货区仅作用于该放置。保留的默认备货区通过告示牌匹配：容器上告示牌的文字与某个
+共享原理图名称一致时，该容器的内容计入该原理图的库存。
+
+管理注册表（`list`/`new`/`edit`/`delete`）需要 `syncmatica_r.command`；编辑或删除备货区
+仅限其创建者或管理员。绑定（`setStockingarea`/`clearStockingarea`）在
+`allow_owner_stocking_area_management` 开启时允许放置所有者操作，关闭后则要求
 `syncmatica_r.manage`。
 
 ### 服务端文件与在线配置

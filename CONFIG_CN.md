@@ -92,7 +92,7 @@ Syncmatica_r 的全部运行配置保存在单个 `config.json` 文件中。启�
 | scan_interval | `200` | ≥ `20` 游戏刻 | 空闲时重扫默认备货区的间隔 |
 | scan_block_entities_per_tick | `2048` | `64`–`8,192` 个实体 | 备货区扫描的每刻共享预算：每取一个区块、每检查一个方块实体各消耗 1 点 |
 | include_container_contents | `false` | — | 是否统计原理图内箱子、潜影盒等容器的物品 |
-| allow_owner_stocking_area_management | `true` | — | 是否允许投影所有者通过命令或 GUI 设置自己投影的备货区；设为 `false` 后两条路径均要求 `syncmatica_r.manage` |
+| allow_owner_stocking_area_management | `true` | — | 是否允许投影所有者通过命令或 GUI 绑定（或清除）自己投影的备货区；设为 `false` 后绑定要求 `syncmatica_r.manage`。创建备货区始终需要备货区命令权限；编辑或删除备货区仅限其创建者或管理员 |
 | max_schematic_megabytes | `64` | `1`–`64` MB | 压缩传输大小与解压后 NBT 分配的上限 |
 | max_schematic_blocks | `8000000` | `1,000,000`–`64,000,000` | 解码后方块体积上限 |
 | max_stocking_area_blocks | `1000000` | `1,024`–`64,000,000` | 备货区允许的最大体积 |

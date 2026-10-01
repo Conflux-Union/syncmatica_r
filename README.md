@@ -100,23 +100,35 @@ the HUD and hotkeys. Single-player worlds store the server configuration in
 
 The recommended method is an in-world selection: frame the container region with
 Litematica's area selection (schematic tool), then press **Stocking Area from
-Selection** in the placement's **Materials** screen. **Material Overview** offers the
-same button for the default area. The server validates the region and schedules a
-scan.
+Selection** in the placement's **Materials** screen. The first press creates a named
+area for the placement and binds it; later presses move its corners. **Material
+Overview** offers the same button for the reserved default area. The server validates
+the region and schedules a scan.
 
 Alternatively, by command:
 
 ```text
-/syncmatica_r <name> setStockingarea <x1> <y1> <z1> <x2> <y2> <z2>
-/syncmatica_r default setStockingarea <x1> <y1> <z1> <x2> <y2> <z2>
+/syncmatica_r stockingArea list
+/syncmatica_r stockingArea new <area_name> <pos1> <pos2>
+/syncmatica_r stockingArea edit <area_name> <pos1> <pos2>
+/syncmatica_r stockingArea delete <area_name> [force]
+/syncmatica_r <name> setStockingarea <area_name>
+/syncmatica_r <name> clearStockingarea
 ```
 
-A schematic-specific area belongs to that schematic alone. The default area matches
-containers to schematics by signs: a sign on a container whose text equals a shared
-schematic's name makes that container count as stock for that schematic.
+Areas are named and shared server-wide: several placements can reference the same
+area, and deleting an area that is still referenced requires `force`, which unbinds
+those placements so they fall back to the default area.
 
-Placement owners may set their own placement's area (this can be disabled in the
-server configuration); the default area always requires `syncmatica_r.manage`.
+A placement-specific area applies to that placement alone. The reserved default area
+matches containers to schematics by signs: a sign on a container whose text equals a
+shared schematic's name makes that container count as stock for that schematic.
+
+Managing the registry (`list`/`new`/`edit`/`delete`) requires `syncmatica_r.command`;
+editing or deleting an area is limited to its creator or admins. Binding
+(`setStockingarea`/`clearStockingarea`) is allowed for the placement's owner unless
+`allow_owner_stocking_area_management` is disabled in the server configuration;
+otherwise it requires `syncmatica_r.manage`.
 
 ### Server files and live settings
 

@@ -100,7 +100,7 @@ loader recreates them if the game later runs as a server.
 | scan_interval | `200` | ≥ `20` ticks | How often the default stocking area is rescanned while idle. |
 | scan_block_entities_per_tick | `2048` | `64`–`8,192` entities | Shared per-tick budget for stocking area scans: each fetched chunk and each inspected block entity costs one unit. |
 | include_container_contents | `false` | — | Count the inventories of chests and shulkers inside the schematic. |
-| allow_owner_stocking_area_management | `true` | — | Let placement owners set their own placement's stocking area through commands or the GUI. When `false`, both paths require `syncmatica_r.manage`. |
+| allow_owner_stocking_area_management | `true` | — | Let placement owners bind (or clear) their own placement's stocking area through commands or the GUI. When `false`, binding requires `syncmatica_r.manage`. Area creation always needs the stocking-area command permission; editing or deleting an area is limited to its creator or admins. |
 | max_schematic_megabytes | `64` | `1`–`64` MB | Maximum compressed transfer size and decompressed NBT allocation. |
 | max_schematic_blocks | `8000000` | `1,000,000`–`64,000,000` | Maximum decoded schematic block volume. |
 | max_stocking_area_blocks | `1000000` | `1,024`–`64,000,000` | Maximum volume accepted for a stocking area. |
