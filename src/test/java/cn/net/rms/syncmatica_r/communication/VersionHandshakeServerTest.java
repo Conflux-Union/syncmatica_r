@@ -119,6 +119,36 @@ final class VersionHandshakeServerTest {
         }
     }
 
+    @Test
+    void warnsLegacyClientBilingually() {
+        final Context context = newServerContext();
+        try {
+            final CapturingTarget target = new CapturingTarget();
+            target.setProtocolFlavor(ProtocolFlavor.LEGACY);
+            final VersionHandshakeServer handshake = new VersionHandshakeServer(target, context);
+
+            handshake.handle(
+                    PacketType.REGISTER_VERSION.toIdentifier(ProtocolFlavor.LEGACY),
+                    stringBuf("0.3.6", ProtocolLimits.MAX_VERSION_LENGTH)
+            );
+            handshake.handle(
+                    PacketType.FEATURE.toIdentifier(ProtocolFlavor.LEGACY),
+                    stringBuf("CORE\nFEATURE\nMODIFY\nMESSAGE", ProtocolLimits.MAX_FEATURE_STRING_LENGTH)
+            );
+
+            final int messageIndex = target.ids.indexOf(PacketType.MESSAGE.toIdentifier(ProtocolFlavor.LEGACY));
+            assertTrue(messageIndex >= 0);
+            final PacketByteBuf payload =
+                    new PacketByteBuf(Unpooled.wrappedBuffer(target.payloads.get(messageIndex)));
+            assertEquals("WARNING", MessageCodec.readType(payload).toString());
+            final String text = MessageCodec.readIdentifier(payload);
+            assertTrue(text.contains("原版 Syncmatica"));
+            assertTrue(text.contains("Reforged"));
+        } finally {
+            context.shutdown();
+        }
+    }
+
     private Context newServerContext() {
         return new Context(
                 new FileStorage(),

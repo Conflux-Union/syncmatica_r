@@ -77,12 +77,16 @@ public class VersionHandshakeServer extends FeatureExchange {
         sendInitialState();
         succeed();
         if (getPartner().getProtocolFlavor() == ProtocolFlavor.LEGACY) {
+            // Literal bilingual text for the same reason as the pre-registry
+            // prompt below: an original Syncmatica client cannot resolve
+            // syncmatica_r translation keys.
             final ServerCommunicationManager serverComms =
                     (ServerCommunicationManager) getContext().getCommunicationManager();
             serverComms.sendMessage(
                     getPartner(),
                     MessageType.WARNING,
-                    "This server uses the Reforged version of Syncmatica (syncmatica_r) and you are using the original Syncmatica. There may be compatibility issues."
+                    "本服务器使用 Syncmatica 的 Reforged 版本（syncmatica_r），你正在使用原版 Syncmatica，可能存在兼容性问题。"
+                            + " | This server uses the Reforged version of Syncmatica (syncmatica_r) and you are using the original Syncmatica. There may be compatibility issues."
             );
         } else if (getContext().getFeatureSet().hasFeature(Feature.NAMED_STOCKING_AREAS)
                 && getPartner().getFeatureSet() != null
