@@ -28,9 +28,9 @@ import java.net.URI;
 public final class BreakingChangeNotice {
     // Last release that introduced breaking changes. Bump only when a new
     // breaking change lands, together with matching docs/BREAKING_CHANGES_<version>*.md files.
-    static final String BREAKING_CHANGE_VERSION = "0.4.0";
+    static final String BREAKING_CHANGE_VERSION = "0.5.0";
     private static final String DOCUMENTATION_BASE_URL =
-            "https://github.com/Conflux-Union/syncmatica_r/blob/for-rms/docs/BREAKING_CHANGES_";
+            "https://github.com/Conflux-Union/syncmatica_r/blob/main/docs/BREAKING_CHANGES_";
     private static final String DISMISS_COMMAND = "syncmatica_r_dismiss_breaking_notice";
     private static final ClientNoticePreferences PREFERENCES = new ClientNoticePreferences();
 
