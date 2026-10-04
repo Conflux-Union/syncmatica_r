@@ -1,5 +1,6 @@
 package cn.net.rms.syncmatica_r;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import cn.net.rms.syncmatica_r.communication.CommunicationManager;
@@ -57,6 +58,60 @@ final class SyncmaticManagerPersistenceTest {
             manager.tickServer();
 
             assertTrue(Files.isRegularFile(store.resolve(placement.getId() + ".placement.json")));
+        } finally {
+            context.shutdown();
+        }
+    }
+
+    @Test
+    void importsPlacementsFromUpstreamWorldLayout() throws IOException {
+        // Upstream syncmatica keeps server metadata inside the save. Pre-create
+        // the fork's own folder so the config-folder migration does not copy
+        // the whole legacy directory, isolating the world-layout probe.
+        Files.createDirectories(tempDir.resolve("syncmatica_r"));
+        final Path upstreamStore = tempDir.resolve("syncmatica").resolve("placements.json");
+        Files.createDirectories(upstreamStore.getParent());
+        final String placementId = "00000000-0000-0000-0000-0000000000aa";
+        Files.writeString(upstreamStore,
+                "{\"placements\":[{"
+                        + "\"id\":\"" + placementId + "\","
+                        + "\"file_name\":\"castle\",\"display_name\":\"Castle\","
+                        + "\"hash\":\"00000000-0000-0000-0000-00000000000b\","
+                        + "\"origin\":{\"position\":[12,64,-8],\"dimension\":\"minecraft:overworld\"},"
+                        + "\"rotation\":\"CLOCKWISE_90\",\"mirror\":\"LEFT_RIGHT\","
+                        + "\"owner\":{\"uuid\":\"00000000-0000-0000-0000-0000000000cc\",\"name\":\"alice\"}}]}",
+                StandardCharsets.UTF_8);
+
+        final SyncmaticManager manager = new SyncmaticManager();
+        final Context context = new Context(
+                new FileStorage(),
+                new StubCommunicationManager(),
+                manager,
+                true,
+                tempDir.resolve("litematics-upstream").toFile(),
+                true,
+                tempDir.toFile()
+        );
+        try {
+            manager.startup();
+
+            final ServerPlacement placement = manager.getPlacement(UUID.fromString(placementId));
+            assertTrue(placement != null, "upstream world-layout placements must be imported");
+            assertEquals("Castle", placement.getName());
+            assertEquals("minecraft:overworld", placement.getOrigin().getDimensionId());
+            assertEquals(BlockRotation.CLOCKWISE_90, placement.getRotation());
+            assertEquals(BlockMirror.LEFT_RIGHT, placement.getMirror());
+            assertEquals("alice", placement.getOwner().getName());
+
+            manager.saveServerState();
+            final Path storeFile = context.getConfigFolder().toPath()
+                    .resolve("placement_store")
+                    .resolve(placementId + ".placement.json");
+            assertTrue(Files.isRegularFile(storeFile), "imported placements must move into the placement store");
+
+            manager.startup();
+            assertEquals(1, manager.getAll().size(), "re-loading must not import the source again");
+            assertTrue(Files.isRegularFile(upstreamStore), "the upstream source file stays untouched");
         } finally {
             context.shutdown();
         }

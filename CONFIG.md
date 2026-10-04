@@ -16,6 +16,11 @@ commands.
 - **Legacy layout:** if `config/syncmatica_r` does not exist but the old
   `config/syncmatica` does, the legacy file is consumed once; afterwards only
   `syncmatica_r` is read
+- **Upstream migration:** when switching a server from another Syncmatica build
+  that keeps its metadata inside the save (`<world>/syncmatica/placements.json`),
+  the shared placements are imported automatically on the first start; keep the
+  server's `syncmatics/` folder in place so the schematic files resolve. Settings
+  are not migrated and start from defaults
 
 ## Changing settings live
 

@@ -13,6 +13,10 @@ Syncmatica_r 的全部运行配置保存在单个 `config.json` 文件中。启�
   规则
 - **旧版兼容：** 若 `config/syncmatica_r` 不存在而旧版 `config/syncmatica` 存在，将一次性
   迁移旧文件；此后仅读取 `syncmatica_r`
+- **上游迁移：** 服务器从将元数据保存在存档内的其他 Syncmatica 构建
+  （`<世界存档>/syncmatica/placements.json`）切换过来时，首次启动会自动导入全部共享
+  原理图；请保留服务器根目录的 `syncmatics/` 文件夹，否则原理图文件无法匹配。配置项
+  不做迁移，使用默认值
 
 ## 在线修改配置
 
