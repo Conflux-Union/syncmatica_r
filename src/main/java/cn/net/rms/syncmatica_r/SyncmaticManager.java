@@ -206,8 +206,8 @@ public class SyncmaticManager {
         if (loadFromPlacementStore()) {
             return;
         }
-        final File f = new File(context.getConfigFolder(), "placements.json");
-        if (f.exists() && f.isFile() && f.canRead()) {
+        final File f = resolveLegacyPlacementsFile();
+        if (f != null) {
             JsonElement element = null;
             try {
                 final JsonParser parser = new JsonParser();
@@ -265,7 +265,34 @@ public class SyncmaticManager {
             metaDirty = true;
             markDirty();
             migrateLegacyPlacementAreas();
+            LogManager.getLogger(SyncmaticManager.class).info(
+                    "Imported {} placement(s) from legacy store {}", schematics.size(), f.getAbsolutePath());
         }
+    }
+
+    /**
+     * Locates the pre-placement-store metadata file. The fork's own legacy
+     * layout wins. Otherwise the upstream world layout is imported: maintained
+     * syncmatica forks keep server metadata inside the save
+     * ({@code <world>/syncmatica/placements.json}) on dedicated servers, which
+     * the config-folder migration never copies. The upstream entry format is a
+     * subset of what {@link ServerPlacement#fromJson} accepts, so the file is
+     * parsed as-is and the source stays untouched for a one-way import.
+     */
+    private File resolveLegacyPlacementsFile() {
+        final File own = new File(context.getConfigFolder(), "placements.json");
+        if (own.isFile() && own.canRead()) {
+            return own;
+        }
+        if (context.getWorldFolder() == null) {
+            return null;
+        }
+        final File worldLayout = new File(
+                new File(context.getWorldFolder(), Syncmatica.LEGACY_MOD_ID), "placements.json");
+        if (worldLayout.isFile() && worldLayout.canRead()) {
+            return worldLayout;
+        }
+        return null;
     }
 
     private void loadStockingAreaStateFromMeta(final File folder) {
