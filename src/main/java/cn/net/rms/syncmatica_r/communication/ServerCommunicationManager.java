@@ -243,7 +243,7 @@ public class ServerCommunicationManager extends CommunicationManager {
         if (type == PacketType.MODIFY_REQUEST) {
             final UUID placementId = packetBuf.readUuid();
             final ServerPlacement placement = context.getSyncmaticManager().getPlacement(placementId);
-            if (placement == null || !canManage(source, placement)) {
+            if (placement == null || !canInitiateModification(source, placement)) {
                 sendMessage(source, MessageType.ERROR, "syncmatica_r.error.permission_denied");
                 denyModification(source, placementId);
                 return;
@@ -790,6 +790,14 @@ public class ServerCommunicationManager extends CommunicationManager {
                 PlacementAccessPolicy.MANAGE_PERMISSION_LEVEL
         );
         return PlacementAccessPolicy.canManage(playerId, placement.getOwner().uuid, elevated);
+    }
+
+    private boolean canInitiateModification(final ExchangeTarget source, final ServerPlacement placement) {
+        // the toggle opens the gate to joined players only, not profile-less connections
+        if (context.getPlacementAccessService().isAllowAnyoneToMove() && playerMap.containsKey(source)) {
+            return true;
+        }
+        return canManage(source, placement);
     }
 
     private boolean canManageStockingArea(final ExchangeTarget source,
