@@ -47,6 +47,7 @@ final class ServiceConfigRegistryTest {
             expected.put("build.scan_blocks_per_tick", 4096);
             expected.put("build.scan_interval", 1200);
             expected.put("build.full_rescan_interval", 36_000);
+            expected.put("placement.allow_anyone_to_move", false);
             expected.put("debug.doPackageLogging", false);
 
             final ConfigRegistry registry = context.getConfigRegistry();
@@ -59,7 +60,7 @@ final class ServiceConfigRegistryTest {
             }
 
             assertEquals(expected, actual);
-            assertEquals(16, actual.size());
+            assertEquals(17, actual.size());
             assertFalse(actual.containsKey("checkupdate"));
             assertFalse(actual.containsKey("check_pre_release"));
         } finally {
@@ -106,6 +107,7 @@ final class ServiceConfigRegistryTest {
             assertTrue(loaded.has("quota"));
             assertTrue(loaded.has("materials"));
             assertTrue(loaded.has("build"));
+            assertTrue(loaded.has("placement"));
             assertTrue(loaded.has("debug"));
             assertEquals(loaded, context.getConfigStore().snapshot());
         } finally {

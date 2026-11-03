@@ -64,6 +64,9 @@ preferences are not included.
     "scan_interval": 1200,
     "full_rescan_interval": 36000
   },
+  "placement": {
+    "allow_anyone_to_move": false
+  },
   "web": {
     "enabled": false,
     "bind_address": "127.0.0.1",
@@ -80,8 +83,8 @@ preferences are not included.
 ```
 
 Servers use every section; a client requires only `debug` and the two update flags at
-the root. Client installations may delete `quota`, `materials`, `build`, and `web`: the
-loader recreates them if the game later runs as a server.
+the root. Client installations may delete `quota`, `materials`, `build`, `placement`,
+and `web`: the loader recreates them if the game later runs as a server.
 
 ## `quota` — Upload Limit (Server)
 
@@ -165,6 +168,19 @@ section hides region claims from every client.
   disabled by default).
 - Changes to this section require a server restart.
 
+## `placement` — Placement Access (Server)
+
+| Key | Default | Range | Purpose |
+|-----|---------|-------|---------|
+| allow_anyone_to_move | `false` | `true` / `false` | Let every joined player start a modification session on any placement — move, rotate, mirror, rename — instead of only the owner and players with `syncmatica_r.manage`. Deletion is not affected. |
+
+- A modification session covers everything the in-game placement screen can change:
+  position, rotation, mirror, display name, and sub-region edits.
+- Keep `false` unless free-for-all editing is intended; the only per-player trace is
+  the placement's last-modified-by metadata.
+- The toggle relaxes the check for joined players only; connections without a player
+  profile are still denied.
+
 ## `web` — Optional Web Interface (Server)
 
 The web service is disabled by default. Restart the server after changing this
@@ -239,6 +255,8 @@ apply only on the client.
 - `syncmatica_r.manage`: modify or delete placements owned by another player, manage any
   placement's stocking area, and manage the default stocking area. Permission level 2.
 - Placement owners can always modify or delete their own placements.
+- The `placement.allow_anyone_to_move` option additionally lets every joined player
+  modify (but not delete) any placement.
 
 ## Troubleshooting
 

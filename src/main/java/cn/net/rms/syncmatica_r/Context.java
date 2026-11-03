@@ -32,6 +32,7 @@ public class Context {
     private final PlayerIdentifierProvider playerIdentifierProvider;
     private final MaterialService materialService;
     private final BuildService buildService;
+    private final PlacementAccessService placementAccessService;
     private final WebService webService;
     private MinecraftServer minecraftServer;
     private ConfigRegistry configRegistry;
@@ -42,6 +43,7 @@ public class Context {
     private boolean quotaStarted;
     private boolean materialStarted;
     private boolean buildStarted;
+    private boolean placementAccessStarted;
     private boolean debugStarted;
     private boolean managerStarted;
     private boolean webStarted;
@@ -78,12 +80,15 @@ public class Context {
             materialService.setContext(this);
             buildService = new BuildService();
             buildService.setContext(this);
+            placementAccessService = new PlacementAccessService();
+            placementAccessService.setContext(this);
             webService = new WebService();
             webService.setContext(this);
         } else {
             quota = null;
             materialService = null;
             buildService = null;
+            placementAccessService = null;
             webService = null;
         }
         playerIdentifierProvider = new PlayerIdentifierProvider(this);
@@ -123,6 +128,10 @@ public class Context {
 
     public BuildService getBuildService() {
         return buildService;
+    }
+
+    public PlacementAccessService getPlacementAccessService() {
+        return placementAccessService;
     }
 
     public WebService getWebService() {
@@ -234,6 +243,10 @@ public class Context {
                 buildService.startup();
                 buildStarted = true;
             }
+            if (placementAccessService != null) {
+                placementAccessService.startup();
+                placementAccessStarted = true;
+            }
             debugService.startup();
             debugStarted = true;
             synMan.startup();
@@ -326,6 +339,9 @@ public class Context {
             if (buildService != null) {
                 needsRewrite |= loadConfigurationForService(buildService, configuration, attemptToLoad);
             }
+            if (placementAccessService != null) {
+                needsRewrite |= loadConfigurationForService(placementAccessService, configuration, attemptToLoad);
+            }
             if (webService != null) {
                 needsRewrite |= loadConfigurationForService(webService, configuration, attemptToLoad);
             }
@@ -337,6 +353,7 @@ public class Context {
             quota.registerConfigOptions(configRegistry);
             materialService.registerConfigOptions(configRegistry);
             buildService.registerConfigOptions(configRegistry);
+            placementAccessService.registerConfigOptions(configRegistry);
             debugService.registerConfigOptions(configRegistry);
             configStore = new ConfigStore(getConfigFile().toPath(), configuration, configRegistry);
         } else {
@@ -476,6 +493,10 @@ public class Context {
         if (buildStarted) {
             stop(buildService::shutdown, startupFailure);
             buildStarted = false;
+        }
+        if (placementAccessStarted) {
+            stop(placementAccessService::shutdown, startupFailure);
+            placementAccessStarted = false;
         }
         if (materialStarted) {
             stop(materialService::shutdown, startupFailure);
