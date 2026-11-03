@@ -58,6 +58,9 @@ Syncmatica_r 的全部运行配置保存在单个 `config.json` 文件中。启�
     "scan_interval": 1200,
     "full_rescan_interval": 36000
   },
+  "placement": {
+    "allow_anyone_to_move": false
+  },
   "web": {
     "enabled": false,
     "bind_address": "127.0.0.1",
@@ -74,7 +77,7 @@ Syncmatica_r 的全部运行配置保存在单个 `config.json` 文件中。启�
 ```
 
 服务器使用全部模块；客户端仅需 `debug` 与根级的两个更新开关。客户端可删除 `quota`、
-`materials`、`build` 与 `web` 模块，日后运行服务器时加载器会自动重建。
+`materials`、`build`、`placement` 与 `web` 模块，日后运行服务器时加载器会自动重建。
 
 ## `quota` — 上传流量控制（服务器）
 
@@ -145,6 +148,16 @@ Syncmatica_r 的全部运行配置保存在单个 `config.json` 文件中。启�
   与 Litematica 子区域可见性跟随认领（`General.followClaims`，默认关闭）。
 - 修改本模块后需重启服务器方可生效。
 
+## `placement` — 投影访问（服务器）
+
+| 配置项 | 默认值 | 取值范围 | 作用 |
+|--------|--------|----------|------|
+| allow_anyone_to_move | `false` | `true` / `false` | 允许所有已进入服务器的玩家对任意投影发起修改会话——移动、旋转、镜像、改名——不再限于所有者与持有 `syncmatica_r.manage` 的玩家。不影响删除权限 |
+
+- 修改会话涵盖游戏内投影配置界面能改的一切：位置、旋转、镜像、显示名与子区域调整
+- 若非有意开放全员编辑，请保持 `false`；按玩家维度的记录只有投影的最后修改者元数据
+- 该开关仅对已进入服务器的玩家放宽限制；没有玩家档案的连接仍会被拒绝
+
 ## `web` — 可选网页界面（服务器）
 
 网页服务默认关闭。修改本模块后请重启服务器。
@@ -211,6 +224,8 @@ Syncmatica_r 的全部运行配置保存在单个 `config.json` 文件中。启�
 - `syncmatica_r.manage`：修改或删除其他玩家的放置、管理任意投影的备货区及默认备货区；
   默认回退至权限等级 2。
 - 放置所有者始终可以修改或删除自己的放置。
+- `placement.allow_anyone_to_move` 开启后，所有已进入服务器的玩家还可修改（但不能删除）
+  任意放置。
 
 ## 常见问题
 
