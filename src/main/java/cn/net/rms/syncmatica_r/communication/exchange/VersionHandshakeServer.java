@@ -132,5 +132,11 @@ public class VersionHandshakeServer extends FeatureExchange {
         newBuf.writeString(Syncmatica.getVersion(), ProtocolLimits.MAX_VERSION_LENGTH);
         // Initial handshake always uses legacy Syncmatica channel for compatibility.
         getPartner().sendPacket(PacketType.REGISTER_VERSION.toIdentifier(ProtocolFlavor.LEGACY), newBuf, getContext());
+//#if MC >= 12005
+//$$         // Upstream clients only hear syncmatica:main; pre-0.5.5 clients only
+//$$         // hear syncmatica_r:payload. A 0.5.5 client receiving both copies
+//$$         // answers twice and the duplicate reply is dropped post-handshake.
+//$$         getPartner().sendPacketOnOwnTransport(PacketType.REGISTER_VERSION.toIdentifier(ProtocolFlavor.LEGACY), newBuf, getContext());
+//#endif
     }
 }

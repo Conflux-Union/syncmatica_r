@@ -52,9 +52,6 @@ public enum PacketType {
 
     STOCKING_AREA_MANAGE("stocking_area_manage");
 
-    private static final String NEW_NAMESPACE = "syncmatica_r";
-    private static final String LEGACY_NAMESPACE = "syncmatica";
-
     private final String path;
 
     PacketType(final String path) {
@@ -63,8 +60,8 @@ public enum PacketType {
 
     public Identifier toIdentifier(final ProtocolFlavor flavor) {
         final String namespace = flavor == ProtocolFlavor.LEGACY
-                ? LEGACY_NAMESPACE
-                : NEW_NAMESPACE;
+                ? ProtocolFlavor.LEGACY_NAMESPACE
+                : ProtocolFlavor.NEW_NAMESPACE;
 //#if MC >= 12005
 //$$         return Identifier.of(namespace, path);
 //#else
@@ -82,7 +79,8 @@ public enum PacketType {
 
     public static PacketType fromIdentifier(final Identifier id) {
         final String namespace = id.getNamespace();
-        if (!NEW_NAMESPACE.equals(namespace) && !LEGACY_NAMESPACE.equals(namespace)) {
+        if (!ProtocolFlavor.NEW_NAMESPACE.equals(namespace)
+                && !ProtocolFlavor.LEGACY_NAMESPACE.equals(namespace)) {
             return null;
         }
         final String path = id.getPath();
