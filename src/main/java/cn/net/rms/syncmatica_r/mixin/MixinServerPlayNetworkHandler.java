@@ -5,6 +5,7 @@ import cn.net.rms.syncmatica_r.Syncmatica;
 import cn.net.rms.syncmatica_r.communication.ExchangeTarget;
 import cn.net.rms.syncmatica_r.communication.ServerCommunicationManager;
 //#if MC >= 12005
+//$$ import cn.net.rms.syncmatica_r.communication.LegacySyncmaticaPayload;
 //$$ import cn.net.rms.syncmatica_r.communication.SyncmaticaPayload;
 //$$ import net.minecraft.network.packet.c2s.common.CustomPayloadC2SPacket;
 //#else
@@ -68,6 +69,8 @@ public abstract class MixinServerPlayNetworkHandler {
 //$$         NetworkThreadUtils.forceMainThread(packet, (ServerPlayNetworkHandler) (Object) this, player.getServerWorld());
 //$$         if (packet.payload() instanceof SyncmaticaPayload syncPayload) {
 //$$             operateComms(sm -> sm.onPacket(getExchangeTarget(), syncPayload.id(), syncPayload.asPacketByteBuf()));
+//$$         } else if (packet.payload() instanceof LegacySyncmaticaPayload legacyPayload) {
+//$$             operateComms(sm -> sm.onPacket(getExchangeTarget(), legacyPayload.id(), legacyPayload.asPacketByteBuf()));
 //$$         }
 //#else
         NetworkThreadUtils.forceMainThread(packet, (ServerPlayNetworkHandler) (Object) this, player.getServerWorld());

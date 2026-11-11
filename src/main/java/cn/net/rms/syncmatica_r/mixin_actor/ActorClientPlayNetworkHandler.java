@@ -14,6 +14,8 @@ import cn.net.rms.syncmatica_r.litematica.ScreenHelper;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.network.PacketByteBuf;
 //#if MC >= 12005
+//$$ import cn.net.rms.syncmatica_r.communication.LegacySyncmaticaPayload;
+//$$ import cn.net.rms.syncmatica_r.communication.ProtocolFlavor;
 //$$ import cn.net.rms.syncmatica_r.communication.SyncmaticaPayload;
 //#endif
 //#if MC >= 12101
@@ -76,17 +78,35 @@ public class ActorClientPlayNetworkHandler {
 //#endif
             final CallbackInfo ci) {
 //#if MC >= 12101
-//$$         if (!(packet instanceof SyncmaticaPayload payload)) {
+//$$         final Identifier id;
+//$$         final PacketByteBuf buf;
+//$$         final boolean ownTransport;
+//$$         if (packet instanceof SyncmaticaPayload payload) {
+//$$             id = payload.id();
+//$$             buf = payload.asPacketByteBuf();
+//$$             ownTransport = true;
+//$$         } else if (packet instanceof LegacySyncmaticaPayload payload) {
+//$$             id = payload.id();
+//$$             buf = payload.asPacketByteBuf();
+//$$             ownTransport = false;
+//$$         } else {
 //$$             return;
 //$$         }
-//$$         final Identifier id = payload.id();
-//$$         final PacketByteBuf buf = payload.asPacketByteBuf();
 //#elseif MC >= 12005
-//$$         if (!(packet.payload() instanceof SyncmaticaPayload payload)) {
+//$$         final Identifier id;
+//$$         final PacketByteBuf buf;
+//$$         final boolean ownTransport;
+//$$         if (packet.payload() instanceof SyncmaticaPayload payload) {
+//$$             id = payload.id();
+//$$             buf = payload.asPacketByteBuf();
+//$$             ownTransport = true;
+//$$         } else if (packet.payload() instanceof LegacySyncmaticaPayload payload) {
+//$$             id = payload.id();
+//$$             buf = payload.asPacketByteBuf();
+//$$             ownTransport = false;
+//$$         } else {
 //$$             return;
 //$$         }
-//$$         final Identifier id = payload.id();
-//$$         final PacketByteBuf buf = payload.asPacketByteBuf();
 //#else
         final Identifier id = packet.getChannel();
         final PacketByteBuf buf = packet.getData();
@@ -95,6 +115,12 @@ public class ActorClientPlayNetworkHandler {
 
             ActorClientPlayNetworkHandler.getInstance().startEvent(clientPlayNetworkHandler);
         }
+//#if MC >= 12005
+//$$         // Only our own server sends on syncmatica_r:payload (upstream always
+//$$         // syncmatica:main); locking flavor to the observed transport keeps
+//$$         // replies receivable by a pre-0.5.5 server.
+//$$         exTarget.setProtocolFlavor(ownTransport ? ProtocolFlavor.NEW : ProtocolFlavor.LEGACY);
+//#endif
         if (packetEvent(id, buf)) {
 
             ci.cancel();

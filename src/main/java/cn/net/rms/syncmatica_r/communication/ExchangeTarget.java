@@ -7,6 +7,7 @@ import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.network.PacketByteBuf;
 //#if MC >= 12005
 //$$ import cn.net.rms.syncmatica_r.communication.SyncmaticaPayload;
+//$$ import net.minecraft.network.packet.CustomPayload;
 //$$ import net.minecraft.network.packet.c2s.common.CustomPayloadC2SPacket;
 //$$ import net.minecraft.network.packet.s2c.common.CustomPayloadS2CPacket;
 //#else
@@ -51,25 +52,16 @@ public class ExchangeTarget {
             LOGGER.warn("Refusing to send oversized Syncmatica_r packet {} to {}", id, persistentName);
             return;
         }
+//#if MC >= 12005
+//$$         dispatch(toTransportPayload(id, packetBuf));
+//#else
         try {
             if (server == null) {
-//#if MC >= 12005
-//$$                 final SyncmaticaPayload payload = new SyncmaticaPayload(id, packetBuf);
-//$$                 final CustomPayloadS2CPacket packet = new CustomPayloadS2CPacket(payload);
-//$$                 client.sendPacket(packet);
-//#else
                 final CustomPayloadS2CPacket packet = new CustomPayloadS2CPacket(id, packetBuf);
                 client.sendPacket(packet);
-//#endif
             } else {
-//#if MC >= 12005
-//$$                 final SyncmaticaPayload payload = new SyncmaticaPayload(id, packetBuf);
-//$$                 final CustomPayloadC2SPacket packet = new CustomPayloadC2SPacket(payload);
-//$$                 server.sendPacket(packet);
-//#else
                 final CustomPayloadC2SPacket packet = new CustomPayloadC2SPacket(id, packetBuf);
                 server.sendPacket(packet);
-//#endif
             }
         } catch (final Exception e) {
             // Silently ignore packet send failures for fake players/NPCs
@@ -77,7 +69,45 @@ public class ExchangeTarget {
             // that don't have proper network connections
             LOGGER.debug("Failed to send packet to {}: {}", persistentName, e.getMessage());
         }
+//#endif
     }
+
+//#if MC >= 12005
+//$$     /** Legacy-addressed packet forced onto syncmatica_r:payload: pre-0.5.5 clients only listen there. */
+//$$     public void sendPacketOnOwnTransport(final Identifier id, final PacketByteBuf packetBuf, final Context context) {
+//$$         context.getDebugService().logSendPacket(id, persistentName);
+//$$         if (packetBuf == null || packetBuf.readableBytes() > ProtocolLimits.MAX_PACKET_BYTES) {
+//$$             LOGGER.warn("Refusing to send oversized Syncmatica_r packet {} to {}", id, persistentName);
+//$$             return;
+//$$         }
+//$$         dispatch(new SyncmaticaPayload(id, packetBuf));
+//$$     }
+
+//$$     private void dispatch(final CustomPayload payload) {
+//$$         try {
+//$$             if (server == null) {
+//$$                 client.sendPacket(new CustomPayloadS2CPacket(payload));
+//$$             } else {
+//$$                 server.sendPacket(new CustomPayloadC2SPacket(payload));
+//$$             }
+//$$         } catch (final Exception e) {
+//$$             // Silently ignore packet send failures for fake players/NPCs
+//$$             // This prevents crashes when mods like DonateMenu spawn fake players
+//$$             // that don't have proper network connections
+//$$             LOGGER.debug("Failed to send packet to {}: {}", persistentName, e.getMessage());
+//$$         }
+//$$     }
+
+//$$     // Inner namespace picks the transport: legacy ids ride syncmatica:main
+//$$     // for upstream peers; ours stay on syncmatica_r:payload, which upstream
+//$$     // drops unopened instead of crashing on an untypeable inner id.
+//$$     private static CustomPayload toTransportPayload(final Identifier id, final PacketByteBuf packetBuf) {
+//$$         if (ProtocolFlavor.fromNamespace(id.getNamespace()) == ProtocolFlavor.LEGACY) {
+//$$             return new LegacySyncmaticaPayload(id, packetBuf);
+//$$         }
+//$$         return new SyncmaticaPayload(id, packetBuf);
+//$$     }
+//#endif
 
     public FeatureSet getFeatureSet() {
         return features;
