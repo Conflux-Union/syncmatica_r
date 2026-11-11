@@ -69,6 +69,15 @@ Syncmatica Revolution 是一款面向 Litematica 多人协作建造的 Fabric �
 `<世界存档>/syncmatica_r/config.json`。全部配置项见 [CONFIG_CN.md](CONFIG_CN.md)，大多数
 服务端设置亦可通过 `/syncmatica_r config` 在线修改，无需重启。
 
+### 与原版 Syncmatica 的兼容
+
+syncmatica_r 客户端可以加入运行原版 Syncmatica 的服务器，覆盖全部受支持的
+Minecraft 版本，包括 1.20.6+ 经 `syncmatica:main` 通道通信的维护版构建。在原版服
+务器上核心共享功能可用：浏览、下载、加载、上传、移动与子区域修改；原版服务器
+不存在的功能（材料追踪、备货区、建筑分区、网页界面）会自动隐藏。反方向同样可
+用：原版 Syncmatica 客户端加入 syncmatica_r 服务器时会收到升级提示。请勿在同一
+端同时安装两个模组——二者会注册重叠的网络通道。
+
 ## 使用方法
 
 ### 共享原理图

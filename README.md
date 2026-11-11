@@ -86,6 +86,18 @@ the HUD and hotkeys. Single-player worlds store the server configuration in
 [CONFIG.md](CONFIG.md); most server settings can also be changed live with
 `/syncmatica_r config` without a restart.
 
+### Compatibility with original Syncmatica
+
+A syncmatica_r client can join a server running the original Syncmatica mod on any
+supported Minecraft version, including the maintained 1.20.6+ builds that exchange
+packets on the `syncmatica:main` channel. Core sharing features work there: browsing,
+downloading, loading, uploading, moving and sub-region modification. Features the
+upstream server does not have (material tracking, stocking areas, build regions, the
+web interface) hide themselves automatically. The reverse direction also works: an
+original Syncmatica client joining a syncmatica_r server receives an upgrade notice.
+Do not install both mods on the same side — they register overlapping network
+channels.
+
 ## Usage
 
 ### Sharing schematics
