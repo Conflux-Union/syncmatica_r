@@ -68,5 +68,12 @@ final class LiveFeatureReloadTest {
         public void sendPacket(final Identifier id, final PacketByteBuf packetBuf, final Context context) {
             ids.add(id);
         }
+
+//#if MC >= 12005
+//$$         @Override
+//$$         public void sendPacketOnOwnTransport(final Identifier id, final PacketByteBuf packetBuf, final Context context) {
+//$$             ids.add(id);
+//$$         }
+//#endif
     }
 }
