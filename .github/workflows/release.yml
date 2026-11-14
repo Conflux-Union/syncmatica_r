@@ -39,7 +39,7 @@ jobs:
           echo "tag=$TAG" >> $GITHUB_OUTPUT
   Generate-Changelog:
     needs: Get-Versions
-    uses: Conflux-Union/.github/.github/workflows/changelog.yml@v2
+    uses: Conflux-Union/.github/.github/workflows/changelog.yml@v4
     with:
       tag: ${{ needs.Get-Versions.outputs.tag }}
       exclude: |
